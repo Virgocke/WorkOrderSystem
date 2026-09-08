@@ -1,4 +1,4 @@
-package com.WorkOrder.entity;
+package com.WorkOrder.user.model;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -19,7 +19,6 @@ public class Users {
     private Long id;
     private String username;
     private String password;
-    private String realName;
     private String email;
     private String phone;
     private Long departmentId; // 部门ID
