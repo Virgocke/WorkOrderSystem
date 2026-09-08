@@ -1,0 +1,15 @@
+server:
+  port: 63071
+
+spring:
+  application:
+    name: authentication-service
+
+security:
+  oauth2:
+    jwt:
+      # 本地联调默认值；生产必须通过环境变量设置高强度密钥，且不得提交真实密钥。
+      signing-key: ${OAUTH_JWT_SIGNING_KEY:local-development-signing-key-change-before-production}
+    client:
+      id: ${OAUTH_CLIENT_ID:work-order-web}
+      secret: ${OAUTH_CLIENT_SECRET:change-me-client-secret}
