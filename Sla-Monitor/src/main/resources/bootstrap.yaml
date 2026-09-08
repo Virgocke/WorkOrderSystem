@@ -1,0 +1,8 @@
+server:
+  address: 63050
+
+spring:
+  application:
+    name: Sla-Monitor
+  jackson:
+    time-zone: GMT+8

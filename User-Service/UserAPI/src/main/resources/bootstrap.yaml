@@ -1,0 +1,14 @@
+server:
+  port: 63070
+
+spring:
+  application:
+    name: user-service
+  jackson:
+    time-zone: GMT+8
+
+security:
+  oauth2:
+    jwt:
+      # 本地联调必须与认证服务保持一致；生产环境请使用环境变量注入公钥或验签密钥。
+      signing-key: ${OAUTH_JWT_SIGNING_KEY:local-development-signing-key-change-before-production}
