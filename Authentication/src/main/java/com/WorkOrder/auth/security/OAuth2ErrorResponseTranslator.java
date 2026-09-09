@@ -24,16 +24,19 @@ public class OAuth2ErrorResponseTranslator implements WebResponseExceptionTransl
     public ResponseEntity<OAuth2Exception> translate(Exception exception) throws Exception {
         ResponseEntity<OAuth2Exception> response = delegate.translate(exception);
         OAuth2Exception body = response.getBody();
+
         if (body == null || !OAuth2Exception.INVALID_GRANT.equals(body.getOAuth2ErrorCode())) {
             return response;
         }
 
         String originalMessage = body.getMessage() == null ? "" : body.getMessage();
         String normalizedMessage = originalMessage.toLowerCase(Locale.ROOT);
+
         String message = normalizedMessage.contains("disabled") || originalMessage.contains("禁用")
                 ? SystemExceptionEnum.ACCOUNT_DISABLED.getErrMessage()
                 : SystemExceptionEnum.INVALID_CREDENTIALS.getErrMessage();
         InvalidGrantException translated = new InvalidGrantException(message);
+
         return new ResponseEntity<>(translated, response.getHeaders(), response.getStatusCode());
     }
 }

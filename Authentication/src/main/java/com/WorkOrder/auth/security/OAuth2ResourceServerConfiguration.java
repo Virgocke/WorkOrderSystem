@@ -7,7 +7,7 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.R
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 
-/** 让认证服务自身也以资源服务器方式校验 /api 下的 Bearer JWT。 */
+/** 让认证服务自身也以资源服务器方式校验网关转发后的认证资源请求。 */
 @Configuration
 @EnableResourceServer
 @SuppressWarnings("deprecation")
@@ -43,7 +43,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
     public void configure(HttpSecurity http) throws Exception {
         http
                 .requestMatchers()
-                .antMatchers("/api/**")
+                .antMatchers("/auth/**")
                 .and()
                 .authorizeRequests()
                 .anyRequest()

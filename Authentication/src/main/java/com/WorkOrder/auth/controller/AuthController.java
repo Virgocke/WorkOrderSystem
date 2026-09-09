@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** OAuth2 认证后的用户上下文接口。令牌签发由 /oauth/token 标准端点负责。 */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 public class AuthController {
     private final AuthenticationService authenticationService;
 

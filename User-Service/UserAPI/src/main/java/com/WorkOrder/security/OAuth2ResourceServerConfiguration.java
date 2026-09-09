@@ -59,7 +59,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
      */
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        http.requestMatchers().antMatchers("/api/users/**")
+        http.requestMatchers().antMatchers("/users/**")
                 .and().authorizeRequests().anyRequest().authenticated();
     }
 }

@@ -116,7 +116,7 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
     }
 
     /**
-     * 绑定 OAuth2 标准端点、密码认证、JWT 转换器和刷新令牌能力。
+     * 绑定 OAuth2 标准端点、密码认证、JWT 转换器和刷新令牌能力、统一 OAuth2 登录失败提示。
      *
      * @param endpoints OAuth2 端点配置器
      * @throws Exception 配置端点失败时抛出

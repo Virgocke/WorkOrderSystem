@@ -20,7 +20,7 @@ import java.util.List;
 /** 用户、处理人及其派单基础资料接口。 */
 @Validated
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 public class UserController {
     private final UserDirectoryService userDirectoryService;
 

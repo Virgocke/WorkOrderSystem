@@ -1,6 +1,7 @@
 package com.WorkOrder.auth.service.impl;
 
 import com.WorkOrder.auth.mapper.LoginMapper;
+import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.user.model.Users;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -39,11 +40,12 @@ public class LoginUserDetailsService implements UserDetailsService {
         Users account = loginMapper.findByUsername(username);
         if (account == null) {
             // 不暴露账号是否存在，最终统一转换成“用户名或密码错误”。
-            throw new UsernameNotFoundException("用户名或密码错误");
+            throw new UsernameNotFoundException(SystemExceptionEnum.INVALID_CREDENTIALS.getErrMessage());
         }
 
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + roleCode(account.getRole())));
+
         List<String> permissions = loginMapper.findPermissionCodes(account.getId(), account.getRole());
         for (String permission : permissions == null ? Collections.<String>emptyList() : permissions) {
             authorities.add(new SimpleGrantedAuthority(permission));

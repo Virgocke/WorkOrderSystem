@@ -38,7 +38,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public AuthenticatedUser toCurrentUser(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new InsufficientAuthenticationException("请先登录");
+            throw new InsufficientAuthenticationException(SystemExceptionEnum.ACCOUNT_OFFLINE.getErrMessage());
         }
 
         AuthenticatedUser user = loginMapper.findProfileByUsername(authentication.getName());
