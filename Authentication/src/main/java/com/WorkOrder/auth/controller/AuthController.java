@@ -3,7 +3,6 @@ package com.WorkOrder.auth.controller;
 import com.WorkOrder.auth.model.AuthenticatedUser;
 import com.WorkOrder.auth.service.AuthenticationService;
 import com.WorkOrder.model.Result;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,9 +13,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    private final AuthenticationService authenticationService;
 
-    @Autowired
-    private AuthenticationService authenticationService;
+    /**
+     * 创建认证用户上下文控制器。
+     *
+     * @param authenticationService 认证用户资料服务
+     */
+    public AuthController(AuthenticationService authenticationService) {
+        this.authenticationService = authenticationService;
+    }
+
     /**
      * 从已校验的 OAuth2 JWT 中返回当前用户及角色。
      *
@@ -27,7 +34,4 @@ public class AuthController {
     public Result<AuthenticatedUser> currentUser(Authentication authentication) {
         return Result.success(authenticationService.toCurrentUser(authentication));
     }
-
-
 }
-

@@ -8,6 +8,9 @@ import javax.validation.constraints.NotNull;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/**
+ * 更新处理人资料请求
+ */
 @Data
 public class UpdateHandlerProfileRequest {
     @NotNull(message = "最大容量不能为空")

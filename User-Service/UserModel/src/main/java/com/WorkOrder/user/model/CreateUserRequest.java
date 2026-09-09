@@ -8,6 +8,9 @@ import javax.validation.constraints.Size;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/**
+ * 创建用户请求
+ */
 @Data
 public class CreateUserRequest {
     @NotBlank(message = "用户名不能为空")

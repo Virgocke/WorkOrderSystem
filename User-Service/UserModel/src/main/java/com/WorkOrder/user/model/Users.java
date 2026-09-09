@@ -19,6 +19,7 @@ public class Users {
     private Long id;
     private String username;
     private String password;
+    private String realname;
     private String email;
     private String phone;
     private Long departmentId; // 部门ID

@@ -7,7 +7,9 @@ import com.WorkOrder.user.model.UserProfile;
 import java.util.List;
 
 /**
- * 用户目录边界。当前实现可替换为 MyBatis 数据库实现，不影响接口层。
+ * @author Virgor
+ * @date 2026年09月09日 23:25
+ * @description 用户目录边界。当前实现可替换为 MyBatis 数据库实现，不影响接口层
  */
 public interface UserDirectoryService {
     /**

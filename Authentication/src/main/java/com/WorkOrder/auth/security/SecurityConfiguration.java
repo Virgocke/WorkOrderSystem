@@ -7,7 +7,6 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,6 +16,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @EnableWebSecurity
 @SuppressWarnings("deprecation")
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+    private final UserDetailsService userDetailsService;
+
+    /**
+     * 创建 Web 安全配置并注入数据库用户查询服务。
+     *
+     * @param userDetailsService 数据库用户查询服务
+     */
+    public SecurityConfiguration(UserDetailsService userDetailsService) {
+        this.userDetailsService = userDetailsService;
+    }
+
     /**
      * 提供 BCrypt 密码编码器，数据库接入时保存的密码也必须使用该编码器加密。
      *
@@ -28,25 +38,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     }
 
     /**
-     * 提供本地联调账户；生产环境应改为从 User-Service 查询用户和密码散列。
-     *
-     * @param passwordEncoder 密码编码器
-     * @return Spring Security 用户查询服务
-     */
-    @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        return username -> {
-            if (!"admin".equals(username)) {
-                throw new org.springframework.security.core.userdetails.UsernameNotFoundException("用户不存在");
-            }
-            return User.withUsername("admin")
-                    .password(passwordEncoder.encode("change-me"))
-                    .roles("ADMIN")
-                    .build();
-        };
-    }
-
-    /**
      * 将用户查询服务和密码编码器绑定到 OAuth2 的密码授权流程。
      *
      * @param auth Spring Security 认证管理器构建器
@@ -54,7 +45,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
      */
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.userDetailsService(userDetailsService(passwordEncoder())).passwordEncoder(passwordEncoder());
+        auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
     }
 
     /**

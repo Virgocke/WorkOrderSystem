@@ -11,6 +11,10 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.A
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
+import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
+import org.springframework.security.oauth2.provider.error.WebResponseExceptionTranslator;
+import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
+import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
@@ -50,6 +54,23 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
     }
 
     /**
+     * 创建令牌服务，并设置令牌服务参数。
+     * @return 令牌服务
+     */
+    @Bean(name = "authorizationServerTokenServices")
+    public AuthorizationServerTokenServices tokenServices(){
+        DefaultTokenServices services = new DefaultTokenServices();
+        services.setSupportRefreshToken(true);
+        services.setReuseRefreshToken(false);
+        services.setTokenStore(tokenStore());
+        services.setTokenEnhancer(jwtAccessTokenConverter());
+        services.setAccessTokenValiditySeconds(30 * 60);
+        services.setRefreshTokenValiditySeconds(7 * 24 * 60 * 60);
+        return services;
+    }
+
+
+    /**
      * 创建 JWT 转换器，并使用配置的签名密钥对访问令牌签名。
      *
      * @return JWT 转换器
@@ -69,6 +90,12 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
     @Bean
     public TokenStore tokenStore() {
         return new JwtTokenStore(jwtAccessTokenConverter());
+    }
+
+    /** 统一 OAuth2 登录失败提示，避免泄露账号是否存在。 */
+    @Bean
+    public WebResponseExceptionTranslator<OAuth2Exception> oauth2ExceptionTranslator() {
+        return new OAuth2ErrorResponseTranslator();
     }
 
     /**
@@ -98,9 +125,8 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
     public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
         endpoints.authenticationManager(authenticationManager)
                 .userDetailsService(userDetailsService)
-                .tokenStore(tokenStore())
-                .accessTokenConverter(jwtAccessTokenConverter())
-                .tokenEnhancer(jwtAccessTokenConverter());
+                .tokenServices(tokenServices())
+                .exceptionTranslator(oauth2ExceptionTranslator());
     }
 
     /**

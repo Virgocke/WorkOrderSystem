@@ -1,5 +1,5 @@
 server:
-  address: 63010
+  port: 63010
 
 spring:
   application:
@@ -8,8 +8,14 @@ spring:
     time-zone: GMT+8
 
   cloud:
+    gateway:
+      routes:
+        - id: authentication-service
+          uri: lb://authentication-service
+          predicates:
+            - Path=/api/auth/**
     nacos:
       server-addr: localhost:8848
       discovery:
         namespace: dev
-        group: Spring-WorkOrder
+        group: WorkOrder-project

@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -12,8 +13,15 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthenticatedUser {
-    private Long userId;
+    private Long id;
     private String username;
     private String realName;
-    private Set<String> roles = new LinkedHashSet<>();
+    private String email;
+    private String phone;
+    private Long departmentId;
+    private String departmentName;
+    private int role;
+    private int status;
+    private LocalDateTime createdAt;
+    private Set<String> permissions = new LinkedHashSet<>();
 }
