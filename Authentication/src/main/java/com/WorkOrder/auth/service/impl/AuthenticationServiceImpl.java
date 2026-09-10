@@ -1,6 +1,6 @@
 package com.WorkOrder.auth.service.impl;
 
-import com.WorkOrder.auth.mapper.LoginMapper;
+import com.WorkOrder.auth.mapper.UsersMapper;
 import com.WorkOrder.auth.model.AuthenticatedUser;
 import com.WorkOrder.auth.service.AuthenticationService;
 import com.WorkOrder.enums.SystemExceptionEnum;
@@ -15,15 +15,15 @@ import java.util.LinkedHashSet;
 /** 根据 OAuth2 认证主体查询并组装前端登录态所需的用户资料与权限。 */
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
-    private final LoginMapper loginMapper;
+    private final UsersMapper usersMapper;
 
     /**
      * 创建认证用户资料服务。
      *
-     * @param loginMapper 登录与权限数据访问接口
+     * @param usersMapper 登录与权限数据访问接口
      */
-    public AuthenticationServiceImpl(LoginMapper loginMapper) {
-        this.loginMapper = loginMapper;
+    public AuthenticationServiceImpl(UsersMapper usersMapper) {
+        this.usersMapper = usersMapper;
     }
 
 
@@ -41,7 +41,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new InsufficientAuthenticationException(SystemExceptionEnum.ACCOUNT_OFFLINE.getErrMessage());
         }
 
-        AuthenticatedUser user = loginMapper.findProfileByUsername(authentication.getName());
+        AuthenticatedUser user = usersMapper.findProfileByUsername(authentication.getName());
         if (user == null) {
             throw new SystemException(SystemExceptionEnum.INVALID_CREDENTIALS);
         }
@@ -49,7 +49,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new SystemException(SystemExceptionEnum.ACCOUNT_DISABLED);
         }
 
-        java.util.List<String> permissions = loginMapper.findPermissionCodes(user.getId(), user.getRole());
+        java.util.List<String> permissions = usersMapper.findPermissionCodes(user.getId(), user.getRole());
         user.setPermissions(new LinkedHashSet<>(permissions == null ? Collections.emptyList() : permissions));
         return user;
     }

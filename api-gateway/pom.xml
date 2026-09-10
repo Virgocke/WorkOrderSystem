@@ -18,6 +18,28 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.WordOrder</groupId>
+            <artifactId>Base-Utility</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <!--排除掉mysql相关的依赖-->
+            <exclusions>
+                <exclusion>
+                    <groupId>mysql</groupId>
+
+                    <artifactId>mysql-connector-java</artifactId>
+
+                </exclusion>
+
+                <exclusion>
+                    <groupId>com.baomidou</groupId>
+
+                    <artifactId>mybatis-plus-boot-starter</artifactId>
+
+                </exclusion>
+
+            </exclusions>
+        </dependency>
         <!--网关-->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -32,5 +54,25 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
 
         </dependency>
+
+        <!--整合security-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+
+            <artifactId>spring-cloud-starter-security</artifactId>
+
+            <version>2.2.4.RELEASE</version>
+
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+
+            <artifactId>spring-cloud-starter-oauth2</artifactId>
+
+            <version>2.2.4.RELEASE</version>
+
+        </dependency>
+
     </dependencies>
 </project>

@@ -1,24 +1,16 @@
-package com.WorkOrder.user.model;
+package com.WorkOrder.model;
 
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 /**
  * @author Virgor
- * @date 2026年09月08日 17:38
- * @description 用户属性表
+ * @date 2026年09月11日 02:20
+ * @description 用户响应类，用于封装用户信息返回前端
  */
-@SuppressWarnings("serial")
-@AllArgsConstructor
-@NoArgsConstructor
 @Data
-@TableName("users")
-public class Users {
+public class UserResponse {
     private Long id;
     private String username;
-    private String password;
     private String realname;
     private String email;
     private String phone;
@@ -26,4 +18,5 @@ public class Users {
     private int role; // 角色 0:普通用户 1:处理人 2:管理员
     private int status; // 状态
     private String createAt; // 创建时间
+
 }

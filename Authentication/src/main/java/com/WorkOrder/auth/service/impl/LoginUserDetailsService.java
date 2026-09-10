@@ -1,6 +1,6 @@
 package com.WorkOrder.auth.service.impl;
 
-import com.WorkOrder.auth.mapper.LoginMapper;
+import com.WorkOrder.auth.mapper.UsersMapper;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.user.model.Users;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,15 +17,15 @@ import java.util.List;
 /** 从业务数据库加载 OAuth2 password grant 所需的账号信息。 */
 @Service
 public class LoginUserDetailsService implements UserDetailsService {
-    private final LoginMapper loginMapper;
+    private final UsersMapper usersMapper;
 
     /**
      * 创建数据库账号查询服务。
      *
-     * @param loginMapper 登录与权限数据访问接口
+     * @param usersMapper 登录与权限数据访问接口
      */
-    public LoginUserDetailsService(LoginMapper loginMapper) {
-        this.loginMapper = loginMapper;
+    public LoginUserDetailsService(UsersMapper usersMapper) {
+        this.usersMapper = usersMapper;
     }
 
     /**
@@ -37,7 +37,7 @@ public class LoginUserDetailsService implements UserDetailsService {
      */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Users account = loginMapper.findByUsername(username);
+        Users account = usersMapper.findByUsername(username);
         if (account == null) {
             // 不暴露账号是否存在，最终统一转换成“用户名或密码错误”。
             throw new UsernameNotFoundException(SystemExceptionEnum.INVALID_CREDENTIALS.getErrMessage());
@@ -46,7 +46,7 @@ public class LoginUserDetailsService implements UserDetailsService {
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + roleCode(account.getRole())));
 
-        List<String> permissions = loginMapper.findPermissionCodes(account.getId(), account.getRole());
+        List<String> permissions = usersMapper.findPermissionCodes(account.getId(), account.getRole());
         for (String permission : permissions == null ? Collections.<String>emptyList() : permissions) {
             authorities.add(new SimpleGrantedAuthority(permission));
         }

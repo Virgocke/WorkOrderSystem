@@ -15,7 +15,7 @@ import java.util.List;
  * @description 登录Mapper接口
  */
 @Mapper
-public interface LoginMapper extends BaseMapper<Users> {
+public interface UsersMapper extends BaseMapper<Users> {
 
     /**
      * 查询登录校验需要的账号、密码、角色和状态。
