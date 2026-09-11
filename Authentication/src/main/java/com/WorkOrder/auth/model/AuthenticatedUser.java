@@ -19,7 +19,6 @@ public class AuthenticatedUser {
     private String email;
     private String phone;
     private Long departmentId;
-    private String departmentName;
     private int role;
     private int status;
     private LocalDateTime createdAt;
