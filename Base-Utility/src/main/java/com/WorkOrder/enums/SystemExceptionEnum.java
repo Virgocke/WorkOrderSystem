@@ -16,6 +16,8 @@ public enum SystemExceptionEnum {
     INVALID_CREDENTIALS(1001, "用户名或密码错误"),
     ACCOUNT_DISABLED(1002, "该账号已被禁用，请联系管理员"),
     ACCOUNT_OFFLINE(1003, "账号未登录"),
+    ACCOUNT_HAS_BEEN_CREATED(1004, "账号已存在"),
+    REGISTER_FAILED(1005, "注册失败"),
 
     // === 权限相关 (1010~1019) ===
     ACCESS_DENIED(1010, "无权限执行该操作"),

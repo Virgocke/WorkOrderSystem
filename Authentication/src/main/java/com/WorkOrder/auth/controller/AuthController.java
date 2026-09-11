@@ -44,7 +44,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public Result<UserResponse> RegisterUser(RegisterUser user){
-        registerService.register(user);
-        return Result.success();
+        UserResponse register = registerService.register(user);
+        return Result.success(register);
     }
 }
