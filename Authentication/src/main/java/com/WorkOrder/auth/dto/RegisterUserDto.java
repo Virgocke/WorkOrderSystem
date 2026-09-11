@@ -1,4 +1,4 @@
-package com.WorkOrder.auth.model;
+package com.WorkOrder.auth.dto;
 
 import lombok.Data;
 
@@ -11,11 +11,11 @@ import javax.validation.constraints.Size;
  * @description 用户注册类，接受前端传入的注册数据
  */
 @Data
-public class RegisterUser {
+public class RegisterUserDto {
     @NotBlank(message = "用户名不能为空")
     @Size(min = 3, max = 20, message = "用户名长度在3到20个字符之间")
     private String username;
-    @Size(min = 6, message = "密码长度不能少于6个字符")
+    @Size(min = 6,max = 32, message = "密码长度在6到32个字符之间")
     private String password;
     private String realName;
     private String email;

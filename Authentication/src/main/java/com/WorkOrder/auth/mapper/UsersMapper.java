@@ -57,4 +57,13 @@ public interface UsersMapper extends BaseMapper<Users> {
             "AND r.code = CASE #{role} WHEN 2 THEN 'ADMIN' WHEN 1 THEN 'HANDLER' ELSE 'USER' END)) " +
             "GROUP BY p.code ORDER BY MIN(p.sort_order), p.code")
     List<String> findPermissionCodes(@Param("userId") Long userId, @Param("role") int role);
+
+    /**
+     * 根据邮箱查询用户
+     * @param email
+     * @return 用户信息
+     */
+    @Select("SELECT id, username, role, status " +
+            "FROM users WHERE email = #{email} LIMIT 1")
+    Users selectByEmail(@Param("email") String email);
 }

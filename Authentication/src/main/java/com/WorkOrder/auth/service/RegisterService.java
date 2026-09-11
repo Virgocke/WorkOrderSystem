@@ -1,6 +1,7 @@
 package com.WorkOrder.auth.service;
 
-import com.WorkOrder.auth.model.RegisterUser;
+import com.WorkOrder.auth.dto.RegisterUserDto;
+import com.WorkOrder.auth.dto.ResetPasswordRequestDto;
 import com.WorkOrder.model.UserResponse;
 
 /**
@@ -9,5 +10,7 @@ import com.WorkOrder.model.UserResponse;
  * @description 用户注册
  */
 public interface RegisterService {
-    UserResponse register(RegisterUser registerUser);
+    UserResponse register(RegisterUserDto registerUserDto);
+
+    Boolean resetPassword(ResetPasswordRequestDto request);
 }

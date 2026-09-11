@@ -18,6 +18,7 @@ spring:
         # 必须要在同一个group的服务，才可以互相调用
         # group的名字随便取，但是必须都叫同一个名，不然调用不了
         group: WorkOrder-project
+
   redis:
     host: localhost
     port: 6379
@@ -29,6 +30,17 @@ spring:
         min-idle: 0 # 最小空闲数
     timeout: 10000 # 连接超时时间
 
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 3532732036@qq.com
+    password: nwdfqesyycqecide
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 security:
   oauth2:

@@ -18,16 +18,19 @@ public enum SystemExceptionEnum {
     ACCOUNT_OFFLINE(1003, "账号未登录"),
     ACCOUNT_HAS_BEEN_CREATED(1004, "账号已存在"),
     REGISTER_FAILED(1005, "注册失败"),
+    CODE_IS_EXPIRED(1006, "验证码已过期"),
+    USER_NOT_FOUND(1007, "用户不存在"),
+    CODE_ERROR(1008, "验证码错误"),
 
-    // === 权限相关 (1010~1019) ===
-    ACCESS_DENIED(1010, "无权限执行该操作"),
+    // === 权限相关 (1020~1029) ===
+    ACCESS_DENIED(1020, "无权限执行该操作"),
 
-    // === 资源与数据相关 (1020~1029) ===
-    TICKET_NOT_FOUND(1020, "工单不存在"),
+    // === 资源与数据相关 (1040~1049) ===
+    TICKET_NOT_FOUND(1040, "工单不存在"),
 
-    // === 附件与文件相关 (1030~1039) ===
-    UNSUPPORTED_ATTACHMENT_TYPE(1030, "仅支持上传图片类型文件"),
-    ATTACHMENT_SIZE_EXCEEDED(1031, "图片大小不能超过 20MB"),
+    // === 附件与文件相关 (1060~1069) ===
+    UNSUPPORTED_ATTACHMENT_TYPE(1060, "仅支持上传图片类型文件"),
+    ATTACHMENT_SIZE_EXCEEDED(1061, "图片大小不能超过 20MB"),
     ;
     private final String errMessage;
     private final int code;
