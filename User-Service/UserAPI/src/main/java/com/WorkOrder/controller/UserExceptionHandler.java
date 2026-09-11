@@ -1,5 +1,6 @@
 package com.WorkOrder.controller;
 
+import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.model.Result;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +21,9 @@ public class UserExceptionHandler {
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Result<Void>> notFound(NoSuchElementException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new Result<Void>(1021, exception.getMessage(), null));
+                .body(new Result<Void>(SystemExceptionEnum.RESOURCE_NOT_FOUND.getCode(),
+                        exception.getMessage(),
+                        null));
     }
 
     /**
@@ -31,6 +34,9 @@ public class UserExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Result<Void>> badRequest(IllegalArgumentException exception) {
-        return ResponseEntity.badRequest().body(new Result<Void>(1022, exception.getMessage(), null));
+        return ResponseEntity.badRequest()
+                .body(new Result<Void>(SystemExceptionEnum.ILLEGAL_ARGUMENT.getCode(),
+                        exception.getMessage(),
+                        null));
     }
 }

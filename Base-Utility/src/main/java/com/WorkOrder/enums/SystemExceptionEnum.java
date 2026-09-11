@@ -27,6 +27,8 @@ public enum SystemExceptionEnum {
 
     // === 资源与数据相关 (1040~1049) ===
     TICKET_NOT_FOUND(1040, "工单不存在"),
+    RESOURCE_NOT_FOUND(1041, "资源不存在"),
+    ILLEGAL_ARGUMENT(1042, "非法参数"),
 
     // === 附件与文件相关 (1060~1069) ===
     UNSUPPORTED_ATTACHMENT_TYPE(1060, "仅支持上传图片类型文件"),

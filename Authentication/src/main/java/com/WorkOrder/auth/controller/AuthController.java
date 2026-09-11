@@ -2,13 +2,13 @@ package com.WorkOrder.auth.controller;
 
 import com.WorkOrder.auth.dto.ResetPasswordRequestDto;
 import com.WorkOrder.auth.model.AuthenticatedUser;
+import com.WorkOrder.auth.dto.AuthenticatedUserDto;
 import com.WorkOrder.auth.dto.RegisterUserDto;
 import com.WorkOrder.auth.service.AuthenticationService;
 import com.WorkOrder.auth.service.RegisterService;
 import com.WorkOrder.auth.service.SendCodeService;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.Result;
-import com.WorkOrder.model.UserResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +18,7 @@ import java.util.Collections;
 import java.util.Map;
 
 
-/** OAuth2 认证后的用户上下文接口。令牌签发由 /oauth/token 标准端点负责。 */
+/** 用户认证、注册及 OAuth2 登录态接口。 */
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -29,8 +29,7 @@ public class AuthController {
     private final SendCodeService sendCodeService;
 
     /**
-     * 创建认证用户上下文控制器。
-     *
+     * 构建用户认证、注册及 OAuth2 登录态接口。
      * @param authenticationService 认证用户资料服务
      */
     public AuthController(AuthenticationService authenticationService,
@@ -53,14 +52,13 @@ public class AuthController {
     }
 
     /**
-     * 注册功能
+     * 注册并直接建立登录态，避免浏览器在注册后再额外请求 OAuth2 令牌端点。
      * @param user
      * @return 返回注册用户信息
      */
     @PostMapping("/register")
-    public Result<UserResponse> RegisterUser(@Valid @RequestBody RegisterUserDto user){
-        UserResponse register = registerService.register(user);
-        return Result.success(register);
+    public Result<AuthenticatedUserDto> RegisterUser(@Valid @RequestBody RegisterUserDto user){
+        return Result.success(registerService.registerAndLogin(user));
     }
 
     /**
@@ -68,7 +66,7 @@ public class AuthController {
      * @param body
      * @return 邮箱
      */
-    @PostMapping("/forget-password")
+    @PostMapping("/forgot-password")
     public Result<Map<String,String>> sendCode(@RequestBody Map<String,String> body){
         String email = body == null ? null : body.get("email");
         if(!StringUtils.hasText(email)) {
@@ -88,4 +86,5 @@ public class AuthController {
     public Result<Boolean> resetPassword(@RequestBody ResetPasswordRequestDto request){
         return Result.success(registerService.resetPassword(request));
     }
+
 }
