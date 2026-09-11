@@ -18,6 +18,17 @@ spring:
         # 必须要在同一个group的服务，才可以互相调用
         # group的名字随便取，但是必须都叫同一个名，不然调用不了
         group: WorkOrder-project
+  redis:
+    host: localhost
+    port: 6379
+    database: 0 # 默认数据库
+    lettuce:
+      pool:
+        max-active: 20 # 最大活跃数
+        max-idle: 10 # 最大空闲数
+        min-idle: 0 # 最小空闲数
+    timeout: 10000 # 连接超时时间
+
 
 security:
   oauth2:

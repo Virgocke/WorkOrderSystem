@@ -11,12 +11,12 @@ import lombok.Data;
 public class UserResponse {
     private Long id;
     private String username;
-    private String realname;
+    private String realName;
     private String email;
     private String phone;
     private Long departmentId; // 部门ID
     private int role; // 角色 0:普通用户 1:处理人 2:管理员
     private int status; // 状态
-    private String createAt; // 创建时间
+    private String createdAt; // 创建时间
 
 }

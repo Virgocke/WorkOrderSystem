@@ -1,6 +1,7 @@
 package com.WorkOrder.auth.security;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
@@ -46,7 +47,9 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
                 .antMatchers("/auth/**")
                 .and()
                 .authorizeRequests()
-                .anyRequest()
-                .authenticated();
+                .antMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                .antMatchers(HttpMethod.POST, "/auth/forgot-password").permitAll()
+                .antMatchers(HttpMethod.POST, "/auth/reset-password").permitAll()
+                .anyRequest().authenticated();
     }
 }

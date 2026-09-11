@@ -7,10 +7,9 @@ import com.WorkOrder.auth.service.RegisterService;
 import com.WorkOrder.model.Result;
 import com.WorkOrder.model.UserResponse;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
 
 
 /** OAuth2 认证后的用户上下文接口。令牌签发由 /oauth/token 标准端点负责。 */
@@ -42,8 +41,13 @@ public class AuthController {
         return Result.success(authenticationService.toCurrentUser(authentication));
     }
 
+    /**
+     * 注册功能
+     * @param user
+     * @return 返回注册用户信息
+     */
     @PostMapping("/register")
-    public Result<UserResponse> RegisterUser(RegisterUser user){
+    public Result<UserResponse> RegisterUser(@Valid @RequestBody RegisterUser user){
         UserResponse register = registerService.register(user);
         return Result.success(register);
     }

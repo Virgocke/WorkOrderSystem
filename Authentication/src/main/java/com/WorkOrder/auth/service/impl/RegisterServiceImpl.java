@@ -44,15 +44,12 @@ public class RegisterServiceImpl implements RegisterService {
             user = new Users();
         }
         // 创建返回的用户对象
-        UserResponse userResponse = new UserResponse();
-        BeanUtils.copyProperties(registerUser, userResponse);
-        userResponse.setCreateAt(String.valueOf(new Date()));
-        userResponse.setRole(0);
-        userResponse.setStatus(1); //启用
-
+        BeanUtils.copyProperties(registerUser, user);
+        //userResponse.setCreatedAt(String.valueOf(new Date()));
+        user.setRole(0);
+        user.setStatus(1); //启用
 
         // 创建用户对象存入数据库
-        BeanUtils.copyProperties(userResponse, user);
         String password = registerUser.getPassword(); // 获取密码
         String encodedPassword = passwordEncoder.encode(password);
         user.setPassword(encodedPassword);
@@ -60,6 +57,10 @@ public class RegisterServiceImpl implements RegisterService {
         if (insert != 1) {
             throw new SystemException(SystemExceptionEnum.REGISTER_FAILED);
         }
+        Users savedUser = usersMapper.selectOne(new LambdaQueryWrapper<Users>().eq(Users::getUsername, user.getUsername()));
+
+        UserResponse userResponse = new UserResponse();
+        BeanUtils.copyProperties(savedUser, userResponse);
         return userResponse;
     }
 }

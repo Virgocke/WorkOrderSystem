@@ -145,23 +145,17 @@
 
         </dependency>
 
-        <!--整合redis-->
+<!--        Redis 当前未部署，暂时移除相关依赖，避免 RedisHealthIndicator 使认证服务健康状态为 DOWN。-->
+<!--        启用 Redis 功能时，恢复以下两个依赖并配置 Redis 连接即可。-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-
             <artifactId>spring-boot-starter-data-redis</artifactId>
-
             <version>2.3.7.RELEASE</version>
-
         </dependency>
-
         <dependency>
             <groupId>org.apache.commons</groupId>
-
             <artifactId>commons-pool2</artifactId>
-
             <version>2.6.2</version>
-
         </dependency>
         <dependency>
             <groupId>com.WordOrder</groupId>

@@ -17,7 +17,7 @@ public class RegisterUser {
     private String username;
     @Size(min = 6, message = "密码长度不能少于6个字符")
     private String password;
-    private String realname;
+    private String realName;
     private String email;
     @Size(min = 11, max = 11, message = "手机号长度必须是11位")
     private String phone;
