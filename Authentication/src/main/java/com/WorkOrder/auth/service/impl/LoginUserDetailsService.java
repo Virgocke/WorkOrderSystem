@@ -44,8 +44,11 @@ public class LoginUserDetailsService implements UserDetailsService {
         }
 
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        // 添加角色权限，例如 ROLE_ADMIN
         authorities.add(new SimpleGrantedAuthority("ROLE_" + roleCode(account.getRole())));
 
+
+        // 添加操作权限，例如 category:manage
         List<String> permissions = usersMapper.findPermissionCodes(account.getId(), account.getRole());
         for (String permission : permissions == null ? Collections.<String>emptyList() : permissions) {
             authorities.add(new SimpleGrantedAuthority(permission));

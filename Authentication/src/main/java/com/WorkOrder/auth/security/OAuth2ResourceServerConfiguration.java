@@ -47,9 +47,12 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
                 .antMatchers("/auth/**")
                 .and()
                 .authorizeRequests()
-                .antMatchers(HttpMethod.POST, "/auth/register").permitAll()
-                .antMatchers(HttpMethod.POST, "/auth/forgot-password").permitAll()
-                .antMatchers(HttpMethod.POST, "/auth/reset-password").permitAll()
-                .anyRequest().authenticated();
+                .antMatchers(HttpMethod.POST,
+                "/auth/register",
+                "/auth/forgot-password",
+                "/auth/reset-password")
+                .permitAll()
+                .anyRequest()
+                .authenticated();
     }
 }
