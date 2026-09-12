@@ -4,7 +4,7 @@ import com.WorkOrder.user.model.CreateUserRequest;
 import com.WorkOrder.user.model.HandlerProfile;
 import com.WorkOrder.user.model.UpdateHandlerProfileRequest;
 import com.WorkOrder.user.model.UserProfile;
-import com.WorkOrder.user.model.UserRole;
+import com.WorkOrder.user.enums.UserRole;
 import com.WorkOrder.user.service.UserDirectoryService;
 import org.springframework.stereotype.Service;
 

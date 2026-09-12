@@ -1,0 +1,17 @@
+package com.WorkOrder.user.service;
+
+import com.WorkOrder.model.UserResponse;
+import com.WorkOrder.user.dto.PasswordDto;
+import com.WorkOrder.user.dto.UserUpdateDto;
+
+/**
+ * @author Virgor
+ * @date 2026年09月12日 21:01
+ * @description 用户信息更新服务
+ */
+public interface UserInfoUpdateService {
+
+    UserResponse updateUserInfo(UserUpdateDto userUpdateDto);
+
+    Boolean updateUserPassword(String username, PasswordDto passwordDto);
+}

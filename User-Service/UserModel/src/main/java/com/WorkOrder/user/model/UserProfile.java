@@ -1,5 +1,6 @@
 package com.WorkOrder.user.model;
 
+import com.WorkOrder.user.enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

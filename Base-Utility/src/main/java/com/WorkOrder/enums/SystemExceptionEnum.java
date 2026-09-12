@@ -21,6 +21,7 @@ public enum SystemExceptionEnum {
     CODE_IS_EXPIRED(1006, "验证码已过期"),
     USER_NOT_FOUND(1007, "用户不存在"),
     CODE_ERROR(1008, "验证码错误"),
+    ABNORMAL_ACCOUNT(1009, "账号异常"),
 
     // === 权限相关 (1020~1029) ===
     ACCESS_DENIED(1020, "无权限执行该操作"),

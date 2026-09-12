@@ -1,10 +1,18 @@
 package com.WorkOrder.controller;
 
 import com.WorkOrder.model.Result;
+import com.WorkOrder.model.UserResponse;
+import com.WorkOrder.user.dto.PasswordDto;
+import com.WorkOrder.user.dto.UserUpdateDto;
+import com.WorkOrder.user.dto.UsersDto;
 import com.WorkOrder.user.model.CreateUserRequest;
 import com.WorkOrder.user.model.UpdateHandlerProfileRequest;
 import com.WorkOrder.user.model.UserProfile;
+import com.WorkOrder.user.service.AuthenticationService;
 import com.WorkOrder.user.service.UserDirectoryService;
+import com.WorkOrder.user.service.UserInfoUpdateService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,18 +29,54 @@ import java.util.List;
 @Validated
 @RestController
 @RequestMapping("/users")
+@RequiredArgsConstructor
 public class UserController {
+
     private final UserDirectoryService userDirectoryService;
+    private final AuthenticationService authenticationService;
+    private final UserInfoUpdateService userInfoUpdateService;
+
 
     /**
-     * 注入用户目录服务。
-     *
-     * @param userDirectoryService 用户目录服务
+     * 获取当前登录用户资料。
+     * @param authentication
+     * @return 当前登录用户资料
      */
-    public UserController(UserDirectoryService userDirectoryService) {
-        this.userDirectoryService = userDirectoryService;
+    @GetMapping("/me")
+    public Result<UsersDto> currentUser(Authentication authentication) {
+        return Result.success(authenticationService.toCurrentUser(authentication));
     }
 
+    /**
+     * 更新当前登录用户资料。
+     * @param userUpdateDto
+     * @return 更新后的用户资料
+     */
+    @PutMapping("/me")
+    public Result<UserResponse> updateUserInfo(@Valid @RequestBody UserUpdateDto userUpdateDto){
+        return Result.success(userInfoUpdateService.updateUserInfo(userUpdateDto));
+    }
+
+    @PutMapping("/me/password")
+    public Result<Boolean> updatePassword(Authentication authentication,
+                                          @Valid @RequestBody PasswordDto passwordDto){
+        return Result.success(userInfoUpdateService.updateUserPassword(authentication.getName(), passwordDto));
+    }
+
+    @GetMapping("/me/stats")
+    public Result<Void> getHistory() {
+    }
+
+
+
+
+
+
+
+
+
+
+    //======================================调试用=======================================
     /**
      * 创建用户或处理人基础资料。
      *

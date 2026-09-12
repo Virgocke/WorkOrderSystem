@@ -9,6 +9,7 @@ import com.WorkOrder.user.service.AuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -16,8 +17,9 @@ import java.util.LinkedHashSet;
 /**
  * @author Virgor
  * @date 2026年09月12日 02:47
- * @description
+ * @description 认证服务实现
  */
+@Service
 public class AuthenticationServiceImpl implements AuthenticationService {
 
     private UsersMapper usersMapper;
@@ -26,6 +28,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         this.usersMapper = usersMapper;
     }
 
+    /**
+     * 获取当前用户
+     *
+     * @param authentication 认证信息
+     * @return 当前用户
+     */
     @Override
     public UsersDto toCurrentUser(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {

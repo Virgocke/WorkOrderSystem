@@ -1,5 +1,6 @@
 package com.WorkOrder.user.model;
 
+import com.WorkOrder.user.enums.UserRole;
 import lombok.Data;
 
 import javax.validation.constraints.Email;

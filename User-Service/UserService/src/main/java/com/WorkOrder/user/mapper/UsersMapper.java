@@ -17,16 +17,6 @@ import java.util.List;
 @Mapper
 public interface UsersMapper extends BaseMapper<Users> {
     /**
-     * 查询登录校验需要的账号、密码、角色和状态。
-     *
-     * @param username 登录账号
-     * @return 数据库账号；账号不存在时返回 null
-     */
-    @Select("SELECT id, username, password, role, status " +
-            "FROM users WHERE username = #{username} LIMIT 1")
-    Users findByUsername(@Param("username") String username);
-
-    /**
      * 查询前端登录态所需的用户资料，密码字段不会进入返回对象。
      *
      * @param username 已认证的登录账号

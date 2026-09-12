@@ -1,4 +1,4 @@
-package com.WorkOrder.user.model;
+package com.WorkOrder.user.enums;
 
 /**
  * 系统内置角色。细粒度授权由后续 RBAC 权限表承载。
