@@ -15,9 +15,13 @@ import org.springframework.security.oauth2.common.exceptions.OAuth2Exception;
 import org.springframework.security.oauth2.provider.error.WebResponseExceptionTranslator;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
+import org.springframework.security.oauth2.provider.token.TokenEnhancerChain;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * OAuth2 授权服务器：负责签发带签名的 JWT 访问令牌与刷新令牌。
@@ -30,6 +34,8 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final UserIdTokenEnhancer userIdTokenEnhancer;
+
 
     @Value("${security.oauth2.jwt.signing-key}")
     private String signingKey;
@@ -47,10 +53,12 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
      */
     public OAuth2AuthorizationServerConfiguration(AuthenticationManager authenticationManager,
                                                   UserDetailsService userDetailsService,
-                                                  PasswordEncoder passwordEncoder) {
+                                                  PasswordEncoder passwordEncoder,
+                                                  UserIdTokenEnhancer userIdTokenEnhancer) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.passwordEncoder = passwordEncoder;
+        this.userIdTokenEnhancer = userIdTokenEnhancer;
     }
 
     /**
@@ -60,10 +68,23 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
     @Bean(name = "authorizationServerTokenServices")
     public AuthorizationServerTokenServices tokenServices(){
         DefaultTokenServices services = new DefaultTokenServices();
+
         services.setSupportRefreshToken(true);
         services.setReuseRefreshToken(false);
         services.setTokenStore(tokenStore());
-        services.setTokenEnhancer(jwtAccessTokenConverter());
+
+        /**
+         * 顺序很重要：
+         * 1. 先添加 user_id
+         * 2. 再由 JwtAccessTokenConverter 生成并签名 JWT
+         */
+        TokenEnhancerChain enhancerChain = new TokenEnhancerChain();
+        enhancerChain.setTokenEnhancers(Arrays.asList(
+                userIdTokenEnhancer,
+                jwtAccessTokenConverter()
+        ));
+
+        services.setTokenEnhancer(enhancerChain);
         services.setAccessTokenValiditySeconds(30 * 60);
         services.setRefreshTokenValiditySeconds(7 * 24 * 60 * 60);
         return services;

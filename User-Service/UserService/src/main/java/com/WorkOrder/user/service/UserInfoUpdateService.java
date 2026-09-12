@@ -11,7 +11,7 @@ import com.WorkOrder.user.dto.UserUpdateDto;
  */
 public interface UserInfoUpdateService {
 
-    UserResponse updateUserInfo(UserUpdateDto userUpdateDto);
+    UserResponse updateUserInfo(Long userId, UserUpdateDto userUpdateDto);
 
     Boolean updateUserPassword(String username, PasswordDto passwordDto);
 }

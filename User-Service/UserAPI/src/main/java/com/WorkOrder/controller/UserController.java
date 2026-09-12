@@ -2,6 +2,7 @@ package com.WorkOrder.controller;
 
 import com.WorkOrder.model.Result;
 import com.WorkOrder.model.UserResponse;
+import com.WorkOrder.security.CurrentUserIdProvider;
 import com.WorkOrder.user.dto.PasswordDto;
 import com.WorkOrder.user.dto.UserUpdateDto;
 import com.WorkOrder.user.dto.UsersDto;
@@ -35,6 +36,8 @@ public class UserController {
     private final UserDirectoryService userDirectoryService;
     private final AuthenticationService authenticationService;
     private final UserInfoUpdateService userInfoUpdateService;
+    private final CurrentUserIdProvider currentUserIdProvider;
+
 
 
     /**
@@ -53,8 +56,15 @@ public class UserController {
      * @return 更新后的用户资料
      */
     @PutMapping("/me")
-    public Result<UserResponse> updateUserInfo(@Valid @RequestBody UserUpdateDto userUpdateDto){
-        return Result.success(userInfoUpdateService.updateUserInfo(userUpdateDto));
+    public Result<UserResponse> updateUserInfo(
+            Authentication authentication,
+            @Valid @RequestBody UserUpdateDto userUpdateDto) {
+
+        Long userId = currentUserIdProvider.get(authentication);
+
+        return Result.success(
+                userInfoUpdateService.updateUserInfo(userId, userUpdateDto)
+        );
     }
 
     @PutMapping("/me/password")
@@ -62,11 +72,6 @@ public class UserController {
                                           @Valid @RequestBody PasswordDto passwordDto){
         return Result.success(userInfoUpdateService.updateUserPassword(authentication.getName(), passwordDto));
     }
-
-    @GetMapping("/me/stats")
-    public Result<Void> getHistory() {
-    }
-
 
 
 

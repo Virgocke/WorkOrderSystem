@@ -11,6 +11,8 @@
     <file url="file://$PROJECT_DIR$/Notification-Service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Search-Service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Search-Service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Security-Common/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Security-Common/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Sla-Monitor/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Sla-Monitor/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Ticket-Service/TicketAPI/src/main/java" charset="UTF-8" />

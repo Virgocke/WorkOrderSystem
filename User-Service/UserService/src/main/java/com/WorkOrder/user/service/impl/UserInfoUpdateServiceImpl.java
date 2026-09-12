@@ -29,10 +29,16 @@ public class UserInfoUpdateServiceImpl implements UserInfoUpdateService {
     private final PasswordEncoder passwordEncoder;
 
 
+    /**
+     * 更新用户信息
+     * @param userId
+     * @param userUpdateDto
+     * @return 更新后的用户信息
+     */
     @Override
     @Transactional
-    public UserResponse updateUserInfo(UserUpdateDto userUpdateDto) {
-        Users user = usersMapper.selectOne(new LambdaQueryWrapper<Users>().eq(Users::getPhone, userUpdateDto.getPhone()));
+    public UserResponse updateUserInfo(Long userId, UserUpdateDto userUpdateDto) {
+        Users user = usersMapper.selectById(userId);
         if(user == null){
             throw new SystemException(SystemExceptionEnum.USER_NOT_FOUND);
         }
@@ -48,6 +54,12 @@ public class UserInfoUpdateServiceImpl implements UserInfoUpdateService {
         return userResponse;
     }
 
+    /**
+     * 更新用户密码
+     * @param username
+     * @param passwordDto
+     * @return 是否更新成功
+     */
     @Override
     public Boolean updateUserPassword(String username, PasswordDto passwordDto) {
         Users user = usersMapper.selectOne(new LambdaQueryWrapper<Users>().eq(Users::getUsername, username));

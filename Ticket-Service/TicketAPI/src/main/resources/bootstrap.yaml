@@ -8,6 +8,20 @@ spring:
     time-zone: GMT+8
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/xue_content?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/WorkOrderSystem?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
     password: Virgo0916
+  cloud:
+    nacos:
+      server-addr: localhost:8848
+      discovery:
+        namespace: dev
+        # 必须要在同一个group的服务，才可以互相调用
+        # group的名字随便取，但是必须都叫同一个名，不然调用不了
+        group: WorkOrder-project
+
+security:
+  oauth2:
+    jwt:
+      # 本地联调必须与认证服务保持一致；生产环境请使用环境变量注入公钥或验签密钥。
+      signing-key: ${OAUTH_JWT_SIGNING_KEY:local-development-signing-key-change-before-production}

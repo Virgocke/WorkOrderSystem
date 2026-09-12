@@ -19,6 +19,7 @@
         <module>Ticket-Service/TicketService</module>
         <module>Authentication</module>
         <module>Base-Utility</module>
+        <module>Security-Common</module>
     </modules>
 
     <properties>
