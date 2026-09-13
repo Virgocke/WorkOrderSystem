@@ -3,8 +3,7 @@ package com.WorkOrder.ticket.dto;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import javax.validation.constraints.*;
 
 /**
  * @author Virgor
@@ -19,14 +18,15 @@ public class TicketCategoryDto {
 
     private Long parentId;
 
-    @Size(min = 1, max = 4, message = "默认优先级必须在1到4之间")
-    @NotBlank(message = "默认优先级不能为空")
+    @Min(1)
+    @Max(4)
+    @NotNull(message = "默认优先级不能为空")
     private int defaultPriority;
 
-    @NotBlank(message = "默认响应SLA不能为空")
+    @NotNull(message = "默认响应SLA不能为空")
     private int defaultResponseSla;
 
-    @NotBlank(message = "默认解决SLA不能为空")
+    @NotNull(message = "默认解决SLA不能为空")
     private int defaultResolutionSla;
 
     private String description;

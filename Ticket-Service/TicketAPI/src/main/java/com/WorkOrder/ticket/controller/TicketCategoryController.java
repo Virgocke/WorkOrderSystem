@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * @author Virgor
  * @date 2026年09月13日 03:22
- * @description 工单分类树控制器
+ * @description 工单分类树控制器，用于获取工单类别树、创建工单类别、更新工单类别、删除工单类别
  */
 @RequiredArgsConstructor
 @RestController
@@ -33,9 +33,35 @@ public class TicketCategoryController {
         return Result.success(ticketCategoryService.getTicketCategoryTree());
     }
 
+    /**
+     * 创建工单类别
+     * @param ticketCategoryDto
+     * @return 创建的工单类别
+     */
     @PreAuthorize("hasAuthority('category:manage')")
     @PostMapping
     public Result<TicketCategory> createTicketCategory(@Valid @RequestBody TicketCategoryDto ticketCategoryDto){
         return Result.success(ticketCategoryService.createTicketCategory(ticketCategoryDto));
+    }
+
+    /**
+     * 更新工单类别
+     * @param id
+     * @param ticketCategoryDto
+     * @return 更新的工单类别
+     */
+    @PutMapping("/{id}")
+    public Result<TicketCategory> updateTicketCategory(@PathVariable Long id, @Valid @RequestBody TicketCategoryDto ticketCategoryDto){
+        return Result.success(ticketCategoryService.updateTicketCategory(id, ticketCategoryDto));
+    }
+
+    /**
+     * 删除工单类别
+     * @param id
+     * @return 删除结果
+     */
+    @DeleteMapping("/{id}")
+    public Result<Boolean> deleteTicketCategory(@PathVariable Long id){
+        return Result.success(ticketCategoryService.deleteTicketCategory(id));
     }
 }

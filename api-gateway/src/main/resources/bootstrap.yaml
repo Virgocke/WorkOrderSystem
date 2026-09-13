@@ -30,6 +30,13 @@ spring:
             - Path=/api/oauth/**
           filters:
             - StripPrefix=1
+
+        - id: ticket-service
+          uri: lb://ticket-service
+          predicates:
+            - Path=/api/tickets/**,/api/ticket-categories/**
+          filters:
+            - StripPrefix=1
     nacos:
       server-addr: localhost:8848
       discovery:

@@ -99,4 +99,46 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
         }
         return ticketCategory;
     }
+
+    /**
+     * 更新工单类别
+     * @param id
+     * @param ticketCategoryDto
+     * @return 更新的工单类别
+     */
+    @Override
+    public TicketCategory updateTicketCategory(Long id, TicketCategoryDto ticketCategoryDto) {
+        // 根据ID查询工单类别
+        TicketCategory ticketCategory = ticketCategoryMapper.selectById(id);
+        if (ticketCategory == null) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        // 更新工单类别
+        BeanUtils.copyProperties(ticketCategoryDto, ticketCategory);
+        int result = ticketCategoryMapper.updateById(ticketCategory);
+        if (result != 1){
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        return ticketCategory;
+    }
+
+    /**
+     * 删除工单类别
+     * @param id
+     * @return 是否删除成功
+     */
+    @Override
+    public Boolean deleteTicketCategory(Long id) {
+        // 根据ID查询工单类别
+        TicketCategory ticketCategory = ticketCategoryMapper.selectById(id);
+        if (ticketCategory == null) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        // 删除工单类别
+        int result = ticketCategoryMapper.deleteById(id);
+        if (result != 1){
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        return true;
+    }
 }

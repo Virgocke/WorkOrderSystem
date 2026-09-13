@@ -25,4 +25,19 @@ public interface TicketCategoryService {
      * @return 创建的工单类别
      */
     TicketCategory createTicketCategory(TicketCategoryDto ticketCategoryDto);
+
+    /**
+     * 更新工单类别
+     * @param id
+     * @param ticketCategoryDto
+     * @return 更新的工单类别
+     */
+    TicketCategory updateTicketCategory(Long id, TicketCategoryDto ticketCategoryDto);
+
+    /**
+     * 删除工单类别
+     * @param id
+     * @return 删除结果
+     */
+    Boolean deleteTicketCategory(Long id);
 }

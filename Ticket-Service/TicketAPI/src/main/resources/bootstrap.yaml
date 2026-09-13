@@ -1,9 +1,9 @@
 server:
-  address: 63060
+  port: 63060
 
 spring:
   application:
-    name: Ticket
+    name: ticket-service
   jackson:
     time-zone: GMT+8
   datasource:

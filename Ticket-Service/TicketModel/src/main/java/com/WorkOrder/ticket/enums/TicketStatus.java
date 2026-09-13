@@ -1,4 +1,4 @@
-package com.WorkOrder.enums;
+package com.WorkOrder.ticket.enums;
 
 import lombok.Getter;
 
