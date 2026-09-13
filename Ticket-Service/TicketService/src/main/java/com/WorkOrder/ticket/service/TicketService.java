@@ -13,5 +13,5 @@ import javax.validation.Valid;
  * @description 工单服务接口
  */
 public interface TicketService extends IService<Tickets> {
-    TicketResponse createTicket(CreateTicketDto createTicketDto);
+    TicketResponse createTicket(Long creatorId,String creatorName, CreateTicketDto createTicketDto);
 }

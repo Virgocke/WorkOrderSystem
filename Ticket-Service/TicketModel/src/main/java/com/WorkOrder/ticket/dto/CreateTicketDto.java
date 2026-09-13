@@ -18,7 +18,7 @@ public class CreateTicketDto {
     private String title;
     private String description;
     private Long categoryId;
-    @Min(1)
+    @Min(0)
     @Max(4)
     private int priority;
     private List<String> attachmentUrls;

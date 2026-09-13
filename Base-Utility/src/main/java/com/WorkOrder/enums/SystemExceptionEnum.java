@@ -31,6 +31,7 @@ public enum SystemExceptionEnum {
     RESOURCE_NOT_FOUND(1041, "资源不存在"),
     ILLEGAL_ARGUMENT(1042, "非法参数"),
     CREATE_FAILED(1043, "创建失败"),
+    TICKET_CREATE_FAILED(1044, "工单创建失败"),
 
     // === 附件与文件相关 (1060~1069) ===
     UNSUPPORTED_ATTACHMENT_TYPE(1060, "仅支持上传图片类型文件"),

@@ -14,22 +14,22 @@ import java.util.List;
  */
 @Getter
 public enum TicketStatus {
-    PENDING_ASSIGN(0, "待分配", "用户提交后默认状态，尚无处理人",
+    PENDING_ASSIGN(0, "PENDING_ASSIGN", "待分配_用户提交后默认状态，尚无处理人",
         1, 5), // 只能流转到"待响应"或"已撤销"
 
-    PENDING_RESPONSE(1, "待响应", "已分配处理人，等待首次响应",
+    PENDING_RESPONSE(1, "PENDING_RESPONSE", "待响应_已分配处理人，等待首次响应",
         2, 5),
 
-    PROCESSING(2, "处理中", "处理人已首次响应",
+    PROCESSING(2, "PROCESSING", "处理中_处理人已首次响应",
         3, 5),
 
-    RESOLVED(3, "已解决", "处理人已提交解决方案，语义上“待用户确认”",
+    RESOLVED(3, "RESOLVED", "已解决_处理人已提交解决方案，语义上“待用户确认”",
         4, 1), // 用户若不满意可重新打开（驳回到待响应）
 
-    CLOSED(4, "已关闭", "用户确认解决或管理员关闭",
+    CLOSED(4, "CLOSED", "已关闭_用户确认解决或管理员关闭",
         new Integer[0]), // 终态，不可再流转
 
-    CANCELLED(5, "已撤销", "用户/管理员撤销",
+    CANCELLED(5, "CANCELLED", "已撤销_用户/管理员撤销",
         new Integer[0]), // 终态，不可再流转
     ;
 

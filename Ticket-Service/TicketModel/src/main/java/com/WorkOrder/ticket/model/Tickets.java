@@ -3,6 +3,7 @@ package com.WorkOrder.ticket.model;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -26,19 +27,19 @@ public class Tickets {
     // 分配时间
     private String assignedAt;
     // 响应截止时间
-    private String responseDeadline;
+    private LocalDateTime responseDeadline;
     // 解决截止时间
-    private String resolutionDeadline;
+    private LocalDateTime resolutionDeadline;
     // 首次响应时间
-    private String firstResponseAt;
+    private LocalDateTime firstResponseAt;
     // 解决时间
-    private String resolvedAt;
+    private LocalDateTime resolvedAt;
     // 关闭时间
-    private String closedAt;
+    private LocalDateTime closedAt;
     // SLA状态
     private String slaStatus;
     // 升级级别
-    private String escalatedLevel;
+    private int escalatedLevel;
     // 来源
     private String source;
     private List<String> attachmentUrls;
