@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.WorkOrder.ticket.mapper.TicketMapper">
+
+    <!-- 当前用户的工单历史统计 -->
+    <select id="selectHistoryStatistics"
+            parameterType="java.lang.Long"
+            resultType="com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto">
+        SELECT COUNT(*) AS total,
+               COALESCE(SUM(status IN (
+                   'PENDING_ASSIGN',
+                   'PENDING_RESPONSE',
+                   'PROCESSING'
+               )), 0) AS processing,
+               COALESCE(SUM(status = 'RESOLVED'), 0) AS resolved,
+               COALESCE(SUM(status = 'CLOSED'), 0) AS closed,
+               COALESCE(SUM(status = 'CANCELLED'), 0) AS cancelled,
+               COALESCE(
+                   ROUND(
+                       AVG(
+                           CASE
+                               WHEN first_response_at IS NOT NULL
+                                   THEN TIMESTAMPDIFF(
+                                       MINUTE,
+                                       created_at,
+                                       first_response_at
+                                   ) / 60.0
+                           END
+                       ),
+                       1
+                   ),
+                   0
+               ) AS avgFirstResponseHours,
+               COALESCE(
+                   SUM(created_at &gt; NOW() - INTERVAL 30 DAY),
+                   0
+               ) AS last30d
+        FROM tickets
+        WHERE creator_id = #{userId}
+    </select>
+
+    <!-- 当前用户最近 12 个有工单记录月份的提交数量，按月份升序返回 -->
+    <select id="selectMonthlyStatistics"
+            parameterType="java.lang.Long"
+            resultType="com.WorkOrder.ticket.dto.MonthlyCountDto">
+        SELECT monthly.month,
+               monthly.count
+        FROM (
+            SELECT DATE_FORMAT(created_at, '%Y-%m') AS month,
+                   COUNT(*) AS count
+            FROM tickets
+            WHERE creator_id = #{userId}
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+            ORDER BY month DESC
+            LIMIT 12
+        ) AS monthly
+        ORDER BY monthly.month ASC
+    </select>
+
+</mapper>

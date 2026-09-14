@@ -1,6 +1,8 @@
 package com.WorkOrder.ticket.model;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -19,10 +21,12 @@ public class Tickets {
     private String title;
     private String description;
     private Long categoryId;
+    private int priority;
     private String status;
     private Long creatorId;
     // 处理人ID
     private Long handlerId;
+
     private String createdAt;
     // 分配时间
     private String assignedAt;
@@ -42,6 +46,8 @@ public class Tickets {
     private int escalatedLevel;
     // 来源
     private String source;
+
+    @TableField(typeHandler = JacksonTypeHandler.class)
     private List<String> attachmentUrls;
     private String updatedAt;
 }

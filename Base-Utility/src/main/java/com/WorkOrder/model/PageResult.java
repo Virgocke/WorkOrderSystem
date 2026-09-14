@@ -19,12 +19,12 @@ public class PageResult<T> implements Serializable {
     // 当前页码
     private long page;
     // 每页大小
-    private long size;
+    private long pageSize;
 
-    public PageResult(List<T> list, long total, long page, long size) {
+    public PageResult(List<T> list, long total, long page, long pageSize) {
         this.list = list;
         this.total = total;
         this.page = page;
-        this.size = size;
+        this.pageSize = pageSize;
     }
 }

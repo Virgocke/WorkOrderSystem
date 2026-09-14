@@ -4,6 +4,9 @@ import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.TicketResponse;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
+import com.WorkOrder.ticket.dto.MonthlyCountDto;
+import com.WorkOrder.ticket.dto.MyTicketPageDto;
+import com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto;
 import com.WorkOrder.ticket.enums.TicketStatus;
 import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
 import com.WorkOrder.ticket.mapper.TicketMapper;
@@ -15,9 +18,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Virgor
@@ -52,6 +59,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
      * @param createTicketDto 创建工单DTO
      * @return 工单响应对象
      */
+    @Transactional
     @Override
     public TicketResponse createTicket(Long creatorId, String creatorName, CreateTicketDto createTicketDto) {
         TicketResponse ticketResponse = new TicketResponse(); // 创建工单响应对象
@@ -102,10 +110,74 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         Tickets newTicket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Tickets>()
                         .eq(Tickets::getTicketNo, ticketNo));
+        if (newTicket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_CREATE_FAILED);
+        }
 
         return buildTicketResponse(newTicket, ticketResponse);
     }
 
+    /**
+     * 根据用户ID和状态查询工单列表
+     * @param userId 用户ID
+     * @param myTicketPageDto 工单分页查询DTO
+     * @return 工单响应对象列表
+     */
+    @Override
+    public List<TicketResponse> myTickets(Long userId, MyTicketPageDto myTicketPageDto) {
+        // 根据用户ID和状态查询工单列表
+        List<Tickets> myTickets = null;
+        if (myTicketPageDto.getStatus().equals("all") || myTicketPageDto.getStatus().isEmpty()) {
+            myTickets = ticketMapper.selectList(
+                    new LambdaQueryWrapper<Tickets>()
+                            .eq(Tickets::getCreatorId, userId)
+                            .orderByDesc(Tickets::getUpdatedAt)
+                            .orderByDesc(Tickets::getId)
+                            .last("limit " + myTicketPageDto.getPageSize()));
+        } else {
+            myTickets = ticketMapper.selectList(
+                    new LambdaQueryWrapper<Tickets>()
+                            .eq(Tickets::getCreatorId, userId)
+                            .eq(Tickets::getStatus, myTicketPageDto.getStatus())
+                            .orderByDesc(Tickets::getUpdatedAt)
+                            .orderByDesc(Tickets::getId)
+                            .last("limit " + myTicketPageDto.getPageSize()));
+        }
+        if (myTickets == null || myTickets.isEmpty()){
+            return Collections.emptyList();
+        }
+
+        // 构建工单响应对象列表
+        List<TicketResponse> ticketResponses = myTickets.stream()
+                .map(ticket -> buildTicketResponse(ticket, new TicketResponse()))
+                .collect(Collectors.toList());
+
+        return ticketResponses;
+    }
+
+    /**
+     * 获取工单历史统计信息
+     * @param userId 用户ID
+     * @return 工单历史统计信息
+     */
+    @Override
+    public TicketHistoryStatisticsDto getTicketHistoryStatistics(Long userId) {
+        TicketHistoryStatisticsDto statistics =
+                ticketMapper.selectHistoryStatistics(userId);
+
+        List<MonthlyCountDto> byMonth =
+                ticketMapper.selectMonthlyStatistics(userId);
+
+        statistics.setByMonth(byMonth);
+        return statistics;
+    }
+
+    /**
+     * 转换工单响应对象，使时间类型正确
+     * @param ticket 工单
+     * @param ticketResponse 工单响应对象
+     * @return 工单响应对象
+     */
     private TicketResponse buildTicketResponse(Tickets ticket, TicketResponse ticketResponse) {
         // 复制工单属性到工单响应对象
         BeanUtils.copyProperties(
