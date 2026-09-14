@@ -1,7 +1,7 @@
 package com.WorkOrder.controller;
 
 import com.WorkOrder.model.Result;
-import com.WorkOrder.model.UserResponse;
+import com.WorkOrder.model.user.UserResponse;
 import com.WorkOrder.security.CurrentUserIdProvider;
 import com.WorkOrder.user.dto.PasswordDto;
 import com.WorkOrder.user.dto.UserUpdateDto;

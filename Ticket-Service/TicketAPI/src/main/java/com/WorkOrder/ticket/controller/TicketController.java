@@ -1,9 +1,9 @@
 package com.WorkOrder.ticket.controller;
 
-import com.WorkOrder.model.PageResult;
+import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.Result;
 import com.WorkOrder.model.StatusHistory;
-import com.WorkOrder.model.TicketResponse;
+import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.security.CurrentUserIdProvider;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MyTicketPageDto;

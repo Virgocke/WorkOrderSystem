@@ -1,7 +1,6 @@
 package com.WorkOrder.ticket.service;
 
-import com.WorkOrder.model.StatusHistory;
-import com.WorkOrder.model.TicketResponse;
+import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MyTicketPageDto;
 import com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto;

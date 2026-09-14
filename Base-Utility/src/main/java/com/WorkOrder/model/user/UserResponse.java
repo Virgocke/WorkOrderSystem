@@ -1,4 +1,4 @@
-package com.WorkOrder.model;
+package com.WorkOrder.model.user;
 
 import lombok.Data;
 

@@ -2,8 +2,7 @@ package com.WorkOrder.ticket.service.impl;
 
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
-import com.WorkOrder.model.StatusHistory;
-import com.WorkOrder.model.TicketResponse;
+import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MonthlyCountDto;
 import com.WorkOrder.ticket.dto.MyTicketPageDto;

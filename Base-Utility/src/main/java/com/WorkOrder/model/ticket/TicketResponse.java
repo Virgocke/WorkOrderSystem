@@ -1,4 +1,4 @@
-package com.WorkOrder.model;
+package com.WorkOrder.model.ticket;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

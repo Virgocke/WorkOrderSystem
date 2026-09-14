@@ -9,7 +9,7 @@ import com.WorkOrder.auth.service.AuthenticationService;
 import com.WorkOrder.auth.service.RegisterService;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
-import com.WorkOrder.model.UserResponse;
+import com.WorkOrder.model.user.UserResponse;
 import com.WorkOrder.user.model.Users;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.beans.BeanUtils;

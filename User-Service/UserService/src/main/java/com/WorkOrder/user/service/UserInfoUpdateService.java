@@ -1,6 +1,6 @@
 package com.WorkOrder.user.service;
 
-import com.WorkOrder.model.UserResponse;
+import com.WorkOrder.model.user.UserResponse;
 import com.WorkOrder.user.dto.PasswordDto;
 import com.WorkOrder.user.dto.UserUpdateDto;
 

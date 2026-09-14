@@ -1,4 +1,4 @@
-package com.WorkOrder.model;
+package com.WorkOrder.model.page;
 
 import lombok.Data;
 

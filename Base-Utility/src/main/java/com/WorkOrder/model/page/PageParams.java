@@ -1,4 +1,4 @@
-package com.WorkOrder.model;
+package com.WorkOrder.model.page;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;

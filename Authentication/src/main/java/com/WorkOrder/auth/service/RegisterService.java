@@ -3,7 +3,7 @@ package com.WorkOrder.auth.service;
 import com.WorkOrder.auth.dto.RegisterUserDto;
 import com.WorkOrder.auth.dto.AuthenticatedUserDto;
 import com.WorkOrder.auth.dto.ResetPasswordRequestDto;
-import com.WorkOrder.model.UserResponse;
+import com.WorkOrder.model.user.UserResponse;
 
 /**
  * @author Virgor

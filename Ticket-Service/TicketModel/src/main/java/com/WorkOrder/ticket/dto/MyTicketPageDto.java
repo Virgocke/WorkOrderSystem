@@ -1,6 +1,6 @@
 package com.WorkOrder.ticket.dto;
 
-import com.WorkOrder.model.PageParams;
+import com.WorkOrder.model.page.PageParams;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
