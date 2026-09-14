@@ -1,5 +1,6 @@
 package com.WorkOrder.ticket.service;
 
+import com.WorkOrder.model.StatusHistory;
 import com.WorkOrder.model.TicketResponse;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MyTicketPageDto;
@@ -32,5 +33,19 @@ public interface TicketService extends IService<Tickets> {
      */
     List<TicketResponse> myTickets(Long userId, MyTicketPageDto myTicketPageDto);
 
+    /**
+     * 获取用户工单历史统计信息
+     * @param userId 用户ID
+     * @return 工单历史统计信息
+     */
     TicketHistoryStatisticsDto getTicketHistoryStatistics(Long userId);
+
+    /**
+     * 获取工单信息
+     * @param ticketId 工单ID
+     * @return 工单信息
+     */
+    TicketResponse getTicketInfo(Long ticketId);
+
+
 }

@@ -2,6 +2,7 @@ package com.WorkOrder.ticket.service.impl;
 
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
+import com.WorkOrder.model.StatusHistory;
 import com.WorkOrder.model.TicketResponse;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MonthlyCountDto;
@@ -10,7 +11,9 @@ import com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto;
 import com.WorkOrder.ticket.enums.TicketStatus;
 import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
 import com.WorkOrder.ticket.mapper.TicketMapper;
+import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.model.TicketCategory;
+import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
 import com.WorkOrder.ticket.service.TicketService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -37,6 +40,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     private final TicketMapper ticketMapper;
     private final TicketCategoryMapper categoryMapper;
+    private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
 
     // 时间格式化器
     private static final DateTimeFormatter TIME_FORMATTER =
@@ -106,6 +110,19 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             throw new SystemException(SystemExceptionEnum.TICKET_CREATE_FAILED);
         }
 
+        /**
+         * 创建工单状态历史记录
+         */
+        TicketStatusHistory history = new TicketStatusHistory();
+        history.setTicketId(ticket.getId());
+        history.setFromStatus(null);
+        history.setToStatus(TicketStatus.PENDING_ASSIGN.name());
+        history.setEvent("CREATE");
+        history.setOperatorId(creatorId);
+        history.setRemark("用户创建工单");
+        // 插入工单状态历史记录
+        ticketStatusHistoryMapper.insert(history);
+
 
         Tickets newTicket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Tickets>()
@@ -171,6 +188,21 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         statistics.setByMonth(byMonth);
         return statistics;
     }
+
+    /**
+     * 根据工单ID获取工单信息
+     * @param ticketId 工单ID
+      * @return 工单响应对象
+     */
+    @Override
+    public TicketResponse getTicketInfo(Long ticketId) {
+        Tickets ticket = ticketMapper.selectById(ticketId);
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+        return buildTicketResponse(ticket, new TicketResponse());
+    }
+
 
     /**
      * 转换工单响应对象，使时间类型正确

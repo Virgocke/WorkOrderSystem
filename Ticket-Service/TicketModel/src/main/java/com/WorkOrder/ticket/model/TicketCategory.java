@@ -3,6 +3,8 @@ package com.WorkOrder.ticket.model;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 /**
  * @author Virgor
  * @date 2026年09月13日 02:57
@@ -19,5 +21,5 @@ public class TicketCategory {
     private int defaultResolutionSla;
     private String description;
     // 创建时间，数据库自动生成，不用填写
-    private String createdAt;
+    private LocalDateTime createdAt;
 }
