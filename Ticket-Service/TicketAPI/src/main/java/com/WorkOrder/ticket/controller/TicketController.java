@@ -1,13 +1,17 @@
 package com.WorkOrder.ticket.controller;
 
+import com.WorkOrder.model.ticket.OperationLog;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.Result;
-import com.WorkOrder.model.StatusHistory;
+import com.WorkOrder.model.ticket.StatusHistory;
+import com.WorkOrder.model.ticket.TicketRatingResponse;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.security.CurrentUserIdProvider;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MyTicketPageDto;
 import com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto;
+import com.WorkOrder.ticket.service.TicketOperationLogService;
+import com.WorkOrder.ticket.service.TicketRatingService;
 import com.WorkOrder.ticket.service.TicketService;
 import com.WorkOrder.ticket.service.TicketStatusHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Virgor
@@ -32,6 +37,8 @@ public class TicketController {
     private final TicketService ticketService;
     private final TicketStatusHistoryService ticketStatusHistoryService;
     private final CurrentUserIdProvider currentUserIdProvider;
+    private final TicketOperationLogService ticketOperationLogService;
+    private final TicketRatingService ticketRatingService;
 
 
     /**
@@ -93,8 +100,54 @@ public class TicketController {
         return Result.success(ticketService.getTicketInfo(ticketId));
     }
 
+    /**
+     * 获取工单状态时间线
+     * @param ticketId 工单ID
+     * @return 工单状态时间线
+     */
+    @PreAuthorize(
+        "hasRole('ADMIN') or @ticketAuthorization.canView(#ticketId, authentication)"
+    )
     @GetMapping("/{id}/history")
-    public Result<List<StatusHistory>> ticketStatusTimeline(@PathVariable("id") Long ticketId){
+    public Result<List<StatusHistory>> ticketStatusTimeline(@P("ticketId") @PathVariable("id") Long ticketId){
         return Result.success(ticketStatusHistoryService.getTicketStatusTimeline(ticketId));
+    }
+
+    /**
+     * 获取工单操作日志
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @return 工单操作日志
+     */
+    @PreAuthorize(
+        "hasRole('ADMIN') or @ticketAuthorization.canView(#ticketId, authentication)"
+    )
+    @GetMapping("/{id}/logs")
+    public Result<List<OperationLog>> ticketOperationLog(
+            @P("ticketId") @PathVariable("id") Long ticketId,
+            Authentication authentication){
+
+        List<OperationLog> logs = ticketOperationLogService.getTicketOperationLog(ticketId);
+
+        boolean isNormalUser = authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        "ROLE_USER".equals(authority.getAuthority()));
+
+        if (isNormalUser){
+            logs = logs.stream()
+                    .filter(log -> !"INTERNAL_NOTE".equals(log.getAction()))
+                    .collect(Collectors.toList());
+        }
+
+        return Result.success(logs);
+    }
+
+    @PreAuthorize(
+        "hasRole('ADMIN') or @ticketAuthorization.canView(#ticketId, authentication)"
+    )
+    @GetMapping("/{id}/rating")
+    public Result<TicketRatingResponse> ticketRating(@P("ticketId") @PathVariable("id") Long ticketId, Authentication authentication){
+        Long userId = currentUserIdProvider.get(authentication);
+        return Result.success(ticketRatingService.getTicketRating(ticketId, userId));
     }
 }

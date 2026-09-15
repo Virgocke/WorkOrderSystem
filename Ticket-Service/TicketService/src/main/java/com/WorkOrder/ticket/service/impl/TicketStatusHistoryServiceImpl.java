@@ -1,9 +1,8 @@
 package com.WorkOrder.ticket.service.impl;
 
-import com.WorkOrder.model.StatusHistory;
+import com.WorkOrder.model.ticket.StatusHistory;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
-import com.WorkOrder.ticket.service.TicketService;
 import com.WorkOrder.ticket.service.TicketStatusHistoryService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;

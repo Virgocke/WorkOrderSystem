@@ -1,11 +1,15 @@
 package com.WorkOrder.user.service.impl;
 
+import com.WorkOrder.user.mapper.UsersMapper;
 import com.WorkOrder.user.model.CreateUserRequest;
 import com.WorkOrder.user.model.HandlerProfile;
 import com.WorkOrder.user.model.UpdateHandlerProfileRequest;
-import com.WorkOrder.user.model.UserProfile;
+import com.WorkOrder.model.user.UserProfile;
 import com.WorkOrder.user.enums.UserRole;
+import com.WorkOrder.user.model.Users;
 import com.WorkOrder.user.service.UserDirectoryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -22,7 +26,10 @@ import java.util.stream.Collectors;
  * 接入 MySQL 后请新增 Mapper 实现并替换本类，不要将密码或会话状态放在这里。
  */
 @Service
+@RequiredArgsConstructor
 public class InMemoryUserDirectoryService implements UserDirectoryService {
+    private final UsersMapper usersMapper;
+
     private final AtomicLong sequence = new AtomicLong(1000);
     private final Map<Long, UserProfile> users = new ConcurrentHashMap<>();
 
@@ -78,7 +85,12 @@ public class InMemoryUserDirectoryService implements UserDirectoryService {
      */
     @Override
     public UserProfile getById(Long id) {
-        return copyOf(requireUser(id));
+        Users user = usersMapper.selectById(id);
+
+        UserProfile userProfile = new UserProfile();
+        BeanUtils.copyProperties(user, userProfile);
+
+        return userProfile;
     }
 
     /**

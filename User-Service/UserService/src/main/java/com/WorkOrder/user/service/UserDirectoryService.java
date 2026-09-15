@@ -2,7 +2,7 @@ package com.WorkOrder.user.service;
 
 import com.WorkOrder.user.model.CreateUserRequest;
 import com.WorkOrder.user.model.UpdateHandlerProfileRequest;
-import com.WorkOrder.user.model.UserProfile;
+import com.WorkOrder.model.user.UserProfile;
 
 import java.util.List;
 

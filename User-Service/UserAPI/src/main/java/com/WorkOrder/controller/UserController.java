@@ -8,7 +8,7 @@ import com.WorkOrder.user.dto.UserUpdateDto;
 import com.WorkOrder.user.dto.UsersDto;
 import com.WorkOrder.user.model.CreateUserRequest;
 import com.WorkOrder.user.model.UpdateHandlerProfileRequest;
-import com.WorkOrder.user.model.UserProfile;
+import com.WorkOrder.model.user.UserProfile;
 import com.WorkOrder.user.service.AuthenticationService;
 import com.WorkOrder.user.service.UserDirectoryService;
 import com.WorkOrder.user.service.UserInfoUpdateService;

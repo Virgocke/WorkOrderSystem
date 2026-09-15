@@ -1,6 +1,6 @@
 package com.WorkOrder.ticket.service;
 
-import com.WorkOrder.model.StatusHistory;
+import com.WorkOrder.model.ticket.StatusHistory;
 
 import java.util.List;
 
