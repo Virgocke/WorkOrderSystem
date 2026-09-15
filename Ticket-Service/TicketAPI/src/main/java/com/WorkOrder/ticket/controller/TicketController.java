@@ -10,6 +10,7 @@ import com.WorkOrder.security.CurrentUserIdProvider;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MyTicketPageDto;
 import com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto;
+import com.WorkOrder.ticket.dto.TicketReplyDto;
 import com.WorkOrder.ticket.service.TicketOperationLogService;
 import com.WorkOrder.ticket.service.TicketRatingService;
 import com.WorkOrder.ticket.service.TicketService;
@@ -142,6 +143,12 @@ public class TicketController {
         return Result.success(logs);
     }
 
+    /**
+     * 获取工单评分
+      * @param ticketId 工单ID
+      * @param authentication 当前用户认证信息
+      * @return 工单评分
+     */
     @PreAuthorize(
         "hasRole('ADMIN') or @ticketAuthorization.canView(#ticketId, authentication)"
     )
@@ -149,5 +156,27 @@ public class TicketController {
     public Result<TicketRatingResponse> ticketRating(@P("ticketId") @PathVariable("id") Long ticketId, Authentication authentication){
         Long userId = currentUserIdProvider.get(authentication);
         return Result.success(ticketRatingService.getTicketRating(ticketId, userId));
+    }
+
+    /**
+     * 获取工单回复信息
+      * @param ticketId 工单ID
+      * @param authentication 当前用户认证信息
+      * @param ticketReplyDto 工单回复信息DTO
+      * @return 工单回复信息
+     */
+    @PreAuthorize(
+            "hasRole('ADMIN') or @ticketAuthorization.canView(#ticketId, authentication)"
+    )
+    @PostMapping("/{id}/reply")
+    public Result<Boolean> ticketReplyInfo(
+            @P("ticketId") @PathVariable("id") Long ticketId,
+            Authentication authentication,
+            @Valid @RequestBody TicketReplyDto ticketReplyDto){
+
+        Long userId = currentUserIdProvider.get(authentication);
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        return Result.success(ticketService.ticketReplyInfo(ticketId, userId, isAdmin, ticketReplyDto));
     }
 }

@@ -3,15 +3,14 @@ package com.WorkOrder.ticket.service.impl;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.ticket.TicketResponse;
-import com.WorkOrder.ticket.dto.CreateTicketDto;
-import com.WorkOrder.ticket.dto.MonthlyCountDto;
-import com.WorkOrder.ticket.dto.MyTicketPageDto;
-import com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto;
+import com.WorkOrder.ticket.dto.*;
 import com.WorkOrder.ticket.enums.TicketStatus;
 import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
 import com.WorkOrder.ticket.mapper.TicketMapper;
+import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.model.TicketCategory;
+import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
 import com.WorkOrder.ticket.service.TicketService;
@@ -26,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +40,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final TicketMapper ticketMapper;
     private final TicketCategoryMapper categoryMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
+    private final TicketOperationLogMapper ticketOperationLogMapper;
+
 
     // 时间格式化器
     private static final DateTimeFormatter TIME_FORMATTER =
@@ -200,6 +202,73 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
         return buildTicketResponse(ticket, new TicketResponse());
+    }
+
+    /**
+     * 回复工单
+     * @param ticketId 工单ID
+     * @param userId 用户ID
+     * @param isAdmin 是否管理员
+     * @param ticketReplyDto 回复工单的DTO
+     * @return 是否成功
+     */
+    @Override
+    public Boolean ticketReplyInfo(Long ticketId, Long userId, boolean isAdmin, TicketReplyDto ticketReplyDto) {
+        Tickets ticket = ticketMapper.selectById(ticketId);
+        if (ticket == null){
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+
+        Long operatorId = userId;
+        // 操作类型
+        String action;
+        // 操作者角色
+        String operatorRole;
+        // 接收者ID
+        Long receiverId;
+        // 判断操作者角色
+        if (Objects.equals(operatorId, ticket.getCreatorId())) {
+            action = "USER_REPLY";
+            operatorRole = "USER";
+            receiverId = ticket.getHandlerId();
+        } else if (Objects.equals(operatorId, ticket.getHandlerId())) {
+            action = "HANDLER_REPLY";
+            operatorRole = "HANDLER";
+            receiverId = ticket.getCreatorId();
+        } else if (isAdmin) {
+            // 管理员属于客服侧回复
+            action = "HANDLER_REPLY";
+            operatorRole = "ADMIN";
+            receiverId = ticket.getCreatorId();
+        } else {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+
+        // 创建工单操作日志
+        TicketOperationLog log = new TicketOperationLog();
+        log.setTicketId(ticketId);
+        log.setAction(action);
+        log.setOperatorId(operatorId);
+        log.setOperatorRole(operatorRole);
+        log.setContent(ticketReplyDto.getContent());
+        // 插入工单操作日志
+        int insert = ticketOperationLogMapper.insert(log);
+
+        if (insert < 1){
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        //todo 发送通知，通知模块还没实现
+//        if (receiverId != null) {
+//            notificationService.send(
+//                    receiverId,
+//                    "工单有新回复",
+//                    ticketReplyDto.getContent()
+//            );
+//        }
+
+
+        return true;
     }
 
 

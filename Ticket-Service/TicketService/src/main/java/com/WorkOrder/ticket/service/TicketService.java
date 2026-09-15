@@ -4,9 +4,11 @@ import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MyTicketPageDto;
 import com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto;
+import com.WorkOrder.ticket.dto.TicketReplyDto;
 import com.WorkOrder.ticket.model.Tickets;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import javax.validation.Valid;
 import java.util.List;
 
 /**
@@ -46,5 +48,13 @@ public interface TicketService extends IService<Tickets> {
      */
     TicketResponse getTicketInfo(Long ticketId);
 
-
+    /**
+     * 回复工单信息
+      * @param ticketId 工单ID
+     * @param userId 用户ID
+     * @param isAdmin 是否管理员
+     * @param ticketReplyDto 回复工单的DTO
+     * @return 是否成功回复工单
+     */
+    Boolean ticketReplyInfo(Long ticketId, Long userId, boolean isAdmin, @Valid TicketReplyDto ticketReplyDto);
 }
