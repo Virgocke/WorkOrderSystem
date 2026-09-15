@@ -7,10 +7,7 @@ import com.WorkOrder.model.ticket.StatusHistory;
 import com.WorkOrder.model.ticket.TicketRatingResponse;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.security.CurrentUserIdProvider;
-import com.WorkOrder.ticket.dto.CreateTicketDto;
-import com.WorkOrder.ticket.dto.MyTicketPageDto;
-import com.WorkOrder.ticket.dto.TicketHistoryStatisticsDto;
-import com.WorkOrder.ticket.dto.TicketReplyDto;
+import com.WorkOrder.ticket.dto.*;
 import com.WorkOrder.ticket.service.TicketOperationLogService;
 import com.WorkOrder.ticket.service.TicketRatingService;
 import com.WorkOrder.ticket.service.TicketService;
@@ -179,4 +176,69 @@ public class TicketController {
             .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
         return Result.success(ticketService.ticketReplyInfo(ticketId, userId, isAdmin, ticketReplyDto));
     }
+
+    /**
+     * 工单催办
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @return 是否成功
+     */
+    @PreAuthorize(
+            "@ticketAuthorization.isCreator(#ticketId, authentication)"
+    )
+    @PostMapping("/{id}/remind")
+    public Result<Boolean> ticketExpedite(@P("ticketId") @PathVariable("id") Long ticketId,Authentication authentication){
+        Long userId = currentUserIdProvider.get(authentication);
+        return Result.success(ticketService.ticketExpedite(ticketId, userId));
+    }
+
+    /**
+     * 撤销工单
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @return 取消后的工单信息
+     */
+    @PreAuthorize(
+            "hasRole('ADMIN') or @ticketAuthorization.isCreator(#ticketId, authentication)"
+    )
+    @PostMapping("/{id}/cancel")
+    public Result<TicketResponse> cancelTicket(@P("ticketId") @PathVariable("id") Long ticketId, Authentication authentication){
+        Long userId = currentUserIdProvider.get(authentication);
+        return Result.success(ticketService.cancelTicket(ticketId, userId));
+    }
+
+    /**
+     * 确认工单
+      * @param ticketId 工单ID
+      * @param authentication 当前用户认证信息
+      * @return 确认后的工单信息
+     */
+    @PreAuthorize(
+            "hasRole('ADMIN') or @ticketAuthorization.isCreator(#ticketId, authentication)"
+    )
+    @PostMapping("/{id}/confirm")
+    public Result<TicketResponse> confirmTicket(@P("ticketId") @PathVariable("id") Long ticketId, Authentication authentication){
+        Long userId = currentUserIdProvider.get(authentication);
+        return Result.success(ticketService.confirmTicket(ticketId, userId));
+    }
+
+    /**
+     * 提交工单评分
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @param ticketRatingDto 工单评分DTO
+     * @return 是否成功
+     */
+    @PreAuthorize(
+            "@ticketAuthorization.isCreator(#ticketId, authentication)"
+    )
+    @PostMapping("/{id}/rate")
+    public Result<Boolean> ticketRatingSubmit(
+            @P("ticketId") @PathVariable("id") Long ticketId,
+            Authentication authentication,
+            @Valid @RequestBody TicketRatingDto ticketRatingDto){
+        Long userId = currentUserIdProvider.get(authentication);
+        return Result.success(ticketRatingService.ticketRatingSubmit(ticketId, userId, ticketRatingDto));
+    }
+
 }

@@ -57,4 +57,28 @@ public interface TicketService extends IService<Tickets> {
      * @return 是否成功回复工单
      */
     Boolean ticketReplyInfo(Long ticketId, Long userId, boolean isAdmin, @Valid TicketReplyDto ticketReplyDto);
+
+    /**
+     * 催办工单
+      * @param ticketId 工单ID
+      * @param userId 用户ID
+      * @return 是否成功催办工单
+     */
+    Boolean ticketExpedite(Long ticketId, Long userId);
+
+    /**
+     * 取消工单
+     * @param ticketId 工单ID
+     * @param userId 用户ID
+     * @return 取消工单信息
+     */
+    TicketResponse cancelTicket(Long ticketId, Long userId);
+
+    /**
+     * 确认工单
+     * @param ticketId 工单ID
+     * @param userId 用户ID
+     * @return 确认工单信息
+     */
+    TicketResponse confirmTicket(Long ticketId, Long userId);
 }

@@ -1,8 +1,12 @@
 package com.WorkOrder.ticket.service.impl;
 
+import com.WorkOrder.enums.SystemExceptionEnum;
+import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.Result;
 import com.WorkOrder.model.ticket.TicketRatingResponse;
 import com.WorkOrder.model.user.UserProfile;
+import com.WorkOrder.ticket.dto.TicketRatingDto;
+import com.WorkOrder.ticket.enums.TicketStatusEnum;
 import com.WorkOrder.ticket.feignclient.UserFeignClient;
 import com.WorkOrder.ticket.mapper.TicketMapper;
 import com.WorkOrder.ticket.mapper.TicketRatingMapper;
@@ -62,5 +66,52 @@ public class TicketRatingServiceImpl implements TicketRatingService {
         ticketRatingResponse.setHandlerName(null);
 
         return ticketRatingResponse;
+    }
+
+    /**
+     * 提交工单评价
+     * @param ticketId 工单编号
+     * @param ticketRatingDto 工单评价DTO
+     * @return 是否成功
+     */
+    @Override
+    public Boolean ticketRatingSubmit(Long ticketId, Long userId, TicketRatingDto ticketRatingDto) {
+        // 根据工单编号查询工单，如果不存在则抛出异常，表示工单不存在
+        Tickets ticket = ticketMapper.selectOne(
+                new LambdaQueryWrapper<Tickets>()
+                        .eq(Tickets::getTicketNo, ticketId)
+        );
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+        // 如果工单状态不是已解决或已关闭则抛出异常，表示工单不能评价
+        if (
+                !ticket.getStatus().equals(TicketStatusEnum.RESOLVED.name())
+                        && !ticket.getStatus().equals(TicketStatusEnum.CLOSED.name())
+        ){
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_RESOLVED);
+        }
+
+        // 根据工单编号查询工单评价，如果存在则抛出异常，表示工单已评价
+        TicketRating ticketRating = ticketRatingMapper
+                .selectOne(
+                        new LambdaQueryWrapper<TicketRating>()
+                                .eq(TicketRating::getTicketId, ticketId)
+                );
+        if (ticketRating != null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_RATING_HAS_BEEN_MADE);
+        }
+
+        // 创建工单评价对象并设置属性
+        ticketRating = new TicketRating();
+        BeanUtils.copyProperties(ticketRatingDto, ticketRating);
+        ticketRating.setTicketId(ticketId);
+        ticketRating.setUserId(userId);
+        // 插入数据库
+        int insert = ticketRatingMapper.insert(ticketRating);
+        if (insert < 1){
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        return true;
     }
 }

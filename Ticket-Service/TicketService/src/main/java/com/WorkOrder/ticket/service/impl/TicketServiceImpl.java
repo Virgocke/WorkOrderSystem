@@ -4,7 +4,7 @@ import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.ticket.dto.*;
-import com.WorkOrder.ticket.enums.TicketStatus;
+import com.WorkOrder.ticket.enums.TicketStatusEnum;
 import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
 import com.WorkOrder.ticket.mapper.TicketMapper;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
@@ -90,7 +90,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         ticketResponse.setHandlerName(null); // 设置处理者名称为null
         ticketResponse.setAssignedAt(null); // 设置分配时间为空
 
-        ticket.setStatus(TicketStatus.PENDING_ASSIGN.name()); // 设置工单状态为待分配
+        ticket.setStatus(TicketStatusEnum.PENDING_ASSIGN.name()); // 设置工单状态为待分配
         ticket.setResponseDeadline(
                 now.plusMinutes(ticketCategory.getDefaultResponseSla())
         ); // 设置响应截止时间
@@ -117,7 +117,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         TicketStatusHistory history = new TicketStatusHistory();
         history.setTicketId(ticket.getId());
         history.setFromStatus(null);
-        history.setToStatus(TicketStatus.PENDING_ASSIGN.name());
+        history.setToStatus(TicketStatusEnum.PENDING_ASSIGN.name());
         history.setEvent("CREATE");
         history.setOperatorId(creatorId);
         history.setRemark("用户创建工单");
@@ -269,6 +269,80 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
 
         return true;
+    }
+
+    /**
+     * 催办工单
+     * @param ticketId 工单ID
+     * @param userId 用户ID
+      * @return 是否成功
+     */
+    @Override
+    public Boolean ticketExpedite(Long ticketId, Long userId) {
+        Tickets ticket = ticketMapper.selectById(ticketId);
+        int escalatedLevel = ticket.getEscalatedLevel();
+        if(escalatedLevel == 3){
+            throw new SystemException(SystemExceptionEnum.TICKET_ALREADY_ESCALATED);
+        } else {
+            ticket.setEscalatedLevel(escalatedLevel + 1);
+            ticket.setSlaStatus("ESCALATED");
+            ticketMapper.updateById(ticket);
+        }
+        //todo 消息模块没实现，催办功能暂无
+        return true;
+    }
+
+    /**
+     * 撤销工单
+     * @param ticketId 工单ID
+     * @param userId 用户ID
+     * @return 工单响应对象
+     */
+    @Override
+    public TicketResponse cancelTicket(Long ticketId, Long userId) {
+        Tickets ticket = ticketMapper.selectById(ticketId);
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+        String ticketStatus = ticket.getStatus();
+        if (
+                !ticketStatus.equals(TicketStatusEnum.PENDING_ASSIGN.name()) &&
+                !ticketStatus.equals(TicketStatusEnum.PENDING_RESPONSE.name()) &&
+                !ticketStatus.equals(TicketStatusEnum.PROCESSING.name())){
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
+        } else {
+            ticket.setStatus(TicketStatusEnum.CANCELLED.name());
+            ticketMapper.updateById(ticket);
+        }
+
+        TicketResponse ticketResponse = buildTicketResponse(ticket, new TicketResponse());
+
+        return ticketResponse;
+    }
+
+    /**
+     * 确认工单
+     * @param ticketId 工单ID
+     * @param userId 用户ID
+     * @return 工单响应对象
+     */
+    @Override
+    public TicketResponse confirmTicket(Long ticketId, Long userId) {
+        Tickets ticket = ticketMapper.selectById(ticketId);
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+        if(!ticket.getStatus().equals(TicketStatusEnum.RESOLVED.name())){
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
+        } else {
+            ticket.setStatus(TicketStatusEnum.CLOSED.name());
+            ticket.setClosedAt(LocalDateTime.now());
+            int update = ticketMapper.updateById(ticket);
+            if(update < 1)
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            // todo 确认后用消息模块通知处理人handler
+        }
+        return buildTicketResponse(ticket, new TicketResponse());
     }
 
 

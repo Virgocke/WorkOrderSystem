@@ -1,6 +1,9 @@
 package com.WorkOrder.ticket.service;
 
 import com.WorkOrder.model.ticket.TicketRatingResponse;
+import com.WorkOrder.ticket.dto.TicketRatingDto;
+
+import javax.validation.Valid;
 
 /**
  * @author Virgor
@@ -9,5 +12,19 @@ import com.WorkOrder.model.ticket.TicketRatingResponse;
  */
 public interface TicketRatingService {
 
+    /**
+     * 获取工单评价
+     * @param ticketId 工单编号
+     * @param userId 用户编号
+     * @return 工单评价响应对象
+     */
     TicketRatingResponse getTicketRating(Long ticketId, Long userId);
+
+    /**
+     * 提交工单评价
+     * @param ticketId 工单编号
+     * @param ticketRatingDto 工单评价DTO
+     * @return 是否提交成功
+     */
+    Boolean ticketRatingSubmit(Long ticketId, Long userId, @Valid TicketRatingDto ticketRatingDto);
 }

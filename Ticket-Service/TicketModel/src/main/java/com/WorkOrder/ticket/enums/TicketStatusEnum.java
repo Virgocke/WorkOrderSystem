@@ -13,7 +13,7 @@ import java.util.List;
  * @description 工单状态枚举
  */
 @Getter
-public enum TicketStatus {
+public enum TicketStatusEnum {
     PENDING_ASSIGN(0, "PENDING_ASSIGN", "待分配_用户提交后默认状态，尚无处理人",
         1, 5), // 只能流转到"待响应"或"已撤销"
 
@@ -38,7 +38,7 @@ public enum TicketStatus {
     private final String description; // 状态描述
     private final List<Integer> nextStatusCodes; // 允许流转的下一个状态码列表
 
-    TicketStatus(int code, String name, String description, Integer... nextStatusCodes) {
+    TicketStatusEnum(int code, String name, String description, Integer... nextStatusCodes) {
         this.code = code;
         this.name = name;
         this.description = description;
@@ -48,11 +48,11 @@ public enum TicketStatus {
     /**
      * 根据 code 获取枚举，用于数据库反序列化
      */
-    public static TicketStatus fromCode(Integer code) {
+    public static TicketStatusEnum fromCode(Integer code) {
         if (code == null) {
             return null;
         }
-        for (TicketStatus status : values()) {
+        for (TicketStatusEnum status : values()) {
             if (status.code == code) {
                 return status;
             }
@@ -65,7 +65,7 @@ public enum TicketStatus {
      * @param target 目标状态
      * @return true 表示允许流转
      */
-    public boolean canTransitionTo(TicketStatus target) {
+    public boolean canTransitionTo(TicketStatusEnum target) {
         if (target == null) {
             return false;
         }
@@ -80,11 +80,11 @@ public enum TicketStatus {
      * 获取允许流转的下一个状态。
      * 以状态码保存关系，避免枚举常量初始化阶段的非法前向引用。
      */
-    public List<TicketStatus> getNextStatuses() {
+    public List<TicketStatusEnum> getNextStatuses() {
         if (nextStatusCodes.isEmpty()) {
             return Collections.emptyList();
         }
-        List<TicketStatus> statuses = new ArrayList<>(nextStatusCodes.size());
+        List<TicketStatusEnum> statuses = new ArrayList<>(nextStatusCodes.size());
         for (Integer nextStatusCode : nextStatusCodes) {
             statuses.add(fromCode(nextStatusCode));
         }

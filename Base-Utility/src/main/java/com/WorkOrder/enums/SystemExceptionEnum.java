@@ -25,6 +25,8 @@ public enum SystemExceptionEnum {
 
     // === 权限相关 (1020~1029) ===
     ACCESS_DENIED(1020, "无权限执行该操作"),
+    TICKET_STATUS_NOT_ALLOWED(1021, "工单状态不允许执行该操作"),
+    TICKET_NOT_RESOLVED(1022, "工单未解决，不允许执行该操作"),
 
     // === 资源与数据相关 (1040~1049) ===
     TICKET_NOT_FOUND(1040, "工单不存在"),
@@ -32,6 +34,8 @@ public enum SystemExceptionEnum {
     ILLEGAL_ARGUMENT(1042, "非法参数"),
     CREATE_FAILED(1043, "创建失败"),
     TICKET_CREATE_FAILED(1044, "工单创建失败"),
+    TICKET_ALREADY_ESCALATED(1045, "工单催办次数已上限，请联系管理员"),
+    TICKET_RATING_HAS_BEEN_MADE(1046, "工单已评价，不允许重复评价"),
 
     // === 附件与文件相关 (1060~1069) ===
     UNSUPPORTED_ATTACHMENT_TYPE(1060, "仅支持上传图片类型文件"),
