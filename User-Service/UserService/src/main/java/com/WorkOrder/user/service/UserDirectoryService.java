@@ -18,7 +18,7 @@ public interface UserDirectoryService {
      * @param request 用户创建请求
      * @return 创建后的用户资料
      */
-    UserProfile create(CreateUserRequest request);
+    //UserProfile create(CreateUserRequest request);
 
     /**
      * 按主键查询用户资料。
@@ -33,7 +33,7 @@ public interface UserDirectoryService {
      *
      * @return 处理人资料列表
      */
-    List<UserProfile> listHandlers();
+    //List<UserProfile> listHandlers();
 
     /**
      * 更新处理人的最大容量和技能标签。
@@ -42,5 +42,5 @@ public interface UserDirectoryService {
      * @param request 待更新的处理人档案
      * @return 更新后的用户资料
      */
-    UserProfile updateHandlerProfile(Long userId, UpdateHandlerProfileRequest request);
+    //UserProfile updateHandlerProfile(Long userId, UpdateHandlerProfileRequest request);
 }

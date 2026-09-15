@@ -1,4 +1,4 @@
-package com.WorkOrder.user.dto.user;
+package com.WorkOrder.user.dto;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;

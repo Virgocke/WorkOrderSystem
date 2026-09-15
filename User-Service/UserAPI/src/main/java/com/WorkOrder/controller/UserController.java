@@ -3,9 +3,9 @@ package com.WorkOrder.controller;
 import com.WorkOrder.model.Result;
 import com.WorkOrder.model.user.UserResponse;
 import com.WorkOrder.security.CurrentUserIdProvider;
-import com.WorkOrder.user.dto.user.PasswordDto;
-import com.WorkOrder.user.dto.user.UserUpdateDto;
-import com.WorkOrder.user.dto.user.UsersDto;
+import com.WorkOrder.user.dto.PasswordDto;
+import com.WorkOrder.user.dto.UserUpdateDto;
+import com.WorkOrder.user.dto.UsersDto;
 import com.WorkOrder.user.model.CreateUserRequest;
 import com.WorkOrder.user.model.UpdateHandlerProfileRequest;
 import com.WorkOrder.model.user.UserProfile;
@@ -88,10 +88,10 @@ public class UserController {
      * @param request 创建请求
      * @return 创建后的用户资料
      */
-    @PostMapping
-    public Result<UserProfile> create(@Valid @RequestBody CreateUserRequest request) {
-        return Result.success(userDirectoryService.create(request));
-    }
+//    @PostMapping
+//    public Result<UserProfile> create(@Valid @RequestBody CreateUserRequest request) {
+//        return Result.success(userDirectoryService.create(request));
+//    }
 
     /**
      * 查询指定用户的公开资料。
@@ -109,10 +109,10 @@ public class UserController {
      *
      * @return 处理人资料列表
      */
-    @GetMapping("/handlers")
-    public Result<List<UserProfile>> listHandlers() {
-        return Result.success(userDirectoryService.listHandlers());
-    }
+//    @GetMapping("/handlers")
+//    public Result<List<UserProfile>> listHandlers() {
+//        return Result.success(userDirectoryService.listHandlers());
+//    }
 
     /**
      * 更新处理人的容量和技能标签。
@@ -121,9 +121,9 @@ public class UserController {
      * @param request 档案更新请求
      * @return 更新后的用户资料
      */
-    @PutMapping("/{id}/handler-profile")
-    public Result<UserProfile> updateHandlerProfile(@PathVariable Long id,
-                                                     @Valid @RequestBody UpdateHandlerProfileRequest request) {
-        return Result.success(userDirectoryService.updateHandlerProfile(id, request));
-    }
+//    @PutMapping("/{id}/handler-profile")
+//    public Result<UserProfile> updateHandlerProfile(@PathVariable Long id,
+//                                                     @Valid @RequestBody UpdateHandlerProfileRequest request) {
+//        return Result.success(userDirectoryService.updateHandlerProfile(id, request));
+//    }
 }

@@ -48,7 +48,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
      */
     @Override
     public void configure(ResourceServerSecurityConfigurer resources) {
-        resources.resourceId("user-service").tokenStore(tokenStore());
+        resources.resourceId("userAndHandler-service").tokenStore(tokenStore());
     }
 
     /**
@@ -59,7 +59,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
      */
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        http.requestMatchers().antMatchers("/users/**")
+        http.requestMatchers().antMatchers("/users/**","/handlers/**")
                 .and()
                 .authorizeRequests()
                 .anyRequest()

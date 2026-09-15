@@ -1,5 +1,7 @@
 package com.WorkOrder.ticket.controller;
 
+import com.WorkOrder.handler.dto.HandlerTicketPageDto;
+import com.WorkOrder.handler.service.HandlerTicketService;
 import com.WorkOrder.model.ticket.OperationLog;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.Result;
@@ -37,6 +39,7 @@ public class TicketController {
     private final CurrentUserIdProvider currentUserIdProvider;
     private final TicketOperationLogService ticketOperationLogService;
     private final TicketRatingService ticketRatingService;
+    private final HandlerTicketService handlerTicketService;
 
 
     /**
@@ -241,4 +244,20 @@ public class TicketController {
         return Result.success(ticketRatingService.ticketRatingSubmit(ticketId, userId, ticketRatingDto));
     }
 
+
+    @GetMapping("/handler")
+    public PageResult<TicketResponse> getTicketList(
+            Authentication authentication,
+            @Valid HandlerTicketPageDto handlerTicketPageDto){
+
+        Long handlerId = currentUserIdProvider.get(authentication);
+        List<TicketResponse> ticketList = handlerTicketService.getHandlerTicket(handlerId, handlerTicketPageDto);
+
+        return new PageResult<>(
+                ticketList,
+                ticketList.size(),
+                handlerTicketPageDto.getPage(),
+                handlerTicketPageDto.getPageSize()
+                );
+    }
 }

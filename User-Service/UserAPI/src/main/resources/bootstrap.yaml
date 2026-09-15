@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: user-service
+    name: userAndHandler-service
   jackson:
     time-zone: GMT+8
   datasource:

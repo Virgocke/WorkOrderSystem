@@ -1,6 +1,6 @@
 package com.WorkOrder.user.service;
 
-import com.WorkOrder.user.dto.user.UsersDto;
+import com.WorkOrder.user.dto.UsersDto;
 import org.springframework.security.core.Authentication;
 
 /**

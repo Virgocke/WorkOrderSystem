@@ -1,8 +1,8 @@
 package com.WorkOrder.user.service;
 
 import com.WorkOrder.model.user.UserResponse;
-import com.WorkOrder.user.dto.user.PasswordDto;
-import com.WorkOrder.user.dto.user.UserUpdateDto;
+import com.WorkOrder.user.dto.PasswordDto;
+import com.WorkOrder.user.dto.UserUpdateDto;
 
 /**
  * @author Virgor

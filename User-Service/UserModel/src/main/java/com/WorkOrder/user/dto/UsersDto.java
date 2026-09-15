@@ -1,4 +1,4 @@
-package com.WorkOrder.user.dto.user;
+package com.WorkOrder.user.dto;
 
 import com.WorkOrder.user.model.Users;
 import lombok.Data;

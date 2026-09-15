@@ -2,7 +2,7 @@ package com.WorkOrder.user.service.impl;
 
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
-import com.WorkOrder.user.dto.user.UsersDto;
+import com.WorkOrder.user.dto.UsersDto;
 import com.WorkOrder.user.mapper.UsersMapper;
 import com.WorkOrder.user.service.AuthenticationService;
 
