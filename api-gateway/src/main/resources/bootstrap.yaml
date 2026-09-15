@@ -37,6 +37,13 @@ spring:
             - Path=/api/tickets/**,/api/ticket-categories/**
           filters:
             - StripPrefix=1
+
+        - id: handler-service
+          uri: lb://handler-service
+          predicates:
+            - Path=/api/handlers/**
+          filters:
+            - StripPrefix=1
     nacos:
       server-addr: localhost:8848
       discovery:

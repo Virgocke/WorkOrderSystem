@@ -1,6 +1,6 @@
 package com.WorkOrder.user.mapper;
 
-import com.WorkOrder.user.dto.UsersDto;
+import com.WorkOrder.user.dto.user.UsersDto;
 import com.WorkOrder.user.model.Users;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;

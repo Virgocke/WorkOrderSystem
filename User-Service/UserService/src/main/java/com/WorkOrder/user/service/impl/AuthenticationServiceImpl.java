@@ -2,11 +2,10 @@ package com.WorkOrder.user.service.impl;
 
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
-import com.WorkOrder.user.dto.UsersDto;
+import com.WorkOrder.user.dto.user.UsersDto;
 import com.WorkOrder.user.mapper.UsersMapper;
 import com.WorkOrder.user.service.AuthenticationService;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
