@@ -1,6 +1,7 @@
 package com.WorkOrder.admin.service;
 
-import com.WorkOrder.handler.dto.AdminTicketListDto;
+import com.WorkOrder.admin.dto.AdminTicketListDto;
+import com.WorkOrder.admin.dto.CloseTicketDto;
 import com.WorkOrder.handler.dto.AssignTicketDto;
 import com.WorkOrder.model.ticket.TicketResponse;
 
@@ -27,4 +28,14 @@ public interface AdminTicketService {
      */
     TicketResponse assignTicket(Long ticketId, AssignTicketDto assignTicketDto,
                                 Long operatorId, String operatorRole, String clientIp);
+
+    /**
+     * 强制关闭工单。
+     * @param ticketId 工单ID
+     * @param operatorId 当前操作人ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @param clientIp 客户端IP
+     * @return 关闭后的工单信息
+     */
+    TicketResponse closeTicket(Long ticketId, CloseTicketDto closeTicketDto, Long operatorId, String operatorRole, String clientIp);
 }

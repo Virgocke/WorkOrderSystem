@@ -1,4 +1,4 @@
-package com.WorkOrder.handler.dto;
+package com.WorkOrder.admin.dto;
 
 import com.WorkOrder.ticket.dto.MyTicketPageDto;
 import io.swagger.annotations.ApiModelProperty;
@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * @author Virgor
  * @date 2026年09月17日 01:46
- * @description
+ * @description 管理员工单列表查询参数
  */
 @Data
 public class AdminTicketListDto extends MyTicketPageDto {

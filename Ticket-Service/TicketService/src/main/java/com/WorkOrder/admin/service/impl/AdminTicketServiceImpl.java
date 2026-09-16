@@ -1,9 +1,10 @@
 package com.WorkOrder.admin.service.impl;
 
+import com.WorkOrder.admin.dto.CloseTicketDto;
 import com.WorkOrder.admin.service.AdminTicketService;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
-import com.WorkOrder.handler.dto.AdminTicketListDto;
+import com.WorkOrder.admin.dto.AdminTicketListDto;
 import com.WorkOrder.handler.dto.AssignTicketDto;
 import com.WorkOrder.handler.mapper.AssignmentRecordMapper;
 import com.WorkOrder.handler.model.AssignmentRecord;
@@ -226,6 +227,76 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         TicketResponse response = TicketConverter.toResponse(assignedTicket);
         response.setHandlerName(handler.getRealName());
         return response;
+    }
+
+    @Override
+    @Transactional
+    public TicketResponse closeTicket(Long ticketId, CloseTicketDto closeTicketDto, Long operatorId, String operatorRole, String clientIp) {
+        // 操作人角色取自后端认证信息，服务层再次校验管理员权限。
+        if (!"ADMIN".equals(operatorRole)) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+
+        // 校验操作人存在且为启用状态
+        Result<UserProfile> userResult = userFeignClient.getById(operatorId);
+        if (userResult == null || userResult.getData() == null) {
+            throw new SystemException(SystemExceptionEnum.USER_NOT_FOUND);
+        }
+        UserProfile operator = userResult.getData();
+        if (operator.getStatus() != 1){
+            throw new SystemException(SystemExceptionEnum.ACCOUNT_DISABLED);
+        }
+
+        // 校验工单存在
+        Tickets ticket = ticketMapper.selectById(ticketId);
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+
+        // 检查工单状态是否允许关闭
+        if (
+                TicketStatusEnum.CLOSED.name().equals(ticket.getStatus()) ||
+                TicketStatusEnum.CANCELLED.name().equals(ticket.getStatus())
+        ){
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
+        }
+
+        String oldStatus = ticket.getStatus();
+
+        ticket.setStatus(TicketStatusEnum.CLOSED.name());
+        ticket.setClosedAt(LocalDateTime.now());
+
+        int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
+                        .eq(Tickets::getId, ticketId)
+                        .eq(Tickets::getStatus, oldStatus)
+                        .set(Tickets::getStatus, ticket.getStatus())
+                        .set(Tickets::getClosedAt, ticket.getClosedAt()));
+        if (update != 1) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+
+        if (!saveTicketStatusHistory(
+                ticket,
+                oldStatus,
+                operatorId,
+                closeTicketDto.getReason(),
+                "CLOSE",
+                ticket.getClosedAt())) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+
+        if (!saveTicketOperationLog(
+                ticket,
+                "CLOSE",
+                operatorId,
+                operatorRole,
+                clientIp,
+                "关闭工单，原因：" + closeTicketDto.getReason(),
+                ticket.getClosedAt())) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+
+        return TicketConverter.toResponse(ticket);
     }
 
     /**

@@ -199,6 +199,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
         // 设置新的工单状态
         ticket.setStatus(TicketStatusEnum.RESOLVED.name());
+        ticket.setResolvedAt(LocalDateTime.now());
 
         // 仅首次响应可以变更状态，避免重复请求产生重复日志。
         int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
@@ -206,7 +207,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 .eq(Tickets::getStatus, oldStatus)
                 .eq(!isAdmin, Tickets::getHandlerId, operatorId)
                 .set(Tickets::getStatus, ticket.getStatus())
-                .set(Tickets::getResolvedAt, LocalDateTime.now()));
+                .set(Tickets::getResolvedAt, ticket.getResolvedAt()));
 
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);

@@ -1,5 +1,7 @@
 package com.WorkOrder.ticket.controller;
 
+import com.WorkOrder.admin.dto.AdminTicketListDto;
+import com.WorkOrder.admin.dto.CloseTicketDto;
 import com.WorkOrder.admin.service.AdminTicketService;
 import com.WorkOrder.handler.dto.*;
 import com.WorkOrder.handler.service.HandlerTicketService;
@@ -427,4 +429,26 @@ public class TicketController {
                 adminTicketListDto.getPageSize()
         );
     }
+
+    /**
+     * 管理员强制关闭工单
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @param closeTicketDto 强制关闭工单DTO
+     * @return 关闭后的工单信息
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/close")
+    public Result<TicketResponse> closeTicket(
+            @PathVariable("id") Long ticketId,
+            Authentication authentication,
+            @Valid @RequestBody CloseTicketDto closeTicketDto
+    ){
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+
+        return Result.success(adminTicketService.closeTicket(ticketId, closeTicketDto, operatorId, operatorRole, clientIp));
+    }
+
 }
