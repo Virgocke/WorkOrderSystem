@@ -1,5 +1,6 @@
 package com.WorkOrder.ticket.controller;
 
+import com.WorkOrder.admin.service.AdminTicketService;
 import com.WorkOrder.handler.dto.*;
 import com.WorkOrder.handler.service.HandlerTicketService;
 import com.WorkOrder.model.ticket.OperationLog;
@@ -43,6 +44,7 @@ public class TicketController {
     private final TicketOperationLogService ticketOperationLogService;
     private final TicketRatingService ticketRatingService;
     private final HandlerTicketService handlerTicketService;
+    private final AdminTicketService adminTicketService;
 
 
     /**
@@ -247,7 +249,8 @@ public class TicketController {
         return Result.success(ticketRatingService.ticketRatingSubmit(ticketId, userId, ticketRatingDto));
     }
 
-//=======================================================处理人端=======================================================
+
+    /**=======================================================处理人端=======================================================*/
     /**
      * 获取处理人工单列表
      * @param authentication 当前用户认证信息
@@ -359,6 +362,13 @@ public class TicketController {
     }
 
 
+    /**
+     * 处理人添加工单备注
+      * @param ticketId 工单ID
+      * @param ticketNoteDto 工单备注DTO
+      * @param authentication 当前用户认证信息
+      * @return 是否成功
+     */
     @PreAuthorize("hasRole('ADMIN') or @ticketAuthorization.isHandler(#ticketId, authentication)")
     @PostMapping("/{id}/note")
     public Result<Boolean> setTicketNote(
@@ -373,4 +383,20 @@ public class TicketController {
         return Result.success(handlerTicketService.setTicketNote(ticketId, ticketNoteDto, operatorId, operatorRole, clientIp));
     }
 
+    /**=======================================================管理员端=======================================================*/
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping
+    public PageResult<TicketResponse> getTicketListForAdmin(
+            @Valid AdminTicketListDto adminTicketListDto,
+            Authentication authentication
+    ){
+        Long adminId = currentUserIdProvider.get(authentication);
+        return new PageResult<>(
+                adminTicketService.getTicketListForAdmin(adminId, adminTicketListDto),
+                adminTicketService.getTicketListForAdmin(adminId, adminTicketListDto).size(),
+                adminTicketListDto.getPage(),
+                adminTicketListDto.getPageSize()
+        );
+    }
 }
