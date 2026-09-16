@@ -194,12 +194,12 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
      * 回复工单
      * @param ticketId 工单ID
      * @param userId 用户ID
-     * @param isAdmin 是否管理员
+     * @param operatorRole 当前登录角色，由后端认证信息取得
      * @param ticketReplyDto 回复工单的DTO
      * @return 是否成功
      */
     @Override
-    public Boolean ticketReplyInfo(Long ticketId, Long userId, boolean isAdmin, TicketReplyDto ticketReplyDto) {
+    public Boolean ticketReplyInfo(Long ticketId, Long userId, String operatorRole, TicketReplyDto ticketReplyDto) {
         Tickets ticket = ticketMapper.selectById(ticketId);
         if (ticket == null){
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
@@ -208,23 +208,18 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         Long operatorId = userId;
         // 操作类型
         String action;
-        // 操作者角色
-        String operatorRole;
         // 接收者ID
         Long receiverId;
-        // 判断操作者角色
+        // 工单中的业务身份决定回复类型，登录角色独立保存到日志。
         if (Objects.equals(operatorId, ticket.getCreatorId())) {
             action = "USER_REPLY";
-            operatorRole = "USER";
             receiverId = ticket.getHandlerId();
         } else if (Objects.equals(operatorId, ticket.getHandlerId())) {
             action = "HANDLER_REPLY";
-            operatorRole = "HANDLER";
             receiverId = ticket.getCreatorId();
-        } else if (isAdmin) {
+        } else if ("ADMIN".equals(operatorRole)) {
             // 管理员属于客服侧回复
             action = "HANDLER_REPLY";
-            operatorRole = "ADMIN";
             receiverId = ticket.getCreatorId();
         } else {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);

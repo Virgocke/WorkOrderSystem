@@ -27,9 +27,9 @@ public class Tickets {
     // 处理人ID
     private Long handlerId;
 
-    private String createdAt;
+    private LocalDateTime createdAt;
     // 分配时间
-    private String assignedAt;
+    private LocalDateTime assignedAt;
     // 响应截止时间
     private LocalDateTime responseDeadline;
     // 解决截止时间

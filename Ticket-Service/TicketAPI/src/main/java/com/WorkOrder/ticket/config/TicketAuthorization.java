@@ -55,4 +55,22 @@ public class TicketAuthorization {
 
         return Objects.equals(ticket.getCreatorId(), currentUserId);
     }
+
+    /**
+     * 判断当前用户是否是工单处理者
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @return 是否是工单处理者
+     */
+    public boolean isHandler(Long ticketId, Authentication authentication){
+        Long currentUserId = currentUserIdProvider.get(authentication);
+        Tickets ticket = ticketMapper.selectById(ticketId);
+
+        if (ticket == null) {
+            return false;
+        }
+
+        return Objects.equals(ticket.getHandlerId(), currentUserId);
+    }
+
 }

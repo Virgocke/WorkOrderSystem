@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  * @description 工单操作日志数据库表结构
  */
 @Data
-@TableName("ticket_operation_log")
+@TableName("ticket_operation_logs")
 public class TicketOperationLog {
     private Long id;
     private Long ticketId;

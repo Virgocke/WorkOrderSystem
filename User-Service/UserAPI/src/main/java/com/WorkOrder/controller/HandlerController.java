@@ -26,7 +26,6 @@ public class HandlerController {
     private final CurrentUserIdProvider currentUserIdProvider;
 
     @GetMapping("/options")
-
     public Result<List<HandlerProfile>> getHandler(Authentication authentication) {
         Long userId = currentUserIdProvider.get(authentication);
         String username = authentication.getName();

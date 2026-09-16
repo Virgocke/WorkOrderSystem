@@ -1,6 +1,8 @@
 package com.WorkOrder.ticket.controller;
 
 import com.WorkOrder.handler.dto.HandlerTicketPageDto;
+import com.WorkOrder.handler.dto.TicketSolutionDto;
+import com.WorkOrder.handler.dto.TransferTicketDto;
 import com.WorkOrder.handler.service.HandlerTicketService;
 import com.WorkOrder.model.ticket.OperationLog;
 import com.WorkOrder.model.page.PageResult;
@@ -8,7 +10,9 @@ import com.WorkOrder.model.Result;
 import com.WorkOrder.model.ticket.StatusHistory;
 import com.WorkOrder.model.ticket.TicketRatingResponse;
 import com.WorkOrder.model.ticket.TicketResponse;
+import com.WorkOrder.security.ClientIpUtils;
 import com.WorkOrder.security.CurrentUserIdProvider;
+import com.WorkOrder.security.CurrentUserRoleProvider;
 import com.WorkOrder.ticket.dto.*;
 import com.WorkOrder.ticket.service.TicketOperationLogService;
 import com.WorkOrder.ticket.service.TicketRatingService;
@@ -37,6 +41,7 @@ public class TicketController {
     private final TicketService ticketService;
     private final TicketStatusHistoryService ticketStatusHistoryService;
     private final CurrentUserIdProvider currentUserIdProvider;
+    private final CurrentUserRoleProvider currentUserRoleProvider;
     private final TicketOperationLogService ticketOperationLogService;
     private final TicketRatingService ticketRatingService;
     private final HandlerTicketService handlerTicketService;
@@ -175,9 +180,8 @@ public class TicketController {
             @Valid @RequestBody TicketReplyDto ticketReplyDto){
 
         Long userId = currentUserIdProvider.get(authentication);
-        boolean isAdmin = authentication.getAuthorities().stream()
-            .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
-        return Result.success(ticketService.ticketReplyInfo(ticketId, userId, isAdmin, ticketReplyDto));
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        return Result.success(ticketService.ticketReplyInfo(ticketId, userId, operatorRole, ticketReplyDto));
     }
 
     /**
@@ -244,7 +248,14 @@ public class TicketController {
         return Result.success(ticketRatingService.ticketRatingSubmit(ticketId, userId, ticketRatingDto));
     }
 
-
+//=======================================================处理人端=======================================================
+    /**
+     * 获取处理人工单列表
+     * @param authentication 当前用户认证信息
+     * @param handlerTicketPageDto 处理人工单分页查询DTO
+     * @return 处理人工单列表
+     */
+    @PreAuthorize("hasRole('HANDLER')")
     @GetMapping("/handler")
     public PageResult<TicketResponse> getTicketList(
             Authentication authentication,
@@ -260,4 +271,62 @@ public class TicketController {
                 handlerTicketPageDto.getPageSize()
                 );
     }
+
+    /**
+     * 处理人响应工单
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @return 响应后的工单信息
+     */
+    @PreAuthorize("hasRole('HANDLER') or hasRole('ADMIN')")
+    @PostMapping("/{id}/respond")
+    public Result<TicketResponse> firstRespondTicket(
+            @PathVariable("id") Long ticketId,
+            Authentication authentication) {
+
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        return Result.success(handlerTicketService.firstResponse(ticketId, operatorId, operatorRole, clientIp));
+    }
+
+    /**
+     * 处理人解决工单
+     * @param ticketId 工单ID
+     * @param dto 工单解决DTO
+     * @return 是否成功
+     */
+    @PreAuthorize("hasRole('ADMIN') or @ticketAuthorization.isHandler(#ticketId, authentication)")
+    @PostMapping("/{id}/resolve")
+    public Result<TicketResponse> resolveTicket(
+            @P("ticketId") @PathVariable("id") Long ticketId,
+            @Valid @RequestBody TicketSolutionDto dto,
+            Authentication authentication) {
+
+        String solution = dto.getSolution();
+
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+
+        return Result.success(handlerTicketService.resolveTicket(ticketId, solution, operatorId, operatorRole, clientIp));
+    }
+
+
+    @PreAuthorize("hasRole('ADMIN') or @ticketAuthorization.isHandler(#ticketId, authentication)")
+    @PostMapping("/{id}/transfer")
+    public Result<TicketResponse> transferTicketToOtherHandler(
+            @P("ticketId") @PathVariable("id") Long ticketId,
+            @Valid @RequestBody TransferTicketDto transferTicketDto,
+            Authentication authentication){
+
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+
+        return Result.success(handlerTicketService.transferTicketToOtherHandler(ticketId, transferTicketDto, operatorId, operatorRole, clientIp));
+    }
+
+
 }

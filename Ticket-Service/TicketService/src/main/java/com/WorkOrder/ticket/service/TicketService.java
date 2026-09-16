@@ -52,11 +52,11 @@ public interface TicketService extends IService<Tickets> {
      * 回复工单信息
       * @param ticketId 工单ID
      * @param userId 用户ID
-     * @param isAdmin 是否管理员
+     * @param operatorRole 当前登录角色，由后端认证信息取得
      * @param ticketReplyDto 回复工单的DTO
      * @return 是否成功回复工单
      */
-    Boolean ticketReplyInfo(Long ticketId, Long userId, boolean isAdmin, @Valid TicketReplyDto ticketReplyDto);
+    Boolean ticketReplyInfo(Long ticketId, Long userId, String operatorRole, @Valid TicketReplyDto ticketReplyDto);
 
     /**
      * 催办工单
