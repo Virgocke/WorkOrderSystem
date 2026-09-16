@@ -1,8 +1,6 @@
 package com.WorkOrder.ticket.controller;
 
-import com.WorkOrder.handler.dto.HandlerTicketPageDto;
-import com.WorkOrder.handler.dto.TicketSolutionDto;
-import com.WorkOrder.handler.dto.TransferTicketDto;
+import com.WorkOrder.handler.dto.*;
 import com.WorkOrder.handler.service.HandlerTicketService;
 import com.WorkOrder.model.ticket.OperationLog;
 import com.WorkOrder.model.page.PageResult;
@@ -196,7 +194,8 @@ public class TicketController {
     @PostMapping("/{id}/remind")
     public Result<Boolean> ticketExpedite(@P("ticketId") @PathVariable("id") Long ticketId,Authentication authentication){
         Long userId = currentUserIdProvider.get(authentication);
-        return Result.success(ticketService.ticketExpedite(ticketId, userId));
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+        return Result.success(ticketService.ticketExpedite(ticketId, userId, clientIp));
     }
 
     /**
@@ -314,6 +313,13 @@ public class TicketController {
     }
 
 
+    /**
+     * 处理人转交工单
+     * @param ticketId 工单ID
+     * @param transferTicketDto 转交工单DTO
+     * @param authentication 当前用户认证信息
+     * @return 转交后的工单信息
+     */
     @PreAuthorize("hasRole('ADMIN') or @ticketAuthorization.isHandler(#ticketId, authentication)")
     @PostMapping("/{id}/transfer")
     public Result<TicketResponse> transferTicketToOtherHandler(
@@ -328,5 +334,43 @@ public class TicketController {
         return Result.success(handlerTicketService.transferTicketToOtherHandler(ticketId, transferTicketDto, operatorId, operatorRole, clientIp));
     }
 
+
+    /**
+     * 处理人升级工单
+      * @param ticketId 工单ID
+      * @param escalateTicketDto 升级工单DTO
+      * @param authentication 当前用户认证信息
+      * @return 升级后的工单信息
+     */
+    @PreAuthorize("@ticketAuthorization.isHandler(#ticketId, authentication)")
+    @PostMapping("/{id}/escalate")
+    public Result<TicketResponse> escalateTicket(
+            @P("ticketId") @PathVariable("id") Long ticketId,
+            @Valid @RequestBody EscalateTicketDto escalateTicketDto,
+            Authentication authentication
+    ){
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+
+        String reason = escalateTicketDto.getReason();
+
+        return Result.success(handlerTicketService.escalateTicket(ticketId, reason, operatorId, operatorRole, clientIp));
+    }
+
+
+    @PreAuthorize("hasRole('ADMIN') or @ticketAuthorization.isHandler(#ticketId, authentication)")
+    @PostMapping("/{id}/note")
+    public Result<Boolean> setTicketNote(
+            @P("ticketId") @PathVariable("id") Long ticketId,
+            @Valid @RequestBody TicketNoteDto ticketNoteDto,
+            Authentication authentication
+    ){
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+
+        return Result.success(handlerTicketService.setTicketNote(ticketId, ticketNoteDto, operatorId, operatorRole, clientIp));
+    }
 
 }

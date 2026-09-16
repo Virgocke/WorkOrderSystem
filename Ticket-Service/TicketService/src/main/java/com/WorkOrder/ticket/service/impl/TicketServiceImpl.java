@@ -260,7 +260,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
       * @return 是否成功
      */
     @Override
-    public Boolean ticketExpedite(Long ticketId, Long userId) {
+    public Boolean ticketExpedite(Long ticketId, Long userId, String clientIp) {
         Tickets ticket = ticketMapper.selectById(ticketId);
         if (ticket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
@@ -283,6 +283,22 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             }
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
+
+        // 创建工单操作日志
+        TicketOperationLog log = new TicketOperationLog();
+        log.setTicketId(ticketId);
+        log.setAction("REMIND");
+        log.setOperatorId(userId);
+        log.setOperatorRole("USER");
+        log.setContent("用户催办工单");
+        log.setIpAddress(clientIp);
+
+        // 插入工单操作日志
+        int insert = ticketOperationLogMapper.insert(log);
+        if (insert < 1){
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
         //todo 操作日志及消息通知待接入；催办不修改升级级别或 SLA 状态。
         return true;
     }

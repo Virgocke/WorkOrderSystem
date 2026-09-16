@@ -3,6 +3,7 @@ package com.WorkOrder.handler.service.impl;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.handler.dto.HandlerTicketPageDto;
+import com.WorkOrder.handler.dto.TicketNoteDto;
 import com.WorkOrder.handler.dto.TransferTicketDto;
 import com.WorkOrder.handler.mapper.AssignmentRecordMapper;
 import com.WorkOrder.handler.mapper.HandlerProfileMapper;
@@ -336,6 +337,119 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         //todo 转交后要用消息模块通知被转交人
 
         return TicketConverter.toResponse(ticket);
+    }
+
+    @Override
+    @Transactional
+    public TicketResponse escalateTicket(
+            Long ticketId,
+            String reason,
+            Long operatorId,
+            String operatorRole,
+            String clientIp) {
+
+        Tickets ticket = ticketMapper.selectById(ticketId);
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+
+        // 如果当前登录用户不是处理人，则抛出异常
+        boolean isHandler = "Handler".equals(operatorRole);
+        if (!isHandler){
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+
+        // 如果当前工单的处理人不是当前处理人，则抛出异常
+        if (!operatorId.equals(ticket.getHandlerId())){
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+
+        // 如果当前工单的转交级别已经达到3次，则抛出异常
+        int escalatedLevel = ticket.getEscalatedLevel();
+        if (escalatedLevel == 3) {
+            throw new SystemException(SystemExceptionEnum.TICKET_ESCALATED_LEVEL_MAX);
+        }
+
+        // 设置新的工单状态
+        ticket.setEscalatedLevel(escalatedLevel + 1);
+        ticket.setSlaStatus("ESCALATED");
+
+        int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
+                .eq(Tickets::getId, ticketId)
+                .eq(Tickets::getHandlerId, operatorId)
+                .set(Tickets::getEscalatedLevel, ticket.getEscalatedLevel())
+                .set(Tickets::getSlaStatus, ticket.getSlaStatus()));
+        // 更新工单信息，失败则抛出异常
+        if (update != 1) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+
+        // 保存工单状态历史
+        boolean saveTicketStatusHistory =
+                saveTicketStatusHistory(
+                        ticket,
+                        ticket.getStatus(),
+                        operatorId,
+                        reason,
+                        "ESCALATE");
+
+        if (!saveTicketStatusHistory){
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+
+        // 与工单状态、状态历史在同一事务中保存操作日志。
+        if (!saveTicketOperationLog(
+                ticket,
+                "ESCALATE",
+                operatorId,
+                operatorRole,
+                clientIp,
+                "升级工单")) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+
+        //todo 通知管理员，工单已升级，等通知系统完善
+
+        return TicketConverter.toResponse(ticket);
+    }
+
+    @Override
+    @Transactional
+    public TicketResponse setTicketNote(
+            Long ticketId,
+            TicketNoteDto ticketNoteDto,
+            Long operatorId,
+            String operatorRole,
+            String clientIp) {
+
+        Tickets ticket = ticketMapper.selectById(ticketId);
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+
+        // 如果当前登录用户不是处理人，则抛出异常
+        boolean isHandler = "Handler".equals(operatorRole);
+        if (!isHandler){
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+
+        // 如果当前工单的处理人不是当前处理人，则抛出异常
+        if (!operatorId.equals(ticket.getHandlerId())){
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+
+        // 与工单状态、状态历史在同一事务中保存操作日志。
+        if (!saveTicketOperationLog(
+                ticket,
+                "INTERNAL_NOTE",
+                operatorId,
+                operatorRole,
+                clientIp,
+                "添加内部备注")) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+
+        return true;
     }
 
     /**

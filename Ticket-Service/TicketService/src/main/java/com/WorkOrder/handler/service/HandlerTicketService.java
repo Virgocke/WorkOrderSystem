@@ -1,6 +1,7 @@
 package com.WorkOrder.handler.service;
 
 import com.WorkOrder.handler.dto.HandlerTicketPageDto;
+import com.WorkOrder.handler.dto.TicketNoteDto;
 import com.WorkOrder.handler.dto.TransferTicketDto;
 import com.WorkOrder.model.ticket.TicketResponse;
 
@@ -10,7 +11,7 @@ import java.util.List;
 /**
  * @author Virgor
  * @date 2026年09月16日 03:22
- * @description
+ * @description 处理人工单服务
  */
 public interface HandlerTicketService {
     /**
@@ -49,4 +50,26 @@ public interface HandlerTicketService {
       * @return 工单响应结果
      */
     TicketResponse transferTicketToOtherHandler(Long ticketId, @Valid TransferTicketDto transferTicketDto, Long operatorId, String operatorRole, String clientIp);
+
+    /**
+     * 处理人升级工单
+      * @param ticketId 工单ID
+      * @param reason 升级原因
+      * @param operatorId 当前操作人ID
+      * @param operatorRole 当前登录角色，由后端认证信息取得
+      * @param clientIp 客户端IP
+      * @return 工单响应结果
+     */
+    TicketResponse escalateTicket(Long ticketId, String reason, Long operatorId, String operatorRole, String clientIp);
+
+    /**
+     * 处理人添加工单备注
+      * @param ticketId 工单ID
+      * @param ticketNoteDto 备注参数
+      * @param operatorId 当前操作人ID
+      * @param operatorRole 当前登录角色，由后端认证信息取得
+      * @param clientIp 客户端IP
+      * @return 工单响应结果
+     */
+    Boolean setTicketNote(Long ticketId, @Valid TicketNoteDto ticketNoteDto, Long operatorId, String operatorRole, String clientIp);
 }

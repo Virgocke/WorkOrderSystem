@@ -62,9 +62,10 @@ public interface TicketService extends IService<Tickets> {
      * 催办工单
       * @param ticketId 工单ID
       * @param userId 用户ID
+      * @param clientIp 客户端IP
       * @return 是否成功催办工单
      */
-    Boolean ticketExpedite(Long ticketId, Long userId);
+    Boolean ticketExpedite(Long ticketId, Long userId, String clientIp);
 
     /**
      * 取消工单
