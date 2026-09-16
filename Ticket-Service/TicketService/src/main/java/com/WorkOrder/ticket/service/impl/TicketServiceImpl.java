@@ -3,6 +3,7 @@ package com.WorkOrder.ticket.service.impl;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.ticket.TicketResponse;
+import com.WorkOrder.ticket.converter.TicketConverter;
 import com.WorkOrder.ticket.dto.*;
 import com.WorkOrder.ticket.enums.TicketStatusEnum;
 import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
@@ -22,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -41,20 +41,6 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final TicketCategoryMapper categoryMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
-
-
-    // 时间格式化器
-    private static final DateTimeFormatter TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-    /**
-     * 格式化时间
-     * @param time 时间
-     * @return 格式化后的时间
-     */
-    private String formatTime(LocalDateTime time) {
-        return time == null ? null : time.format(TIME_FORMATTER);
-    }
 
 
     /**
@@ -132,7 +118,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             throw new SystemException(SystemExceptionEnum.TICKET_CREATE_FAILED);
         }
 
-        return buildTicketResponse(newTicket, ticketResponse);
+        return TicketConverter.toResponse(newTicket, ticketResponse);
     }
 
     /**
@@ -167,7 +153,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
         // 构建工单响应对象列表
         List<TicketResponse> ticketResponses = myTickets.stream()
-                .map(ticket -> buildTicketResponse(ticket, new TicketResponse()))
+                .map(TicketConverter::toResponse)
                 .collect(Collectors.toList());
 
         return ticketResponses;
@@ -201,7 +187,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         if (ticket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
-        return buildTicketResponse(ticket, new TicketResponse());
+        return TicketConverter.toResponse(ticket);
     }
 
     /**
@@ -315,7 +301,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             ticketMapper.updateById(ticket);
         }
 
-        TicketResponse ticketResponse = buildTicketResponse(ticket, new TicketResponse());
+        TicketResponse ticketResponse = TicketConverter.toResponse(ticket);
 
         return ticketResponse;
     }
@@ -342,44 +328,6 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
                 throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
             // todo 确认后用消息模块通知处理人handler
         }
-        return buildTicketResponse(ticket, new TicketResponse());
-    }
-
-
-    /**
-     * 转换工单响应对象，使时间类型正确
-     * @param ticket 工单
-     * @param ticketResponse 工单响应对象
-     * @return 工单响应对象
-     */
-    private TicketResponse buildTicketResponse(Tickets ticket, TicketResponse ticketResponse) {
-        // 复制工单属性到工单响应对象
-        BeanUtils.copyProperties(
-        ticket,
-        ticketResponse,
-        "responseDeadline",
-        "resolutionDeadline",
-        "firstResponseAt",
-        "resolvedAt",
-        "closedAt"
-        );
-
-        // 设置响应截止时间，解决截止时间，首次响应时间，解决时间和关闭时间
-        ticketResponse.setResponseDeadline(
-                formatTime(ticket.getResponseDeadline())
-        );
-        ticketResponse.setResolutionDeadline(
-                formatTime(ticket.getResolutionDeadline())
-        );
-        ticketResponse.setFirstResponseAt(
-                formatTime(ticket.getFirstResponseAt())
-        );
-        ticketResponse.setResolvedAt(
-                formatTime(ticket.getResolvedAt())
-        );
-        ticketResponse.setClosedAt(
-                formatTime(ticket.getClosedAt())
-        );
-        return ticketResponse;
+        return TicketConverter.toResponse(ticket);
     }
 }

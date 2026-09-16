@@ -1,13 +1,13 @@
 package com.WorkOrder.model.user;
 
-import com.WorkOrder.user.enums.UserRole;
-import com.WorkOrder.user.model.HandlerProfile;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.time.LocalDateTime;
+
+import java.util.List;
+
 
 /** 对外暴露的用户资料，绝不包含密码字段。 */
 @Data
@@ -20,7 +20,9 @@ public class UserProfile {
     private String email;
     private String phone;
     private Long departmentId;
-    private Set<UserRole> roles = new LinkedHashSet<>();
-    private Boolean enabled;
-    private HandlerProfile handlerProfile;
+    private String departmentName;
+    private int role;
+    private int status;
+    private LocalDateTime createdAt;
+    private List<String> permissions;
 }
