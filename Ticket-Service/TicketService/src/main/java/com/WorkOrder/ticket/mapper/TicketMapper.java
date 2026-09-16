@@ -18,6 +18,9 @@ import java.util.Map;
 @Mapper
 public interface TicketMapper extends BaseMapper<Tickets> {
 
+    /** 原子增加创建人的工单催办次数，仅在当前次数小于 3 时更新。 */
+    int incrementRemindCount(@Param("ticketId") Long ticketId, @Param("userId") Long userId);
+
     /**
      * 查询当前用户的工单历史统计。
      *

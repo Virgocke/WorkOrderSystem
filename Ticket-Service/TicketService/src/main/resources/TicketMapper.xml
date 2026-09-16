@@ -5,6 +5,15 @@
 
 <mapper namespace="com.WorkOrder.ticket.mapper.TicketMapper">
 
+    <!-- 同一条 SQL 中检查上限并累加，防止并发催办丢失次数或超过 3 次。 -->
+    <update id="incrementRemindCount">
+        UPDATE tickets
+        SET remind_count = remind_count + 1
+        WHERE id = #{ticketId}
+          AND creator_id = #{userId}
+          AND remind_count &lt; 3
+    </update>
+
     <!-- 当前用户的工单历史统计 -->
     <select id="selectHistoryStatistics"
             parameterType="java.lang.Long"

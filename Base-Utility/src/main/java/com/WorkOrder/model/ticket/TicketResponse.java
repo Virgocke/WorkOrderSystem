@@ -81,6 +81,9 @@ public class TicketResponse {
     /** 升级级别，0 表示未升级 */
     private int escalatedLevel;
 
+    /** 催办次数，默认 0，每张工单最多 3 次，与升级级别独立 */
+    private int remindCount;
+
     /** 来源：WEB、APP、API */
     private String source;
 

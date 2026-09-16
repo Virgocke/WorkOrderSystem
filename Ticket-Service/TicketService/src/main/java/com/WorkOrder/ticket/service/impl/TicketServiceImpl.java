@@ -90,6 +90,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         ticket.setClosedAt(null); // 设置关闭时间为null
         ticket.setSlaStatus("NORMAL"); // 设置SLA状态为正常
         ticket.setEscalatedLevel(0); // 设置升级级别为0
+        ticket.setRemindCount(0); // 设置催办次数为0
         ticket.setSource("WEB"); // 设置来源为WEB
 
         int insert = ticketMapper.insert(ticket);
@@ -261,15 +262,28 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     @Override
     public Boolean ticketExpedite(Long ticketId, Long userId) {
         Tickets ticket = ticketMapper.selectById(ticketId);
-        int escalatedLevel = ticket.getEscalatedLevel();
-        if(escalatedLevel == 3){
-            throw new SystemException(SystemExceptionEnum.TICKET_ALREADY_ESCALATED);
-        } else {
-            ticket.setEscalatedLevel(escalatedLevel + 1);
-            ticket.setSlaStatus("ESCALATED");
-            ticketMapper.updateById(ticket);
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
-        //todo 消息模块没实现，催办功能暂无
+        if (!Objects.equals(ticket.getCreatorId(), userId)) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+        if (ticket.getRemindCount() >= 3) {
+            throw new SystemException(SystemExceptionEnum.TICKET_ALREADY_ESCALATED);
+        }
+
+        if (ticketMapper.incrementRemindCount(ticketId, userId) != 1) {
+            // 并发请求可能已用完最后一次催办机会，重新查询以返回准确的错误。
+            Tickets latestTicket = ticketMapper.selectById(ticketId);
+            if (latestTicket == null) {
+                throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+            }
+            if (latestTicket.getRemindCount() >= 3) {
+                throw new SystemException(SystemExceptionEnum.TICKET_ALREADY_ESCALATED);
+            }
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+        //todo 操作日志及消息通知待接入；催办不修改升级级别或 SLA 状态。
         return true;
     }
 

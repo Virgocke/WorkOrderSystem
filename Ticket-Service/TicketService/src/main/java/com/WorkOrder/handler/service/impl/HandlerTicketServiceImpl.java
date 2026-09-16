@@ -4,11 +4,16 @@ import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.handler.dto.HandlerTicketPageDto;
 import com.WorkOrder.handler.dto.TransferTicketDto;
+import com.WorkOrder.handler.mapper.AssignmentRecordMapper;
 import com.WorkOrder.handler.mapper.HandlerProfileMapper;
+import com.WorkOrder.handler.model.AssignmentRecord;
 import com.WorkOrder.handler.service.HandlerTicketService;
+import com.WorkOrder.model.Result;
 import com.WorkOrder.model.ticket.TicketResponse;
+import com.WorkOrder.model.user.UserProfile;
 import com.WorkOrder.ticket.converter.TicketConverter;
 import com.WorkOrder.ticket.enums.TicketStatusEnum;
+import com.WorkOrder.ticket.feignclient.UserFeignClient;
 import com.WorkOrder.ticket.mapper.TicketMapper;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
@@ -22,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -40,6 +46,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
     private final TicketMapper ticketMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
+    private final AssignmentRecordMapper assignmentRecordMapper;
+    private final UserFeignClient userFeignClient;
 
     /**
      * 获取处理人工单列表
@@ -247,6 +255,21 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
         // 取出旧处理人ID
         Long oldHandlerId = ticket.getHandlerId();
+        // 如果旧处理人ID与新处理人ID相同，则抛出异常
+        if (oldHandlerId.equals(transferTicketDto.getToHandlerId())){
+            throw new SystemException(SystemExceptionEnum.TICKET_TRANSFER_SAME_HANDLER);
+        }
+
+        // 校验新处理人ID是否存在
+        Result<UserProfile> result = userFeignClient.getById(transferTicketDto.getToHandlerId());
+        if (result == null || result.getData() == null) {
+            throw new SystemException(SystemExceptionEnum.USER_NOT_FOUND);
+        }
+        // 校验新处理人ID是否状态正常
+        UserProfile toHandler = result.getData();
+        if (toHandler.getRole() != 1 || toHandler.getStatus() != 1) {
+            throw new SystemException(SystemExceptionEnum.ACCOUNT_DISABLED);
+        }
 
         // 设置新的处理人ID
         ticket.setHandlerId(transferTicketDto.getToHandlerId());
@@ -288,6 +311,29 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 "转交工单")) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
+
+        // 保存转交记录
+        AssignmentRecord assignmentRecord = new AssignmentRecord();
+        assignmentRecord.setTicketId(ticketId);
+        assignmentRecord.setHandlerId(transferTicketDto.getToHandlerId());
+
+
+        //todo 分数计算模块还没完成，先手动设置为0
+        assignmentRecord.setScore(BigDecimal.ZERO);
+        assignmentRecord.setSkillMatchScore(BigDecimal.ZERO);
+        assignmentRecord.setLoadScore(BigDecimal.ZERO);
+        assignmentRecord.setSlaScore(BigDecimal.ZERO);
+        assignmentRecord.setRatingScore(BigDecimal.ZERO);
+
+
+        assignmentRecord.setAssignedBy("MANUAL");
+        assignmentRecord.setCreatedAt(LocalDateTime.now());
+        int insert = assignmentRecordMapper.insert(assignmentRecord);
+        if (insert != 1) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        //todo 转交后要用消息模块通知被转交人
 
         return TicketConverter.toResponse(ticket);
     }

@@ -44,6 +44,8 @@ public class Tickets {
     private String slaStatus;
     // 升级级别
     private int escalatedLevel;
+    // 催办次数，与升级级别独立，每张工单最多 3 次
+    private int remindCount;
     // 来源
     private String source;
 
