@@ -36,6 +36,8 @@ public final class TicketConverter {
         BeanUtils.copyProperties(
                 ticket,
                 response,
+                "createdAt",
+                "assignedAt",
                 "responseDeadline",
                 "resolutionDeadline",
                 "firstResponseAt",
@@ -43,6 +45,8 @@ public final class TicketConverter {
                 "closedAt"
         );
 
+        response.setCreatedAt(formatTime(ticket.getCreatedAt()));
+        response.setAssignedAt(formatTime(ticket.getAssignedAt()));
         response.setResponseDeadline(formatTime(ticket.getResponseDeadline()));
         response.setResolutionDeadline(formatTime(ticket.getResolutionDeadline()));
         response.setFirstResponseAt(formatTime(ticket.getFirstResponseAt()));

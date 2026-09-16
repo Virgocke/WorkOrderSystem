@@ -415,7 +415,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
     @Override
     @Transactional
-    public TicketResponse setTicketNote(
+    public Boolean setTicketNote(
             Long ticketId,
             TicketNoteDto ticketNoteDto,
             Long operatorId,

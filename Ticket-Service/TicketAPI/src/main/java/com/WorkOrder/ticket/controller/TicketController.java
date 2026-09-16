@@ -385,6 +385,34 @@ public class TicketController {
 
     /**=======================================================管理员端=======================================================*/
 
+    /**
+     * 管理员手动分配工单
+     * @param ticketId 工单ID
+     * @param assignTicketDto 分配工单DTO
+     * @param authentication 当前用户认证信息
+     * @return 分配后的工单信息
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/assign")
+    public Result<TicketResponse> assignTicket(
+            @PathVariable("id") Long ticketId,
+            @Valid @RequestBody AssignTicketDto assignTicketDto,
+            Authentication authentication) {
+
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+
+        return Result.success(adminTicketService.assignTicket(
+                ticketId, assignTicketDto, operatorId, operatorRole, clientIp));
+    }
+
+    /**
+     * 管理员获取工单列表
+      * @param adminTicketListDto 管理员获取工单列表DTO
+      * @param authentication 当前用户认证信息
+      * @return 管理员获取工单列表
+     */
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public PageResult<TicketResponse> getTicketListForAdmin(
