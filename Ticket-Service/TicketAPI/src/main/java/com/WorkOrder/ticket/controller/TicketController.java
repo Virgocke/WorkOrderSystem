@@ -1,7 +1,9 @@
 package com.WorkOrder.ticket.controller;
 
 import com.WorkOrder.admin.dto.AdminTicketListDto;
+import com.WorkOrder.admin.dto.AssignTicketListDto;
 import com.WorkOrder.admin.dto.CloseTicketDto;
+import com.WorkOrder.admin.dto.CloseTicketListDto;
 import com.WorkOrder.admin.service.AdminTicketService;
 import com.WorkOrder.handler.dto.*;
 import com.WorkOrder.handler.service.HandlerTicketService;
@@ -410,6 +412,27 @@ public class TicketController {
     }
 
     /**
+     * 管理员批量分配工单
+     * @param assignTicketListDto 批量分配工单DTO
+     * @param authentication 当前用户认证信息
+     * @return 分配成功的工单ID列表
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/batch-assign")
+    public Result<List<Long>> assignTicketList(
+            @Valid @RequestBody AssignTicketListDto assignTicketListDto,
+            Authentication authentication) {
+
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+
+        return Result.success(adminTicketService.assignTicketList(
+                assignTicketListDto.getIds(), assignTicketListDto.getHandlerId(),
+                operatorId, operatorRole, clientIp));
+    }
+
+    /**
      * 管理员获取工单列表
       * @param adminTicketListDto 管理员获取工单列表DTO
       * @param authentication 当前用户认证信息
@@ -451,4 +474,24 @@ public class TicketController {
         return Result.success(adminTicketService.closeTicket(ticketId, closeTicketDto, operatorId, operatorRole, clientIp));
     }
 
+
+    /**
+     * 管理员批量关闭工单
+      * @param closeTicketListDto 批量关闭工单DTO
+     * @return 关闭的工单ID列表
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/batch-close")
+    public Result<List<Long>> closerTicketList(
+            @RequestBody CloseTicketListDto closeTicketListDto,
+            Authentication authentication){
+
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        String clientIp = ClientIpUtils.getClientIp(authentication);
+        List<Long> closedTickets = closeTicketListDto.getIds();
+        String reason = closeTicketListDto.getReason();
+
+        return Result.success(adminTicketService.closeTicketList(closedTickets, reason, operatorId, operatorRole, clientIp));
+    }
 }

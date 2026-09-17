@@ -30,6 +30,18 @@ public interface AdminTicketService {
                                 Long operatorId, String operatorRole, String clientIp);
 
     /**
+     * 批量分配无处理人或待分配的工单，任一工单分配失败时整批回滚。
+     * @param ticketIds 工单ID列表
+     * @param handlerId 目标处理人ID
+     * @param operatorId 当前操作人ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @param clientIp 客户端IP
+     * @return 分配成功的工单ID列表，去重并保持请求顺序
+     */
+    List<Long> assignTicketList(List<Long> ticketIds, Long handlerId,
+                                Long operatorId, String operatorRole, String clientIp);
+
+    /**
      * 强制关闭工单。
      * @param ticketId 工单ID
      * @param operatorId 当前操作人ID
@@ -38,4 +50,15 @@ public interface AdminTicketService {
      * @return 关闭后的工单信息
      */
     TicketResponse closeTicket(Long ticketId, CloseTicketDto closeTicketDto, Long operatorId, String operatorRole, String clientIp);
+
+    /**
+     * 批量关闭工单。
+     * @param closedTickets 工单ID列表
+     * @param reason 关闭原因
+     * @param operatorId 操作人ID
+     * @param operatorRole 操作人角色
+     * @param clientIp 客户端IP
+     * @return 关闭的工单ID列表
+     */
+    List<Long> closeTicketList(List<Long> closedTickets, String reason, Long operatorId, String operatorRole, String clientIp);
 }
