@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.assignment.mapper.AssignEngineMapper">
+    <resultMap id="handlerProfile" type="com.WorkOrder.model.handler.HandlerProfile">
+        <id property="id" column="user_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="realName" column="real_name"/>
+        <result property="username" column="username"/>
+        <result property="departmentId" column="department_id"/>
+        <result property="departmentName" column="department_name"/>
+        <result property="maxCapacity" column="max_capacity"/>
+        <result property="currentLoad" column="current_load"/>
+        <result property="avgResponseMinutes" column="avg_response_minutes"/>
+        <result property="avgResolutionMinutes" column="avg_resolution_minutes"/>
+        <result property="slaComplianceRate" column="sla_compliance_rate"/>
+        <result property="ratingScore" column="rating_score"/>
+        <result property="status" column="status"/>
+        <collection property="skills" ofType="com.WorkOrder.model.handler.HandlerSkillItem" notNullColumn="skill_id">
+            <id property="skillId" column="skill_id"/>
+            <result property="skillName" column="skill_name"/>
+            <result property="proficiency" column="proficiency"/>
+        </collection>
+    </resultMap>
+
+    <select id="selectTicketId" resultType="java.lang.Long">
+        SELECT id FROM tickets WHERE id = #{ticketId}
+    </select>
+
+    <select id="selectEnabledHandlers" resultMap="handlerProfile">
+        SELECT u.id AS user_id, u.real_name, u.username, u.department_id,
+               d.name AS department_name, u.status,
+               hp.max_capacity, hp.current_load,
+               hp.avg_response_minutes, hp.avg_resolution_minutes,
+               hp.sla_compliance_rate, hp.rating_score,
+               st.id AS skill_id, st.name AS skill_name, hs.proficiency
+        FROM handler_profiles hp
+        INNER JOIN users u ON u.id = hp.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        LEFT JOIN handler_skills hs ON hs.handler_id = hp.id
+        LEFT JOIN skill_tags st ON st.id = hs.skill_tag_id
+        WHERE u.role = 1 AND u.status = 1
+        ORDER BY u.id, st.id
+    </select>
+</mapper>

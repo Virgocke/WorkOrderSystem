@@ -67,6 +67,12 @@ public class UserController {
         );
     }
 
+    /**
+     * 更新当前登录用户密码。
+     * @param authentication 当前登录用户认证信息
+     * @param passwordDto 密码更新信息
+     * @return 更新结果
+     */
     @PutMapping("/me/password")
     public Result<Boolean> updatePassword(Authentication authentication,
                                           @Valid @RequestBody PasswordDto passwordDto){

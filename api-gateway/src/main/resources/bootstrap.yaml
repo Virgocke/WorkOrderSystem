@@ -17,10 +17,10 @@ spring:
           filters: 
             - StripPrefix=1
 
-        - id: user-service
-          uri: lb://user-service
+        - id: userAndHandler-service
+          uri: lb://userAndHandler-service
           predicates: 
-            - Path=/api/users/**
+            - Path=/api/users/**,/api/handlers/**
           filters: 
             - StripPrefix=1
 
@@ -42,6 +42,13 @@ spring:
           uri: lb://handler-service
           predicates:
             - Path=/api/handlers/**
+          filters:
+            - StripPrefix=1
+
+        - id: Assign-Engine
+          uri: lb://Assign-Engine
+          predicates:
+            - Path=/api/assign-engine/**
           filters:
             - StripPrefix=1
     nacos:

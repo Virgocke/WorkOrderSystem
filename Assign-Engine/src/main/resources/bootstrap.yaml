@@ -1,13 +1,34 @@
 server:
-  address: 63020
+  port: 63020
 
 spring:
   application:
     name: Assign-Engine
+  cloud:
+    nacos:
+      server-addr: localhost:8848
+      discovery:
+        namespace: dev
+        group: WorkOrder-project
   jackson:
     time-zone: GMT+8
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/xue_content?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/WorkOrderSystem?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
     password: Virgo0916
+
+mybatis-plus:
+  mapper-locations: classpath*:AssignEngineMapper.xml
+
+security:
+  oauth2:
+    jwt:
+      signing-key: ${OAUTH_JWT_SIGNING_KEY:local-development-signing-key-change-before-production}
+
+assignment:
+  weights:
+    skill: 40
+    load: 25
+    sla: 20
+    rating: 15

@@ -43,6 +43,9 @@ public enum SystemExceptionEnum {
     // === 附件与文件相关 (1060~1069) ===
     UNSUPPORTED_ATTACHMENT_TYPE(1060, "仅支持上传图片类型文件"),
     ATTACHMENT_SIZE_EXCEEDED(1061, "图片大小不能超过 20MB"),
+
+    // === 服务内部错误 ===
+    INTERNAL_SERVER_ERROR(5000, "系统内部错误，请稍后重试"),
     ;
     private final String errMessage;
     private final int code;
