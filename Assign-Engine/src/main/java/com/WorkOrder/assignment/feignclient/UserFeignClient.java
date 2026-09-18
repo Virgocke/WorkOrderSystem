@@ -1,4 +1,4 @@
-package com.WorkOrder.ticket.feignclient;
+package com.WorkOrder.assignment.feignclient;
 
 import com.WorkOrder.model.Result;
 import com.WorkOrder.model.user.UserProfile;
@@ -6,9 +6,9 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "userAndHandler-service", path = "/users")
+@FeignClient(name = "userAndHandler-service", path = "/users", configuration = AssignmentFeignConfiguration.class)
 public interface UserFeignClient {
 
     @GetMapping("/{id}")
-    Result<UserProfile> getById(@PathVariable Long id);
+    Result<UserProfile> getById(@PathVariable("id") Long id);
 }

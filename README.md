@@ -24,6 +24,17 @@
 新建数据库使用更新后的 `sql/work_order_system_schema.sql`。
 工单列表及详情的 `TicketResponse` 返回 `remindCount`。催办仅累计该次数，升级级别 `escalatedLevel` 和 SLA 状态保持原值；催办日志及通知待接入。
 
+## 通知服务（63030）
+
+`GET /api/notifications?page=1&pageSize=10&status=UNREAD` 查询当前登录用户的通知列表，
+接收人从 Bearer JWT 的 `user_id` 读取；`status` 可为 `UNREAD`、`READ` 或空。
+分页默认第 1 页、每页 10 条，返回 `Result<PageResult<NotificationRecord>>`，`total` 为筛选后的总条数。
+列表按创建时间及 ID 倒序，左关联工单编号，系统通知的 `ticketId`、`ticketNo` 保留为 `null`。
+数据库状态 `READ` 返回已读，其他投递状态返回未读；ID 按字符串传输，时间格式为 `yyyy-MM-dd HH:mm:ss`。
+
+网关将 `/api/notifications/**` 转发至 `Notification` 服务。未读数、标记已读、全部已读及消息消费、渠道投递
+尚未接入，已在代码中用 `//todo` 标注；前端通知页调用这些接口时仍需后续实现。
+
 ## 用户服务（63070）
 
 当前用户服务使用内存数据，便于前端在数据库接入前联调。所有接口都要求携带 OAuth2 签发的 Bearer JWT；接口统一以 `Result` 返回：

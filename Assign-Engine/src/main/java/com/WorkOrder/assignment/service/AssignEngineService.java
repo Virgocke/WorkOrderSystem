@@ -1,6 +1,8 @@
 package com.WorkOrder.assignment.service;
 
+import com.WorkOrder.assignment.dto.AssignmentRecordDto;
 import com.WorkOrder.model.assignment.AssignCandidate;
+import com.WorkOrder.model.page.PageResult;
 
 import java.util.List;
 
@@ -16,4 +18,15 @@ public interface AssignEngineService {
      * @return 按综合得分降序排列的候选人
      */
     List<AssignCandidate> recommend(Long ticketId, String operatorRole);
+
+    /**
+     * 获取工单分配记录。
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param ticketId 工单ID
+     * @param operatorRole 操作员角色
+     * @param operatorId 操作员ID
+     * @return 工单分配记录及符合条件的总条数
+     */
+    PageResult<AssignmentRecordDto> getAssignmentRecords(int page, int pageSize, Long ticketId, String operatorRole, Long operatorId);
 }

@@ -48,7 +48,13 @@ spring:
         - id: Assign-Engine
           uri: lb://Assign-Engine
           predicates:
-            - Path=/api/assign-engine/**,/api/configurations/**
+            - Path=/api/assign-engine/**,/api/configurations/**,/api/assignment-records/**
+          filters:
+            - StripPrefix=1
+        - id: Notification
+          uri: lb://Notification
+          predicates:
+            - Path=/api/notifications/**
           filters:
             - StripPrefix=1
     nacos:
