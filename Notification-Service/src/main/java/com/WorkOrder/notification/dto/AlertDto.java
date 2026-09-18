@@ -14,6 +14,6 @@ public class AlertDto extends PageParams {
 
     @ApiModelProperty(value = "告警类型", example = "RESPONSE_TIMEOUT/RESOLUTION/ESCALATION")
     private String type;
-    @ApiModelProperty(value = "告警状态", example = "PENDING/SENT/FAILED")
+    @ApiModelProperty(value = "告警状态", example = "PENDING/SENT/FAILED/HANDLED")
     private String status;
 }

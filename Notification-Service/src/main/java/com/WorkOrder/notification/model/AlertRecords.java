@@ -27,7 +27,7 @@ public class AlertRecords {
     private Long targetUserId;
     @ApiModelProperty(value = "通知渠道", example = "EMAIL/SMS/INTERNAL")
     private String notificationChannel;
-    @ApiModelProperty(value = "告警状态", example = "PENDING/SENT/FAILED")
+    @ApiModelProperty(value = "告警状态", example = "PENDING/SENT/FAILED/HANDLED")
     private String status;
     @ApiModelProperty(value = "发送时间")
     private LocalDateTime sentAt;

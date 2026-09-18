@@ -54,7 +54,7 @@ spring:
         - id: Notification
           uri: lb://Notification
           predicates:
-            - Path=/api/notifications/**
+            - Path=/api/notifications/**,/api/alerts/**
           filters:
             - StripPrefix=1
     nacos:

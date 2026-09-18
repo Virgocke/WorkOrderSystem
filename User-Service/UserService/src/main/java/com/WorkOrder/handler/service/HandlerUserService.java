@@ -15,8 +15,8 @@ import java.util.List;
 public interface HandlerUserService extends IService<HandlerProfiles> {
 
     /**
-     * 获取处理人列表
-     * @return 处理人列表
+     * 获取启用处理人的分配选项，响应中的 id 和 userId 均为处理人用户 ID。
+     * @return 启用处理人列表
      */
-    List<HandlerProfile> getHandler(Long userId, String username);
+    List<HandlerProfile> getHandler();
 }

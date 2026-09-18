@@ -14,15 +14,15 @@ public interface TicketRatingService {
 
     /**
      * 获取工单评价
-     * @param ticketId 工单编号
-     * @param userId 用户编号
+     * @param ticketId 工单id
+     * @param userId 用户id
      * @return 工单评价响应对象
      */
     TicketRatingResponse getTicketRating(Long ticketId, Long userId);
 
     /**
      * 提交工单评价
-     * @param ticketId 工单编号
+      * @param ticketId 工单id
      * @param ticketRatingDto 工单评价DTO
      * @return 是否提交成功
      */

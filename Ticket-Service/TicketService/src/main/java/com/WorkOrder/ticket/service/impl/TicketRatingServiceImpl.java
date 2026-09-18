@@ -52,7 +52,7 @@ public class TicketRatingServiceImpl implements TicketRatingService {
 
         Tickets ticket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Tickets>()
-                        .eq(Tickets::getTicketNo, ticketId)
+                        .eq(Tickets::getId, ticketId)
         );
         // 设置工单编号
         ticketRatingResponse.setTicketNo(ticket.getTicketNo());
@@ -79,7 +79,7 @@ public class TicketRatingServiceImpl implements TicketRatingService {
         // 根据工单编号查询工单，如果不存在则抛出异常，表示工单不存在
         Tickets ticket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Tickets>()
-                        .eq(Tickets::getTicketNo, ticketId)
+                        .eq(Tickets::getId, ticketId)
         );
         if (ticket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);

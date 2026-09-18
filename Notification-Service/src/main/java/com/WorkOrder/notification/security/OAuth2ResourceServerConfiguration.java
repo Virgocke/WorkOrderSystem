@@ -63,7 +63,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
     /** 保护通知接口，调用方必须携带 OAuth2 Bearer JWT。 */
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        http.requestMatchers().antMatchers("/notifications/**")
+        http.requestMatchers().antMatchers("/notifications/**", "/alerts/**")
                 .and()
                 .authorizeRequests()
                 .anyRequest()

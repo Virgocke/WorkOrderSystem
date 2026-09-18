@@ -70,8 +70,12 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
         LambdaQueryWrapper<Tickets> queryWrapper = new LambdaQueryWrapper<Tickets>();
         // 按状态查询
-        if (adminTicketListDto.getStatus() != null){
-            queryWrapper.eq(Tickets::getStatus, adminTicketListDto.getStatus());
+        String status = adminTicketListDto.getStatus();
+        if (status != null) {
+            status = status.trim();
+        }
+        if (status != null && !status.isEmpty() && !"all".equalsIgnoreCase(status)) {
+            queryWrapper.eq(Tickets::getStatus, status);
         }
         // 按优先级查询
         if (adminTicketListDto.getPriority() != 0){

@@ -2,6 +2,8 @@ package com.WorkOrder.notification.dto;
 
 import lombok.Data;
 
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
 import java.util.List;
 
@@ -12,5 +14,6 @@ import java.util.List;
  */
 @Data
 public class MarkAsReadDto {
-    private List<@Positive Long> ids;
+    @NotEmpty
+    private List<@NotNull @Positive Long> ids;
 }

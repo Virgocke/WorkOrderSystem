@@ -12,8 +12,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import javax.validation.Valid;
 
 /** 通知接口控制器。 */
 @RestController
@@ -52,10 +55,11 @@ public class NotificationController {
      * 将我的通知标记为已读，接收人由 Token 确定。
      * @param markAsReadDto 标记已读参数
      * @param authentication 当前用户认证信息
-     * @return 未读通知数
+     * @return 本次标记已读的通知数
      */
     @PostMapping("/read")
-    public Result<NotificationCountDto> markAsRead(MarkAsReadDto markAsReadDto, Authentication authentication){
+    public Result<NotificationCountDto> markAsRead(@Valid @RequestBody MarkAsReadDto markAsReadDto,
+                                                  Authentication authentication) {
         Long receiverId = currentUserIdProvider.get(authentication);
         return Result.success(new NotificationCountDto(notificationService.markAsRead(markAsReadDto, receiverId)));
     }

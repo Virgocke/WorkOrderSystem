@@ -355,7 +355,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
 
         // 如果当前登录用户不是处理人，则抛出异常
-        boolean isHandler = "Handler".equals(operatorRole);
+        boolean isHandler = "HANDLER".equals(operatorRole);
         if (!isHandler){
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
@@ -414,6 +414,15 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         return TicketConverter.toResponse(ticket);
     }
 
+    /**
+     * 添加内部备注
+     * @param ticketId 工单ID
+     * @param ticketNoteDto 备注参数
+     * @param operatorId 当前操作人ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @param clientIp 客户端IP
+     * @return 是否添加成功
+     */
     @Override
     @Transactional
     public Boolean setTicketNote(
@@ -429,7 +438,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
 
         // 如果当前登录用户不是处理人，则抛出异常
-        boolean isHandler = "Handler".equals(operatorRole);
+        boolean isHandler = "HANDLER".equals(operatorRole);
         if (!isHandler){
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }

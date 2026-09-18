@@ -19,4 +19,13 @@ public interface AlertService {
      * @return 告警列表
      */
     PageResult<AlertRecord> getAlertList(Long operatorId, String operatorRole, AlertDto alertDto);
+
+    /**
+     * 处理告警。
+     * @param alertId 告警ID
+     * @param operatorId 操作员ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @return 已处理的告警记录
+     */
+    AlertRecord handleAlert(Long alertId, Long operatorId, String operatorRole);
 }

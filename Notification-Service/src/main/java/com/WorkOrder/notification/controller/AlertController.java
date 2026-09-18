@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -42,5 +44,20 @@ public class AlertController {
         Long operatorId = currentUserIdProvider.get(authentication);
         String operatorRole = currentUserRoleProvider.get(authentication);
         return Result.success(alertService.getAlertList(operatorId, operatorRole, alertDto));
+    }
+
+    /**
+     * 处理告警，操作人及角色由 Token 确定。
+     * @param id 告警ID
+     * @param authentication 当前用户认证信息
+     * @return 已处理的告警记录
+     */
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HANDLER')")
+    @PostMapping("/{id}/handle")
+    public Result<AlertRecord> handleAlert(@PathVariable("id") Long id,
+                                           Authentication authentication) {
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        return Result.success(alertService.handleAlert(id, operatorId, operatorRole));
     }
 }
