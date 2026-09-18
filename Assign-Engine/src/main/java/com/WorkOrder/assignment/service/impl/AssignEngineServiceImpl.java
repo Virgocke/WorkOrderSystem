@@ -1,11 +1,12 @@
 package com.WorkOrder.assignment.service.impl;
 
-import com.WorkOrder.assignment.config.AssignWeightsProperties;
 import com.WorkOrder.assignment.mapper.AssignEngineMapper;
 import com.WorkOrder.assignment.service.AssignEngineService;
+import com.WorkOrder.assignment.service.ConfigurationService;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.assignment.AssignCandidate;
+import com.WorkOrder.model.assignment.AssignmentWeightsSnapshot;
 import com.WorkOrder.model.handler.HandlerProfile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,8 +30,14 @@ public class AssignEngineServiceImpl implements AssignEngineService {
     private static final BigDecimal TWENTY = new BigDecimal("20");
 
     private final AssignEngineMapper assignEngineMapper;
-    private final AssignWeightsProperties weights;
+    private final ConfigurationService configurationService;
 
+    /**
+     * 根据工单ID推荐处理人。
+     * @param ticketId 待推荐工单ID
+     * @param operatorRole 当前登录用户角色
+     * @return 处理人推荐列表
+     */
     @Override
     public List<AssignCandidate> recommend(Long ticketId, String operatorRole) {
         // 当前角色来自后端认证信息，服务层再次校验管理员权限。
@@ -48,8 +55,10 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         if (handlers == null || handlers.isEmpty()) {
             return Collections.emptyList();
         }
+        // 获取当前的权重配置
+        AssignmentWeightsSnapshot weights = configurationService.getCurrentWeights();
         return handlers.stream()
-                .map(this::buildCandidate)
+                .map(handler -> buildCandidate(handler, weights))
                 .sorted(Comparator.comparing(AssignCandidate::getTotalScore).reversed()
                         .thenComparing(candidate -> candidate.getHandler().getUserId()))
                 .collect(Collectors.toList());
@@ -58,7 +67,7 @@ public class AssignEngineServiceImpl implements AssignEngineService {
     /**
      * 构建候选人得分与推荐原因，分项及综合分均保留一位小数。
      */
-    private AssignCandidate buildCandidate(HandlerProfile handler) {
+    private AssignCandidate buildCandidate(HandlerProfile handler, AssignmentWeightsSnapshot weights) {
         //todo 接入工单分类与所需技能的关联规则，结合处理人技能及熟练度计算技能匹配分，暂计0分。
         BigDecimal skillMatchScore = BigDecimal.ZERO;
         //todo 接入 Redis 实时负载及用户服务的负载维护，目前使用 handler_profiles.current_load。
@@ -69,9 +78,10 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         BigDecimal ratingScore = normalizeScore(handler.getRatingScore() == null
                 ? BigDecimal.ZERO : handler.getRatingScore().multiply(TWENTY));
 
-        //todo 接入系统配置模块的 assignWeights 动态配置，目前通过 assignment.weights 配置权重。
+        // 所有候选人使用本次推荐开始时取得的同一份权重快照。
         BigDecimal totalWeight = weights.getSkill().add(weights.getLoad())
                 .add(weights.getSla()).add(weights.getRating());
+
         BigDecimal totalScore = skillMatchScore.multiply(weights.getSkill())
                 .add(loadScore.multiply(weights.getLoad()))
                 .add(slaScore.multiply(weights.getSla()))
@@ -85,6 +95,7 @@ public class AssignEngineServiceImpl implements AssignEngineService {
                 .loadScore(roundScore(loadScore))
                 .slaScore(roundScore(slaScore))
                 .ratingScore(roundScore(ratingScore))
+                .weights(weights)
                 .reasons(Arrays.asList(
                         "技能匹配规则待接入，暂计0分",
                         "当前负载 " + handler.getCurrentLoad() + "/" + handler.getMaxCapacity(),
@@ -98,6 +109,7 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         if (handler.getMaxCapacity() <= 0) {
             return BigDecimal.ZERO;
         }
+        // 计算负载率
         BigDecimal loadRate = BigDecimal.valueOf(Math.max(0, handler.getCurrentLoad()))
                 .multiply(HUNDRED)
                 .divide(BigDecimal.valueOf(handler.getMaxCapacity()), 10, RoundingMode.HALF_UP);
@@ -109,6 +121,11 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         return score == null ? BigDecimal.ZERO : score.max(BigDecimal.ZERO).min(HUNDRED);
     }
 
+    /**
+     * 四舍五入保留一位小数。
+     * @param score 待四舍五入的分数
+     * @return 四舍五入保留一位小数的分数
+     */
     private BigDecimal roundScore(BigDecimal score) {
         return score.setScale(1, RoundingMode.HALF_UP);
     }

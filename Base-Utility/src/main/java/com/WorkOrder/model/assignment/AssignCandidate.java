@@ -37,6 +37,9 @@ public class AssignCandidate {
     /** 历史评分折算得分，取值范围 0-100。 */
     private BigDecimal ratingScore;
 
+    /** 本次推荐实际采用的权重及配置版本。 */
+    private AssignmentWeightsSnapshot weights;
+
     /** 推荐原因说明。 */
     @Builder.Default
     private List<String> reasons = new ArrayList<>();

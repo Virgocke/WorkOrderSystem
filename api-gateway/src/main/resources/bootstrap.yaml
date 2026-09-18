@@ -48,7 +48,7 @@ spring:
         - id: Assign-Engine
           uri: lb://Assign-Engine
           predicates:
-            - Path=/api/assign-engine/**
+            - Path=/api/assign-engine/**,/api/configurations/**
           filters:
             - StripPrefix=1
     nacos:

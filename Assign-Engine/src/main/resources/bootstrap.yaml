@@ -12,6 +12,8 @@ spring:
         group: WorkOrder-project
   jackson:
     time-zone: GMT+8
+    deserialization:
+      use-big-decimal-for-floats: true
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/WorkOrderSystem?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
@@ -19,7 +21,7 @@ spring:
     password: Virgo0916
 
 mybatis-plus:
-  mapper-locations: classpath*:AssignEngineMapper.xml
+  mapper-locations: classpath*:*Mapper.xml
 
 security:
   oauth2:

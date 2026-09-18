@@ -11,7 +11,7 @@ import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
- * @description 智能分配评分权重，默认技能40、负载25、SLA20、评分15。
+ * @description 尚未保存数据库配置时的默认分配权重，默认技能40、负载25、SLA20、评分15。
  */
 @Data
 @Validated

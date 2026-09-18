@@ -44,6 +44,9 @@ public enum SystemExceptionEnum {
     UNSUPPORTED_ATTACHMENT_TYPE(1060, "仅支持上传图片类型文件"),
     ATTACHMENT_SIZE_EXCEEDED(1061, "图片大小不能超过 20MB"),
 
+    // === 系统配置相关 (1080~1089) ===
+    CONFIGURATION_VERSION_CONFLICT(1080, "配置已被其他管理员修改，请刷新后重试"),
+
     // === 服务内部错误 ===
     INTERNAL_SERVER_ERROR(5000, "系统内部错误，请稍后重试"),
     ;

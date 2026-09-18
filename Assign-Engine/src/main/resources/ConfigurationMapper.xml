@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.assignment.mapper.ConfigurationMapper">
+    <resultMap id="configuration" type="com.WorkOrder.assignment.model.Configuration">
+        <id property="configKey" column="config_key"/>
+        <result property="configValue" column="config_value"/>
+        <result property="description" column="description"/>
+        <result property="version" column="version"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <select id="selectAll" resultMap="configuration">
+        SELECT config_key, config_value, description, version, updated_by, updated_at
+        FROM configurations ORDER BY config_key
+    </select>
+    <select id="selectByKey" resultMap="configuration">
+        SELECT config_key, config_value, description, version, updated_by, updated_at
+        FROM configurations WHERE config_key = #{configKey}
+    </select>
+    <insert id="insert">
+        INSERT INTO configurations (config_key, config_value, description, version, updated_by)
+        VALUES (#{configKey}, #{configValue}, #{description}, 1, #{updatedBy})
+    </insert>
+    <update id="updateByVersion">
+        UPDATE configurations
+        SET config_value = #{configValue}, version = version + 1,
+            updated_by = #{updatedBy}, updated_at = CURRENT_TIMESTAMP
+        WHERE config_key = #{configKey} AND version = #{version}
+    </update>
+    <insert id="insertLog">
+        INSERT INTO configuration_change_logs
+            (config_key, before_value, after_value, version, operator_id)
+        VALUES (#{configKey}, #{beforeValue}, #{afterValue}, #{version}, #{operatorId})
+    </insert>
+</mapper>

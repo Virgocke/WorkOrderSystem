@@ -1,5 +1,5 @@
 server:
-  address: 63050
+  port: 63050
 
 spring:
   application:
