@@ -4,15 +4,20 @@ import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.notification.NotificationRecord;
 import com.WorkOrder.model.page.PageResult;
+import com.WorkOrder.notification.dto.MarkAsReadDto;
 import com.WorkOrder.notification.dto.MyNotificationPageDto;
 import com.WorkOrder.notification.mapper.NotificationMapper;
 import com.WorkOrder.notification.model.Notifications;
 import com.WorkOrder.notification.service.NotificationService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -81,6 +86,46 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
             throw new SystemException(SystemExceptionEnum.ACCOUNT_OFFLINE);
         }
         return notificationMapper.countUnreadNotifications(receiverId);
+    }
+
+    /**
+     * 标记通知为已读。
+     * @param markAsReadDto 标记已读 DTO
+     * @param receiverId 从认证信息读取的当前用户 ID
+     * @return 已读通知数量
+     */
+    @Override
+    @Transactional
+    public long markAsRead(MarkAsReadDto markAsReadDto, Long receiverId) {
+        List<Long> ids = markAsReadDto.getIds();
+        int count = 0;
+        for (Long id : ids) {
+            LambdaUpdateWrapper<Notifications> queryWrapper = new LambdaUpdateWrapper<Notifications>();
+            queryWrapper.eq(Notifications::getId, id);
+            queryWrapper.eq(Notifications::getReceiverId, receiverId);
+            queryWrapper.set(Notifications::getStatus, "READ");
+            queryWrapper.set(Notifications::getReadAt, LocalDateTime.now());
+            int update = notificationMapper.update(null, queryWrapper);
+            if (update < 1) {
+                throw new SystemException(SystemExceptionEnum.NOTIFICATION_READ_FAILED);
+            }
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * 标记所有通知为已读。
+     * @param receiverId 从认证信息读取的当前用户 ID
+     * @return 已读通知数量
+     */
+    @Override
+    public long markAllAsRead(Long receiverId) {
+        int update = notificationMapper.update(null, new LambdaUpdateWrapper<Notifications>()
+                .eq(Notifications::getReceiverId, receiverId)
+                .set(Notifications::getStatus, "READ")
+                .set(Notifications::getReadAt, LocalDateTime.now()));
+        return update;
     }
 
     /**

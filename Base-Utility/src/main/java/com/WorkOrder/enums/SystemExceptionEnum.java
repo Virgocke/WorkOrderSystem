@@ -39,6 +39,7 @@ public enum SystemExceptionEnum {
     TICKET_STATUS_UPDATE_ERROR(1047, "工单状态更新失败"),
     TICKET_TRANSFER_SAME_HANDLER(1048, "工单当前处理人不能是转办人"),
     TICKET_ESCALATED_LEVEL_MAX(1049, "工单催办次数已上限，请联系管理员"),
+    NOTIFICATION_READ_FAILED(1050, "通知已读失败"),
 
     // === 附件与文件相关 (1060~1069) ===
     UNSUPPORTED_ATTACHMENT_TYPE(1060, "仅支持上传图片类型文件"),

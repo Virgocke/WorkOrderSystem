@@ -10,13 +10,13 @@ import com.WorkOrder.assignment.service.AssignEngineService;
 import com.WorkOrder.assignment.service.ConfigurationService;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
-import com.WorkOrder.model.Result;
 import com.WorkOrder.model.assignment.AssignCandidate;
 import com.WorkOrder.model.assignment.AssignmentWeightsSnapshot;
 import com.WorkOrder.model.handler.HandlerProfile;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.model.user.UserProfile;
+import com.WorkOrder.utils.ResponseUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
@@ -121,7 +121,7 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         }
 
         // 同一工单的详情只查询一次；重复接手的处理人在本次请求内复用用户资料。
-        TicketResponse ticket = getResponseData(ticketFeignClient.getTicketInfo(ticketId),
+        TicketResponse ticket = ResponseUtils.getResponseData(ticketFeignClient.getTicketInfo(ticketId),
                 SystemExceptionEnum.TICKET_NOT_FOUND);
         Map<Long, UserProfile> handlers = new HashMap<>();
         List<AssignmentRecordDto> records = new ArrayList<>(assignmentRecordList.size());
@@ -131,7 +131,7 @@ public class AssignEngineServiceImpl implements AssignEngineService {
             // 获取处理人资料
             Long handlerId = assignmentRecord.getHandlerId();
             UserProfile handler = handlers.computeIfAbsent(handlerId,
-                    id -> getResponseData(userFeignClient.getById(id), SystemExceptionEnum.USER_NOT_FOUND));
+                    id -> ResponseUtils.getResponseData(userFeignClient.getById(id), SystemExceptionEnum.USER_NOT_FOUND));
 
             // 每次分配或转派保留一条独立记录，不按处理人去重。
             AssignmentRecordDto dto = new AssignmentRecordDto();
@@ -152,23 +152,6 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         }
 
         return new PageResult<>(records, recordPage.getTotal(), page, pageSize);
-    }
-
-    /** 校验远程响应，保留业务错误码并避免空数据引起空指针异常。 */
-    private <T> T getResponseData(Result<T> result, SystemExceptionEnum missingDataError) {
-        if (result == null) {
-            throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
-        }
-        if (result.getCode() != SystemExceptionEnum.SUCCESS.getCode()) {
-            SystemExceptionEnum error = Arrays.stream(SystemExceptionEnum.values())
-                    .filter(value -> value.getCode() == result.getCode())
-                    .findFirst().orElse(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
-            throw new SystemException(error);
-        }
-        if (result.getData() == null) {
-            throw new SystemException(missingDataError);
-        }
-        return result.getData();
     }
 
     /**

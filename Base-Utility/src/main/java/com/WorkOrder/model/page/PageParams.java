@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import javax.validation.constraints.Positive;
+
 /**
  * @author Virgor
  * @date 2026年09月08日 18:49
@@ -14,8 +16,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PageParams {
+    @Positive
     @ApiModelProperty(value = "当前页码", example = "1")
     private Long page = 1L; // 当前页码
+    @Positive
     @ApiModelProperty(value = "每页大小", example = "10")
     private Long pageSize = 10L;
 }

@@ -2,6 +2,7 @@ package com.WorkOrder.notification.service;
 
 import com.WorkOrder.model.notification.NotificationRecord;
 import com.WorkOrder.model.page.PageResult;
+import com.WorkOrder.notification.dto.MarkAsReadDto;
 import com.WorkOrder.notification.dto.MyNotificationPageDto;
 import com.WorkOrder.notification.model.Notifications;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -24,4 +25,19 @@ public interface NotificationService extends IService<Notifications> {
      * @return 未读通知数量
      */
     long unreadCount(Long receiverId);
+
+    /**
+     * 将通知标记为已读。
+     * @param markAsReadDto 标记已读 DTO
+     * @param receiverId 从认证信息读取的当前用户 ID
+     * @return 已读通知数量
+     */
+    long markAsRead(MarkAsReadDto markAsReadDto, Long receiverId);
+
+    /**
+     * 将当前用户的全部通知标记为已读。
+     * @param receiverId 从认证信息读取的当前用户 ID
+     * @return 已读通知数量
+     */
+    long markAllAsRead(Long receiverId);
 }
