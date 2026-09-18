@@ -32,7 +32,10 @@
 列表按创建时间及 ID 倒序，左关联工单编号，系统通知的 `ticketId`、`ticketNo` 保留为 `null`。
 数据库状态 `READ` 返回已读，其他投递状态返回未读；ID 按字符串传输，时间格式为 `yyyy-MM-dd HH:mm:ss`。
 
-网关将 `/api/notifications/**` 转发至 `Notification` 服务。未读数、标记已读、全部已读及消息消费、渠道投递
+`GET /api/notifications/unread-count` 返回当前登录用户的未读通知数，响应 `data` 为 `{ "count": 5 }`。
+统计与列表的 `UNREAD` 筛选使用相同规则，数量按 JSON 数字传输，没有未读通知时返回 0。
+
+网关将 `/api/notifications/**` 转发至 `Notification` 服务。标记已读、全部已读及消息消费、渠道投递
 尚未接入，已在代码中用 `//todo` 标注；前端通知页调用这些接口时仍需后续实现。
 
 ## 用户服务（63070）

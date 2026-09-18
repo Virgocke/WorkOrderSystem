@@ -17,4 +17,11 @@ public interface NotificationService extends IService<Notifications> {
      */
     PageResult<NotificationRecord> myNotifications(Long receiverId,
                                                   MyNotificationPageDto myNotificationPageDto);
+
+    /**
+     * 获取当前用户的未读通知数。
+     * @param receiverId 从认证信息读取的当前用户 ID
+     * @return 未读通知数量
+     */
+    long unreadCount(Long receiverId);
 }

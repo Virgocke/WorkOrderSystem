@@ -14,4 +14,7 @@ public interface NotificationMapper extends BaseMapper<Notifications> {
     Page<Notifications> selectMyNotifications(Page<Notifications> page,
                                              @Param("receiverId") Long receiverId,
                                              @Param("status") String status);
+
+    /** 统计当前接收人的未读通知数。 */
+    long countUnreadNotifications(@Param("receiverId") Long receiverId);
 }

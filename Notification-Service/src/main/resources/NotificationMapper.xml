@@ -12,6 +12,11 @@
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
+    <!-- 列表筛选和未读数量共用阅读状态映射。 -->
+    <sql id="readingStatus">
+        CASE WHEN n.status = 'READ' THEN 'READ' ELSE 'UNREAD' END
+    </sql>
+
     <select id="selectMyNotifications" resultMap="notification">
         SELECT n.id, n.ticket_id, t.ticket_no, n.receiver_id,
                n.channel, n.content, n.status, n.created_at
@@ -20,8 +25,15 @@
         WHERE n.receiver_id = #{receiverId}
         <if test="status != null and status != ''">
             <!-- 将数据库投递状态映射为文档约定的阅读状态后筛选。 -->
-            AND CASE WHEN n.status = 'READ' THEN 'READ' ELSE 'UNREAD' END = #{status}
+            AND <include refid="readingStatus"/> = #{status}
         </if>
         ORDER BY n.created_at DESC, n.id DESC
+    </select>
+
+    <select id="countUnreadNotifications" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM notification_records n
+        WHERE n.receiver_id = #{receiverId}
+          AND <include refid="readingStatus"/> = 'UNREAD'
     </select>
 </mapper>

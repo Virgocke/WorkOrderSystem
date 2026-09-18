@@ -71,6 +71,19 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
     }
 
     /**
+     * 获取当前用户的未读通知数，统计规则与通知列表一致。
+     * @param receiverId 从认证信息读取的当前用户 ID
+     * @return 未读通知数量
+     */
+    @Override
+    public long unreadCount(Long receiverId) {
+        if (receiverId == null || receiverId <= 0) {
+            throw new SystemException(SystemExceptionEnum.ACCOUNT_OFFLINE);
+        }
+        return notificationMapper.countUnreadNotifications(receiverId);
+    }
+
+    /**
      * 保留空工单字段，统一阅读状态及时间格式。
      * @param notification 通知记录
      * @return 通知记录

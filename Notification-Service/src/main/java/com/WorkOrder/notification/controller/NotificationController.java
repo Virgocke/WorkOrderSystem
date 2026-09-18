@@ -4,6 +4,7 @@ import com.WorkOrder.model.Result;
 import com.WorkOrder.model.notification.NotificationRecord;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.notification.dto.MyNotificationPageDto;
+import com.WorkOrder.notification.dto.NotificationCountDto;
 import com.WorkOrder.notification.service.NotificationService;
 import com.WorkOrder.security.CurrentUserIdProvider;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,17 @@ public class NotificationController {
         return Result.success(notificationService.myNotifications(receiverId, myNotificationPageDto));
     }
 
-    //todo 10.2 获取当前用户的未读通知数。
+    /**
+     * 获取我的未读通知数，接收人由 Token 确定。
+     * @param authentication 当前用户认证信息
+     * @return 未读通知数
+     */
+    @GetMapping("/unread-count")
+    public Result<NotificationCountDto> unreadCount(Authentication authentication) {
+        Long receiverId = currentUserIdProvider.get(authentication);
+        return Result.success(new NotificationCountDto(notificationService.unreadCount(receiverId)));
+    }
+
     //todo 10.3 按通知 ID 标记本人通知已读。
     //todo 10.4 将当前用户的全部通知标记为已读。
 }
