@@ -27,6 +27,23 @@ public final class TicketConverter {
     }
 
     /**
+     * 将工单实体及关联的展示名称转换为响应对象。
+     *
+     * <p>分类名称和用户名称不存储在 tickets 表中，因此由调用方查询后传入。</p>
+     */
+    public static TicketResponse toResponse(
+            Tickets ticket,
+            String categoryName,
+            String creatorName,
+            String handlerName) {
+        TicketResponse response = toResponse(ticket);
+        response.setCategoryName(categoryName);
+        response.setCreatorName(creatorName);
+        response.setHandlerName(handlerName);
+        return response;
+    }
+
+    /**
      * 填充已有响应对象，保留分类名称、创建人名称等实体中没有的属性。
      */
     public static TicketResponse toResponse(Tickets ticket, TicketResponse response) {

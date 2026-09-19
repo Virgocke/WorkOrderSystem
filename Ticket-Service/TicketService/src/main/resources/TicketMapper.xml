@@ -14,6 +14,19 @@
           AND remind_count &lt; 3
     </update>
 
+    <!-- SLA 看板一次补齐当页工单的创建人和处理人名称，避免逐条查询。 -->
+    <select id="selectDisplayNamesByUserIds"
+            resultType="com.WorkOrder.model.user.UserProfile">
+        SELECT id,
+               username,
+               real_name AS realName
+        FROM users
+        WHERE id IN
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+    </select>
+
     <!-- 当前用户的工单历史统计 -->
     <select id="selectHistoryStatistics"
             parameterType="java.lang.Long"

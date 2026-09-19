@@ -13,10 +13,8 @@ public interface SlaRecordService {
     /**
      * 获取实时SLA记录
      *
-     * @param operatorId   操作员ID
-     * @param operatorRole 操作员角色
      * @param slaRecordBoardDto SLA记录看板DTO
      * @return PageResult<TicketResponse>
      */
-    PageResult<TicketResponse> getRealTimeSlaRecords(Long operatorId, String operatorRole, SlaRecordBoardDto slaRecordBoardDto);
+    PageResult<TicketResponse> getRealTimeSlaRecords(SlaRecordBoardDto slaRecordBoardDto);
 }

@@ -1,5 +1,6 @@
 package com.WorkOrder.ticket.service;
 
+import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.ticket.dto.CreateTicketDto;
 import com.WorkOrder.ticket.dto.MyTicketPageDto;
@@ -82,4 +83,22 @@ public interface TicketService extends IService<Tickets> {
      * @return 确认工单信息
      */
     TicketResponse confirmTicket(Long ticketId, Long userId);
+
+    /**
+     * 根据SLA状态获取工单信息
+     * @param operatorId 当前操作人ID
+     * @param operatorRole 当前操作人角色
+     * @param page 页码
+     * @param pageSize 每页条数
+     * @param slaStatus SLA状态
+     * @param status 工单状态
+     * @return 工单信息
+     */
+    PageResult<TicketResponse> getTicketsBySlaStatus(
+            Long operatorId,
+            String operatorRole,
+            Long page,
+            Long pageSize,
+            String slaStatus,
+            String status);
 }

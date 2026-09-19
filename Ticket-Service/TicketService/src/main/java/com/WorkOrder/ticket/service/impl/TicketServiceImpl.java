@@ -2,7 +2,9 @@ package com.WorkOrder.ticket.service.impl;
 
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
+import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.ticket.TicketResponse;
+import com.WorkOrder.model.user.UserProfile;
 import com.WorkOrder.ticket.converter.TicketConverter;
 import com.WorkOrder.ticket.dto.*;
 import com.WorkOrder.ticket.enums.TicketStatusEnum;
@@ -16,6 +18,7 @@ import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
 import com.WorkOrder.ticket.service.TicketService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -23,9 +26,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +44,25 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Service
 public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implements TicketService {
+
+    private static final List<String> SLA_BOARD_STATUSES = Collections.unmodifiableList(Arrays.asList(
+            TicketStatusEnum.PENDING_RESPONSE.name(),
+            TicketStatusEnum.PROCESSING.name(),
+            TicketStatusEnum.RESOLVED.name()));
+    /**
+     * SLA状态列表
+     */
+    private static final List<String> SLA_STATUSES = Collections.unmodifiableList(Arrays.asList(
+            "NORMAL", "NEAR_TIMEOUT", "TIMEOUT", "ESCALATED"));
+
+    /**
+     * SLA板排序
+     */
+    private static final String SLA_BOARD_ORDER =
+            "ORDER BY (CASE WHEN status = 'PENDING_RESPONSE' THEN response_deadline "
+                    + "ELSE resolution_deadline END) IS NULL ASC, "
+                    + "CASE WHEN status = 'PENDING_RESPONSE' THEN response_deadline "
+                    + "ELSE resolution_deadline END ASC, id ASC";
 
     private final TicketMapper ticketMapper;
     private final TicketCategoryMapper categoryMapper;
@@ -196,16 +223,13 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
      * 补齐不在 tickets 表中的展示字段，保证详情和列表刷新后仍能显示分类及人员名称。
      */
     private TicketResponse toEnrichedResponse(Tickets ticket) {
-        TicketResponse response = TicketConverter.toResponse(ticket);
         TicketCategory category = categoryMapper.selectById(ticket.getCategoryId());
-        if (category != null) {
-            response.setCategoryName(category.getName());
-        }
-        response.setCreatorName(ticketMapper.selectDisplayNameByUserId(ticket.getCreatorId()));
-        if (ticket.getHandlerId() != null) {
-            response.setHandlerName(ticketMapper.selectDisplayNameByUserId(ticket.getHandlerId()));
-        }
-        return response;
+        String categoryName = category == null ? null : category.getName();
+        String creatorName = ticketMapper.selectDisplayNameByUserId(ticket.getCreatorId());
+        String handlerName = ticket.getHandlerId() == null
+                ? null
+                : ticketMapper.selectDisplayNameByUserId(ticket.getHandlerId());
+        return TicketConverter.toResponse(ticket, categoryName, creatorName, handlerName);
     }
 
     /**
@@ -371,5 +395,147 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             // todo 确认后用消息模块通知处理人handler
         }
         return TicketConverter.toResponse(ticket);
+    }
+
+    /**
+     * 获取当前操作人有权查看的实时 SLA 工单。
+     * @param operatorId 当前操作人ID
+     * @param operatorRole 当前操作人角色
+     * @param page 页码
+     * @param pageSize 每页条数
+     * @param slaStatus SLA状态
+     * @param status 工单状态
+     * @return 工单分页结果
+     */
+    @Override
+    public PageResult<TicketResponse> getTicketsBySlaStatus(
+            Long operatorId,
+            String operatorRole,
+            Long page,
+            Long pageSize,
+            String slaStatus,
+            String status) {
+        // 验证请求参数
+        validateSlaBoardRequest(operatorId, operatorRole, page, pageSize);
+        // 规范化过滤值
+        String normalizedSlaStatus = normalizeFilter(slaStatus);
+        // 验证过滤值
+        String normalizedStatus = normalizeFilter(status);
+        if (normalizedSlaStatus != null && !SLA_STATUSES.contains(normalizedSlaStatus)) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        if (normalizedStatus != null && !SLA_BOARD_STATUSES.contains(normalizedStatus)) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        LambdaQueryWrapper<Tickets> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.in(Tickets::getStatus, SLA_BOARD_STATUSES);
+        if (normalizedSlaStatus != null) {
+            queryWrapper.eq(Tickets::getSlaStatus, normalizedSlaStatus);
+        }
+        if (normalizedStatus != null) {
+            queryWrapper.eq(Tickets::getStatus, normalizedStatus);
+        }
+        if ("HANDLER".equals(operatorRole)) {
+            queryWrapper.eq(Tickets::getHandlerId, operatorId);
+        }
+        // 添加排序
+        queryWrapper.last(SLA_BOARD_ORDER);
+
+        Page<Tickets> ticketPage = ticketMapper.selectPage(new Page<>(page, pageSize), queryWrapper);
+        List<TicketResponse> records = toEnrichedResponses(ticketPage.getRecords());
+        return new PageResult<>(records, ticketPage.getTotal(), page, pageSize);
+    }
+
+    /**
+     * 验证 SLA 板请求参数
+     * @param operatorId 当前操作人ID
+     * @param operatorRole 当前操作人角色
+     * @param page 页码
+     * @param pageSize 每页条数
+     */
+    private void validateSlaBoardRequest(
+            Long operatorId, String operatorRole, Long page, Long pageSize) {
+        if (operatorId == null || operatorId <= 0) {
+            throw new SystemException(SystemExceptionEnum.ACCOUNT_OFFLINE);
+        }
+        if (!"ADMIN".equals(operatorRole) && !"HANDLER".equals(operatorRole)) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+        if (page == null || pageSize == null || page < 1 || pageSize < 1) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        try {
+            Math.multiplyExact(page - 1, pageSize);
+        } catch (ArithmeticException exception) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+    }
+
+    /**
+     * 规范化过滤值
+     * @param value 过滤值
+     * @return 规范化后的过滤值
+     */
+    private String normalizeFilter(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    /** 分别批量查询分类和用户名称，使每页最多只增加两次查询。 */
+    private List<TicketResponse> toEnrichedResponses(List<Tickets> tickets) {
+        if (tickets == null || tickets.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Set<Long> categoryIds = tickets.stream()
+                .map(Tickets::getCategoryId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, String> categoryNames = new HashMap<>();
+        if (!categoryIds.isEmpty()) {
+            List<TicketCategory> categories = categoryMapper.selectBatchIds(categoryIds);
+            if (categories != null) {
+                for (TicketCategory category : categories) {
+                    categoryNames.put(category.getId(), category.getName());
+                }
+            }
+        }
+
+        Set<Long> userIds = new LinkedHashSet<>();
+        for (Tickets ticket : tickets) {
+            if (ticket.getCreatorId() != null) {
+                userIds.add(ticket.getCreatorId());
+            }
+            if (ticket.getHandlerId() != null) {
+                userIds.add(ticket.getHandlerId());
+            }
+        }
+        Map<Long, String> userNames = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            List<UserProfile> users = ticketMapper.selectDisplayNamesByUserIds(userIds);
+            if (users != null) {
+                for (UserProfile user : users) {
+                    userNames.put(user.getId(), displayName(user));
+                }
+            }
+        }
+
+        return tickets.stream()
+                .map(ticket -> TicketConverter.toResponse(
+                        ticket,
+                        categoryNames.get(ticket.getCategoryId()),
+                        userNames.get(ticket.getCreatorId()),
+                        userNames.get(ticket.getHandlerId())))
+                .collect(Collectors.toList());
+    }
+
+    private String displayName(UserProfile user) {
+        if (user.getRealName() != null && !user.getRealName().trim().isEmpty()) {
+            return user.getRealName().trim();
+        }
+        return user.getUsername();
     }
 }

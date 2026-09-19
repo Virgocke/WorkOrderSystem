@@ -387,6 +387,30 @@ public class TicketController {
         return Result.success(handlerTicketService.setTicketNote(ticketId, ticketNoteDto, operatorId, operatorRole, clientIp));
     }
 
+
+    /**
+     * 根据SLA状态获取工单列表
+     * @param page 页码
+     * @param pageSize 每页条数
+     * @param slaStatus SLA状态
+     * @param status 工单状态
+     * @param authentication 当前用户认证信息
+     * @return 工单列表
+     */
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HANDLER')")
+    @PostMapping("/sla-status")
+    public Result<PageResult<TicketResponse>> getTicketsBySlaStatus(
+            @RequestParam(value = "page", defaultValue = "1") Long page,
+            @RequestParam(value = "pageSize", defaultValue = "10") Long pageSize,
+            @RequestParam(value = "slaStatus", required = false) String slaStatus,
+            @RequestParam(value = "status", required = false) String status,
+            Authentication authentication) {
+        Long operatorId = currentUserIdProvider.get(authentication);
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        return Result.success(ticketService.getTicketsBySlaStatus(
+                operatorId, operatorRole, page, pageSize, slaStatus, status));
+    }
+
     /**=======================================================管理员端=======================================================*/
 
     /**
