@@ -59,7 +59,7 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
         );
 
 
-
+        // 获取操作员名称
         Map<Long, String> operatorNames = actorNameResolver.resolveNames(
                 ticketOperationLogList.stream()
                         .map(TicketOperationLog::getOperatorId)
@@ -67,6 +67,7 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
                         .collect(Collectors.toList())
         );
 
+        // 转换为OperationLog
         List<OperationLog> operationLogList = ticketOperationLogList.stream()
                 .map(log -> convertToOperationLog(log, operatorNames))
                 .collect(Collectors.toList());
@@ -77,6 +78,7 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
     /**
      * 将TicketOperationLog转换为OperationLog
      * @param log 工单操作日志
+     * @param operatorNames 操作员名称映射
      * @return 转换后的工单操作日志
      */
     private OperationLog convertToOperationLog(TicketOperationLog log,
