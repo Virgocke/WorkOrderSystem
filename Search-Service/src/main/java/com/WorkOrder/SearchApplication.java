@@ -10,6 +10,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class SearchApplication {
+    /**
+     * 启动工单检索与统计分析服务。
+     *
+     * @param args Spring Boot 启动参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(SearchApplication.class, args);
     }

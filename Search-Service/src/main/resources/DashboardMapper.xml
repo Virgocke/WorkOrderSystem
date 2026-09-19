@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.WorkOrder.dashboard.mapper.DashboardMapper">
+
+    <select id="selectSummary"
+            resultType="com.WorkOrder.dashboard.dto.DashboardSummaryDto">
+        SELECT COUNT(*) AS totalTickets,
+               COALESCE(SUM(status IN ('PENDING_ASSIGN', 'PENDING_RESPONSE')), 0)
+                   AS pendingCount,
+               CASE
+                   WHEN COALESCE(SUM(status = 'CLOSED'), 0) = 0 THEN 100.0
+                   ELSE ROUND(
+                       SUM(
+                           CASE
+                               WHEN status = 'CLOSED'
+                                   AND resolved_at IS NOT NULL
+                                   AND resolved_at &lt;= resolution_deadline
+                               THEN 1
+                               ELSE 0
+                           END
+                       ) * 100.0 / SUM(status = 'CLOSED'),
+                       1
+                   )
+               END AS slaComplianceRate,
+               COALESCE(ROUND(AVG(
+                   CASE
+                       WHEN first_response_at &gt;= created_at
+                       THEN TIMESTAMPDIFF(MINUTE, created_at, first_response_at)
+                   END
+               ), 1), 0) AS avgResponseMinutes,
+               COALESCE(ROUND(AVG(
+                   CASE
+                       WHEN resolved_at &gt;= created_at
+                       THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at)
+                   END
+               ), 1), 0) AS avgResolutionMinutes
+        FROM tickets
+    </select>
+
+    <select id="selectStatusCounts"
+            resultType="com.WorkOrder.dashboard.dto.DashboardGroupCountDto">
+        SELECT status AS groupKey,
+               COUNT(*) AS count
+        FROM tickets
+        GROUP BY status
+        ORDER BY FIELD(
+            status,
+            'PENDING_ASSIGN',
+            'PENDING_RESPONSE',
+            'PROCESSING',
+            'RESOLVED',
+            'CLOSED',
+            'CANCELLED'
+        ), status
+    </select>
+
+    <select id="selectPriorityCounts"
+            resultType="com.WorkOrder.dashboard.dto.DashboardGroupCountDto">
+        SELECT CAST(priority AS CHAR) AS groupKey,
+               COUNT(*) AS count
+        FROM tickets
+        GROUP BY priority
+        ORDER BY priority
+    </select>
+
+    <select id="selectTrend"
+            resultType="com.WorkOrder.dashboard.dto.DashboardTrendRow">
+        SELECT trend.stat_date AS statDate,
+               SUM(trend.created) AS created,
+               SUM(trend.resolved) AS resolved
+        FROM (
+            SELECT DATE(created_at) AS stat_date,
+                   COUNT(*) AS created,
+                   0 AS resolved
+            FROM tickets
+            WHERE created_at &gt;= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+              AND created_at &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+            GROUP BY DATE(created_at)
+
+            UNION ALL
+
+            SELECT DATE(resolved_at) AS stat_date,
+                   0 AS created,
+                   COUNT(*) AS resolved
+            FROM tickets
+            WHERE resolved_at &gt;= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+              AND resolved_at &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+            GROUP BY DATE(resolved_at)
+        ) trend
+        GROUP BY trend.stat_date
+        ORDER BY trend.stat_date
+    </select>
+
+    <select id="selectHandlerHeat"
+            resultType="com.WorkOrder.dashboard.dto.DashboardHandlerHeatRow">
+        SELECT handlers.handler_id AS handlerId,
+               handlers.handler_name AS handlerName,
+               dates.stat_date AS statDate,
+               COUNT(t.id) AS count
+        FROM (
+            SELECT u.id AS handler_id,
+                   COALESCE(NULLIF(u.real_name, ''), u.username) AS handler_name
+            FROM users u
+            WHERE u.role = 1
+              AND u.status = 1
+              AND EXISTS (
+                  SELECT 1
+                  FROM handler_profiles hp
+                  WHERE hp.user_id = u.id
+              )
+        ) handlers
+        CROSS JOIN (
+            <foreach collection="dates" item="date" separator=" UNION ALL ">
+                SELECT #{date,jdbcType=DATE} AS stat_date
+            </foreach>
+        ) dates
+        LEFT JOIN tickets t
+          ON t.handler_id = handlers.handler_id
+         AND t.created_at &lt; DATE_ADD(dates.stat_date, INTERVAL 1 DAY)
+         AND (
+             t.closed_at IS NULL
+             OR t.closed_at &gt;= DATE_ADD(dates.stat_date, INTERVAL 1 DAY)
+         )
+        GROUP BY handlers.handler_id, handlers.handler_name, dates.stat_date
+        ORDER BY handlers.handler_id, dates.stat_date
+    </select>
+
+    <select id="selectRecentTickets"
+            resultType="com.WorkOrder.dashboard.dto.DashboardTicketRow">
+        SELECT t.id,
+               t.ticket_no AS ticketNo,
+               t.title,
+               t.description,
+               t.category_id AS categoryId,
+               c.name AS categoryName,
+               t.priority,
+               t.status,
+               t.creator_id AS creatorId,
+               COALESCE(NULLIF(creator.real_name, ''), creator.username)
+                   AS creatorName,
+               t.handler_id AS handlerId,
+               COALESCE(NULLIF(handler.real_name, ''), handler.username)
+                   AS handlerName,
+               t.created_at AS createdAt,
+               t.assigned_at AS assignedAt,
+               t.response_deadline AS responseDeadline,
+               t.resolution_deadline AS resolutionDeadline,
+               t.first_response_at AS firstResponseAt,
+               t.resolved_at AS resolvedAt,
+               t.closed_at AS closedAt,
+               t.sla_status AS slaStatus,
+               t.escalated_level AS escalatedLevel,
+               t.remind_count AS remindCount,
+               t.source,
+               CAST(t.attachment_urls AS CHAR) AS attachmentUrls,
+               t.updated_at AS updatedAt
+        FROM tickets t
+        LEFT JOIN ticket_categories c ON c.id = t.category_id
+        LEFT JOIN users creator ON creator.id = t.creator_id
+        LEFT JOIN users handler ON handler.id = t.handler_id
+        WHERE t.status NOT IN ('CLOSED', 'CANCELLED')
+        ORDER BY t.updated_at DESC, t.id DESC
+        LIMIT 8
+    </select>
+
+</mapper>
