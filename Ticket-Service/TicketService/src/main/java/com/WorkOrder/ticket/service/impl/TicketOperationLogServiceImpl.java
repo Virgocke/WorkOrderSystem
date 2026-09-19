@@ -4,15 +4,16 @@ import com.WorkOrder.model.ticket.OperationLog;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.service.TicketOperationLogService;
+import com.WorkOrder.ticket.support.TicketActorNameResolver;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 public class TicketOperationLogServiceImpl implements TicketOperationLogService {
 
     private final TicketOperationLogMapper ticketOperationLogMapper;
+    private final TicketActorNameResolver actorNameResolver;
 
     // 时间格式化器
     private static final DateTimeFormatter TIME_FORMATTER =
@@ -58,8 +60,15 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
 
 
 
+        Map<Long, String> operatorNames = actorNameResolver.resolveNames(
+                ticketOperationLogList.stream()
+                        .map(TicketOperationLog::getOperatorId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList())
+        );
+
         List<OperationLog> operationLogList = ticketOperationLogList.stream()
-                .map(this::convertToOperationLog)
+                .map(log -> convertToOperationLog(log, operatorNames))
                 .collect(Collectors.toList());
 
         return operationLogList;
@@ -70,21 +79,22 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
      * @param log 工单操作日志
      * @return 转换后的工单操作日志
      */
-    private OperationLog convertToOperationLog(TicketOperationLog log) {
-    OperationLog result = new OperationLog();
+    private OperationLog convertToOperationLog(TicketOperationLog log,
+                                               Map<Long, String> operatorNames) {
+        OperationLog result = new OperationLog();
 
-    result.setId(log.getId());
-    result.setTicketId(log.getTicketId());
-    result.setAction(log.getAction());
-    result.setOperatorId(log.getOperatorId());
-    result.setOperatorRole(log.getOperatorRole());
-    result.setContent(log.getContent());
-    result.setCreatedAt(formatTime(log.getCreatedAt()));
+        result.setId(log.getId());
+        result.setTicketId(log.getTicketId());
+        result.setAction(log.getAction());
+        result.setOperatorId(log.getOperatorId());
+        result.setOperatorName(operatorNames.get(log.getOperatorId()));
+        result.setOperatorRole(log.getOperatorRole());
+        result.setContent(log.getContent());
+        result.setCreatedAt(formatTime(log.getCreatedAt()));
 
-    // 需要从其他表或附件表查询后再设置
-    result.setOperatorName(null);
-    result.setAttachments(new String[0]);
+        // 附件表接入后再查询并填充。
+        result.setAttachments(new String[0]);
 
-    return result;
-}
+        return result;
+    }
 }

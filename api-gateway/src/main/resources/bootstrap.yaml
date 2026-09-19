@@ -51,10 +51,18 @@ spring:
             - Path=/api/assign-engine/**,/api/configurations/**,/api/assignment-records/**
           filters:
             - StripPrefix=1
+
         - id: Notification
           uri: lb://Notification
           predicates:
             - Path=/api/notifications/**,/api/alerts/**
+          filters:
+            - StripPrefix=1
+
+        - id: Sla-Monitor
+          uri: lb://Sla-Monitor
+          predicates:
+            - Path=/api/sla/**
           filters:
             - StripPrefix=1
     nacos:

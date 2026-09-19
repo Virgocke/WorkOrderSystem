@@ -1,5 +1,5 @@
 server:
-  port: 63060
+  port: 64060
 
 spring:
   application:
@@ -25,3 +25,6 @@ security:
     jwt:
       # 本地联调必须与认证服务保持一致；生产环境请使用环境变量注入公钥或验签密钥。
       signing-key: ${OAUTH_JWT_SIGNING_KEY:local-development-signing-key-change-before-production}
+
+mybatis-plus:
+  mapper-locations: classpath*:*Mapper.xml

@@ -4,6 +4,7 @@ import com.WorkOrder.user.model.CreateUserRequest;
 import com.WorkOrder.user.model.UpdateHandlerProfileRequest;
 import com.WorkOrder.model.user.UserProfile;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -27,6 +28,14 @@ public interface UserDirectoryService {
      * @return 用户资料
      */
     UserProfile getById(Long id);
+
+    /**
+     * 按主键批量查询用户资料。
+     *
+     * @param ids 用户主键集合
+     * @return 查询到的用户资料
+     */
+    List<UserProfile> getByIds(Collection<Long> ids);
 
     /**
      * 查询可供派单引擎选择的启用处理人。

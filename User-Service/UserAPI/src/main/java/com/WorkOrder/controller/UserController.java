@@ -111,6 +111,17 @@ public class UserController {
     }
 
     /**
+     * 批量查询用户公开资料，供内部服务回填操作人姓名。
+     *
+     * @param ids 用户主键集合
+     * @return 用户资料列表
+     */
+    @PostMapping("/batch")
+    public Result<List<UserProfile>> getByIds(@RequestBody List<Long> ids) {
+        return Result.success(userDirectoryService.getByIds(ids));
+    }
+
+    /**
      * 获取可参与自动派单的处理人列表。
      *
      * @return 处理人资料列表

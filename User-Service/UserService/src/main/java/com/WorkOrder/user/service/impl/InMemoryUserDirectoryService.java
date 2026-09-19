@@ -8,10 +8,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * 用于接口联调的临时存储实现。
@@ -83,6 +89,34 @@ public class InMemoryUserDirectoryService implements UserDirectoryService {
         BeanUtils.copyProperties(user, userProfile);
 
         return userProfile;
+    }
+
+    /**
+     * 按主键批量查询用户资料。
+     *
+     * @param ids 用户主键集合
+     * @return 查询到的用户资料
+     */
+    @Override
+    public List<UserProfile> getByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Collection<Long> distinctIds = ids.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (distinctIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return usersMapper.selectBatchIds(distinctIds).stream()
+                .map(user -> {
+                    UserProfile userProfile = new UserProfile();
+                    BeanUtils.copyProperties(user, userProfile);
+                    return userProfile;
+                })
+                .collect(Collectors.toList());
     }
 
     /**

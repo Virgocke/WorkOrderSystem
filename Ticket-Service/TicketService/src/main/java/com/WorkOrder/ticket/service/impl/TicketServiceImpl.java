@@ -71,7 +71,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         ticket.setTicketNo(ticketNo); // 设置工单编号
 
         ticketResponse.setCategoryName(ticketCategory.getName()); // 设置工单类别名称
-        ticketResponse.setCreatorName(creatorName);
+        String creatorDisplayName = ticketMapper.selectDisplayNameByUserId(creatorId);
+        ticketResponse.setCreatorName(creatorDisplayName == null ? creatorName : creatorDisplayName);
         ticketResponse.setHandlerId(null); // 设置处理者ID为null
         ticketResponse.setHandlerName(null); // 设置处理者名称为null
         ticketResponse.setAssignedAt(null); // 设置分配时间为空
@@ -154,7 +155,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
         // 构建工单响应对象列表
         List<TicketResponse> ticketResponses = myTickets.stream()
-                .map(TicketConverter::toResponse)
+                .map(this::toEnrichedResponse)
                 .collect(Collectors.toList());
 
         return ticketResponses;
@@ -188,7 +189,23 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         if (ticket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
-        return TicketConverter.toResponse(ticket);
+        return toEnrichedResponse(ticket);
+    }
+
+    /**
+     * 补齐不在 tickets 表中的展示字段，保证详情和列表刷新后仍能显示分类及人员名称。
+     */
+    private TicketResponse toEnrichedResponse(Tickets ticket) {
+        TicketResponse response = TicketConverter.toResponse(ticket);
+        TicketCategory category = categoryMapper.selectById(ticket.getCategoryId());
+        if (category != null) {
+            response.setCategoryName(category.getName());
+        }
+        response.setCreatorName(ticketMapper.selectDisplayNameByUserId(ticket.getCreatorId()));
+        if (ticket.getHandlerId() != null) {
+            response.setHandlerName(ticketMapper.selectDisplayNameByUserId(ticket.getHandlerId()));
+        }
+        return response;
     }
 
     /**

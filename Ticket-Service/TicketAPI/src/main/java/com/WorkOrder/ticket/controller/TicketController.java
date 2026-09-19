@@ -263,19 +263,19 @@ public class TicketController {
      */
     @PreAuthorize("hasRole('HANDLER')")
     @GetMapping("/handler")
-    public PageResult<TicketResponse> getTicketList(
+    public Result<PageResult<TicketResponse>> getTicketList(
             Authentication authentication,
             @Valid HandlerTicketPageDto handlerTicketPageDto){
 
         Long handlerId = currentUserIdProvider.get(authentication);
         List<TicketResponse> ticketList = handlerTicketService.getHandlerTicket(handlerId, handlerTicketPageDto);
 
-        return new PageResult<>(
+        return Result.success(new PageResult<>(
                 ticketList,
                 ticketList.size(),
                 handlerTicketPageDto.getPage(),
                 handlerTicketPageDto.getPageSize()
-                );
+                ));
     }
 
     /**
@@ -440,17 +440,17 @@ public class TicketController {
      */
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public PageResult<TicketResponse> getTicketListForAdmin(
+    public Result<PageResult<TicketResponse>> getTicketListForAdmin(
             @Valid AdminTicketListDto adminTicketListDto,
             Authentication authentication
     ){
         Long adminId = currentUserIdProvider.get(authentication);
-        return new PageResult<>(
+        return Result.success(new PageResult<>(
                 adminTicketService.getTicketListForAdmin(adminId, adminTicketListDto),
                 adminTicketService.getTicketListForAdmin(adminId, adminTicketListDto).size(),
                 adminTicketListDto.getPage(),
                 adminTicketListDto.getPageSize()
-        );
+        ));
     }
 
     /**

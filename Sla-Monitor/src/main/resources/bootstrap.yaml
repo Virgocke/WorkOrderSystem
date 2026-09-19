@@ -4,5 +4,21 @@ server:
 spring:
   application:
     name: Sla-Monitor
+  cloud:
+    nacos:
+      server-addr: localhost:8848
+      discovery:
+        namespace: dev
+        group: WorkOrder-project
   jackson:
     time-zone: GMT+8
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/WorkOrderSystem?characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Virgo0916
+
+security:
+  oauth2:
+    jwt:
+      signing-key: ${OAUTH_JWT_SIGNING_KEY:local-development-signing-key-change-before-production}

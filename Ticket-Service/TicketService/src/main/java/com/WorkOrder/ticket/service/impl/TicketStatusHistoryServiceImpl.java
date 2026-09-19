@@ -4,6 +4,7 @@ import com.WorkOrder.model.ticket.StatusHistory;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.service.TicketStatusHistoryService;
+import com.WorkOrder.ticket.support.TicketActorNameResolver;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -23,6 +26,7 @@ import java.util.stream.Collectors;
 public class TicketStatusHistoryServiceImpl implements TicketStatusHistoryService {
 
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
+    private final TicketActorNameResolver actorNameResolver;
 
     // 时间格式化器
     private static final DateTimeFormatter TIME_FORMATTER =
@@ -45,14 +49,20 @@ public class TicketStatusHistoryServiceImpl implements TicketStatusHistoryServic
      */
     @Override
     public List<StatusHistory> getTicketStatusTimeline(Long ticketId) {
-        return ticketStatusHistoryMapper.selectList(
-                    new LambdaQueryWrapper<TicketStatusHistory>()
-                            .eq(TicketStatusHistory::getTicketId, ticketId)
-                            .orderByAsc(TicketStatusHistory::getCreatedAt)
-                            .orderByAsc(TicketStatusHistory::getId)
-            )
-            .stream()
-            .map(this::convertToStatusHistory)
+        List<TicketStatusHistory> histories = ticketStatusHistoryMapper.selectList(
+                new LambdaQueryWrapper<TicketStatusHistory>()
+                        .eq(TicketStatusHistory::getTicketId, ticketId)
+                        .orderByAsc(TicketStatusHistory::getCreatedAt)
+                        .orderByAsc(TicketStatusHistory::getId)
+        );
+        Map<Long, String> operatorNames = actorNameResolver.resolveNames(
+                histories.stream()
+                        .map(TicketStatusHistory::getOperatorId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList())
+        );
+        return histories.stream()
+            .map(history -> convertToStatusHistory(history, operatorNames))
             .collect(Collectors.toList());
     }
 
@@ -61,7 +71,8 @@ public class TicketStatusHistoryServiceImpl implements TicketStatusHistoryServic
      * @param history 数据库里工单状态历史记录
      * @return 转换后，用于返回前端的状态历史记录
      */
-    private StatusHistory convertToStatusHistory(TicketStatusHistory history) {
+    private StatusHistory convertToStatusHistory(TicketStatusHistory history,
+                                                 Map<Long, String> operatorNames) {
         StatusHistory result = new StatusHistory();
 
         result.setId(history.getId());
@@ -70,6 +81,7 @@ public class TicketStatusHistoryServiceImpl implements TicketStatusHistoryServic
         result.setToStatus(history.getToStatus());
         result.setEvent(history.getEvent());
         result.setOperatorId(history.getOperatorId());
+        result.setOperatorName(operatorNames.get(history.getOperatorId()));
         result.setRemark(history.getRemark());
         result.setCreatedAt(formatTime(history.getCreatedAt()));
 
