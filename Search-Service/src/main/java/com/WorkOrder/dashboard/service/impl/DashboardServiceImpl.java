@@ -6,7 +6,9 @@ import com.WorkOrder.dashboard.service.DashboardService;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.handler.HandlerProfile;
+import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.ticket.TicketResponse;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -106,7 +108,7 @@ public class DashboardServiceImpl implements DashboardService {
                 .byPriority(toCountDtos(
                         dashboardMapper.selectPriorityCounts(), PRIORITY_LABELS))
                 // 趋势分布
-                .trend(toTrendDtos(dashboardMapper.selectTrend(), trendDates))
+                .trend(queryTrend(trendDates))
                 // 处理人负载热力图
                 .handlerHeat(toHandlerHeat(
                         dashboardMapper.selectHandlerHeat(heatDates)))
@@ -173,6 +175,60 @@ public class DashboardServiceImpl implements DashboardService {
     @Transactional(readOnly = true)
     public List<CategoryReportDto> getCategoryReport() {
         return defaultList(dashboardMapper.selectCategoryReport());
+    }
+
+    /**
+     * 获取工单趋势数据。
+     * @param days 趋势天数
+     * @return 工单趋势数据列表
+    */
+    @Override
+    @Transactional(readOnly = true)
+    public List<DashboardTrendDto> getTicketTrend(int days) {
+        List<LocalDate> dates = recentDates(LocalDate.now(DASHBOARD_ZONE), days);
+        return queryTrend(dates);
+    }
+
+    /**
+     * 分页查询评价明细，并可按处理人过滤。
+     *
+     * @param page 页码
+     * @param pageSize 每页条数
+     * @param handlerId 可选的处理人 ID
+     * @return 评价明细分页结果
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PageResult<RatingDetailDto> getRatings(
+            int page, int pageSize, Long handlerId) {
+        if (page < 1 || pageSize < 1 || (handlerId != null && handlerId <= 0)) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        Page<RatingDetailDto> ratingPage = dashboardMapper.selectRatingDetails(
+                new Page<>(page, pageSize), handlerId);
+        List<RatingDetailDto> records = ratingPage == null
+                ? Collections.emptyList()
+                : defaultList(ratingPage.getRecords());
+        long total = ratingPage == null ? 0L : ratingPage.getTotal();
+        return new PageResult<>(records, total, page, pageSize);
+    }
+
+    /**
+     * 查询指定连续日期范围内的工单趋势，并为无数据日期补零。
+     *
+     * @param dates 需要返回的连续日期
+     * @return 工单趋势数据列表
+     */
+    private List<DashboardTrendDto> queryTrend(List<LocalDate> dates) {
+        if (dates == null || dates.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        LocalDate startDate = dates.get(0);
+        LocalDate endDateExclusive = dates.get(dates.size() - 1).plusDays(1L);
+        return toTrendDtos(
+                dashboardMapper.selectTrend(startDate, endDateExclusive), dates);
     }
 
     /**
@@ -249,6 +305,7 @@ public class DashboardServiceImpl implements DashboardService {
                         (left, right) -> right));
 
         List<DashboardTrendDto> result = new ArrayList<>(dates.size());
+        // 遍历连续日期，构建结果列表
         for (LocalDate date : dates) {
             DashboardTrendRow row = rowsByDate.get(date);
             result.add(new DashboardTrendDto(

@@ -1,9 +1,7 @@
 package com.WorkOrder.dashboard.service;
 
-import com.WorkOrder.dashboard.dto.CategoryReportDto;
-import com.WorkOrder.dashboard.dto.DashboardOverviewDto;
-import com.WorkOrder.dashboard.dto.HandlerReportPerformanceDto;
-import com.WorkOrder.dashboard.dto.HandlerWorkbenchDto;
+import com.WorkOrder.dashboard.dto.*;
+import com.WorkOrder.model.page.PageResult;
 
 import java.util.List;
 
@@ -39,4 +37,21 @@ public interface DashboardService {
      */
     List<CategoryReportDto> getCategoryReport();
 
+    /**
+     * 查询工单趋势。
+     *
+     * @param days 天数
+     * @return 工单趋势
+     */
+    List<DashboardTrendDto> getTicketTrend(int days);
+
+    /**
+     * 分页查询评价明细。
+     *
+     * @param page 页码
+     * @param pageSize 每页条数
+     * @param handlerId 可选的处理人 ID
+     * @return 评价明细分页结果
+     */
+    PageResult<RatingDetailDto> getRatings(int page, int pageSize, Long handlerId);
 }

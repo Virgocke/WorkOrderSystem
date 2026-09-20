@@ -1,6 +1,7 @@
 package com.WorkOrder.dashboard.controller;
 
 import com.WorkOrder.dashboard.dto.CategoryReportDto;
+import com.WorkOrder.dashboard.dto.DashboardTrendDto;
 import com.WorkOrder.dashboard.dto.HandlerReportPerformanceDto;
 import com.WorkOrder.dashboard.service.DashboardService;
 import com.WorkOrder.model.Result;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -44,5 +46,18 @@ public class ReportController {
     @GetMapping("/category")
     public Result<List<CategoryReportDto>> getCategoryReport() {
         return Result.success(dashboardService.getCategoryReport());
+    }
+
+
+    /**
+     * 获取工单趋势数据。
+     *
+     * @param days 趋势天数
+     * @return 工单趋势数据列表
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/trend")
+    public Result<List<DashboardTrendDto>> getTicketTrend(@RequestParam(value = "days", defaultValue = "30") int days) {
+        return Result.success(dashboardService.getTicketTrend(days));
     }
 }

@@ -1,15 +1,9 @@
 package com.WorkOrder.dashboard.mapper;
 
-import com.WorkOrder.dashboard.dto.CategoryReportDto;
-import com.WorkOrder.dashboard.dto.DashboardGroupCountDto;
-import com.WorkOrder.dashboard.dto.DashboardHandlerHeatRow;
-import com.WorkOrder.dashboard.dto.DashboardSummaryDto;
-import com.WorkOrder.dashboard.dto.DashboardTicketRow;
-import com.WorkOrder.dashboard.dto.DashboardTrendRow;
-import com.WorkOrder.dashboard.dto.HandlerReportPerformanceDto;
-import com.WorkOrder.dashboard.dto.HandlerWorkbenchSummaryDto;
+import com.WorkOrder.dashboard.dto.*;
 import com.WorkOrder.model.handler.HandlerProfile;
 import com.WorkOrder.model.handler.HandlerSkillItem;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -72,9 +66,13 @@ public interface DashboardMapper {
      *     <li>{@code resolved}：当日解决的工单数量</li>
      * </ul>
      *
+     * @param startDate 统计开始日期（包含）
+     * @param endDateExclusive 统计结束日期（不包含）
      * @return 工单趋势数据
      */
-    List<DashboardTrendRow> selectTrend();
+    List<DashboardTrendRow> selectTrend(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDateExclusive") LocalDate endDateExclusive);
 
     /**
      * 获取工单处理人热力图数据。
@@ -256,4 +254,16 @@ public interface DashboardMapper {
      * @return 顶级分类统计列表
      */
     List<CategoryReportDto> selectCategoryReport();
+
+    /**
+     * 按评价时间倒序分页查询评价明细。
+     *
+     * @param page 分页参数
+     * @param handlerId 可选的处理人 ID
+     * @return 评价明细分页结果
+     */
+    Page<RatingDetailDto> selectRatingDetails(
+            Page<RatingDetailDto> page,
+            @Param("handlerId") Long handlerId);
+
 }
