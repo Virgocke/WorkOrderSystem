@@ -84,7 +84,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
      */
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        http.requestMatchers().antMatchers("/dashboard/**")
+        http.requestMatchers().antMatchers("/dashboard/**", "/handler/**","/reports/**","/ratings/**")
                 .and()
                 .authorizeRequests()
                 .anyRequest()

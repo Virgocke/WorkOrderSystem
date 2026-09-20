@@ -166,4 +166,119 @@
         LIMIT 8
     </select>
 
+    <select id="selectWorkbenchSummary"
+            resultType="com.WorkOrder.dashboard.dto.HandlerWorkbenchSummaryDto">
+        SELECT COALESCE(SUM(status = 'PENDING_RESPONSE'), 0) AS pendingCount,
+               COALESCE(SUM(
+                   status IN ('PENDING_RESPONSE', 'PROCESSING', 'RESOLVED')
+                   AND sla_status IN ('NEAR_TIMEOUT', 'TIMEOUT', 'ESCALATED')
+               ), 0) AS nearTimeoutCount,
+               COALESCE(SUM(
+                   DATE(resolved_at) = CURDATE()
+                   OR DATE(closed_at) = CURDATE()
+               ), 0) AS doneToday,
+               ROUND(AVG(
+                   CASE
+                       WHEN resolved_at &gt;= created_at
+                       THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at)
+                   END
+               ), 1) AS avgResolutionMinutes
+        FROM tickets
+        WHERE handler_id = #{handlerId}
+    </select>
+
+    <select id="selectWorkbenchStatusCounts"
+            resultType="com.WorkOrder.dashboard.dto.DashboardGroupCountDto">
+        SELECT status AS groupKey,
+               COUNT(*) AS count
+        FROM tickets
+        WHERE handler_id = #{handlerId}
+          AND status IN ('PENDING_RESPONSE', 'PROCESSING', 'RESOLVED')
+        GROUP BY status
+        ORDER BY FIELD(status, 'PENDING_RESPONSE', 'PROCESSING', 'RESOLVED')
+    </select>
+
+    <select id="selectUpcomingTickets"
+            resultType="com.WorkOrder.dashboard.dto.DashboardTicketRow">
+        SELECT t.id,
+               t.ticket_no AS ticketNo,
+               t.title,
+               t.description,
+               t.category_id AS categoryId,
+               c.name AS categoryName,
+               t.priority,
+               t.status,
+               t.creator_id AS creatorId,
+               COALESCE(NULLIF(creator.real_name, ''), creator.username)
+                   AS creatorName,
+               t.handler_id AS handlerId,
+               COALESCE(NULLIF(handler.real_name, ''), handler.username)
+                   AS handlerName,
+               t.created_at AS createdAt,
+               t.assigned_at AS assignedAt,
+               t.response_deadline AS responseDeadline,
+               t.resolution_deadline AS resolutionDeadline,
+               t.first_response_at AS firstResponseAt,
+               t.resolved_at AS resolvedAt,
+               t.closed_at AS closedAt,
+               t.sla_status AS slaStatus,
+               t.escalated_level AS escalatedLevel,
+               t.remind_count AS remindCount,
+               t.source,
+               CAST(t.attachment_urls AS CHAR) AS attachmentUrls,
+               t.updated_at AS updatedAt
+        FROM tickets t
+        LEFT JOIN ticket_categories c ON c.id = t.category_id
+        LEFT JOIN users creator ON creator.id = t.creator_id
+        LEFT JOIN users handler ON handler.id = t.handler_id
+        WHERE t.handler_id = #{handlerId}
+          AND t.status IN ('PENDING_RESPONSE', 'PROCESSING', 'RESOLVED')
+        ORDER BY CASE
+                     WHEN t.status = 'PENDING_RESPONSE' THEN t.response_deadline
+                     ELSE t.resolution_deadline
+                 END,
+                 t.id
+        LIMIT 8
+    </select>
+
+    <select id="selectHandlerProfile"
+            resultType="com.WorkOrder.model.handler.HandlerProfile">
+        SELECT u.id,
+               u.id AS userId,
+               u.real_name AS realName,
+               u.username,
+               u.department_id AS departmentId,
+               d.name AS departmentName,
+               hp.max_capacity AS maxCapacity,
+               (
+                   SELECT COUNT(*)
+                   FROM tickets t
+                   WHERE t.handler_id = u.id
+                     AND t.status IN ('PENDING_RESPONSE', 'PROCESSING', 'RESOLVED')
+               ) AS currentLoad,
+               hp.avg_response_minutes AS avgResponseMinutes,
+               hp.avg_resolution_minutes AS avgResolutionMinutes,
+               hp.sla_compliance_rate AS slaComplianceRate,
+               hp.rating_score AS ratingScore,
+               u.status
+        FROM handler_profiles hp
+        INNER JOIN users u ON u.id = hp.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        WHERE u.id = #{handlerId}
+          AND u.role = 1
+        LIMIT 1
+    </select>
+
+    <select id="selectHandlerSkills"
+            resultType="com.WorkOrder.model.handler.HandlerSkillItem">
+        SELECT st.id AS skillId,
+               st.name AS skillName,
+               hs.proficiency
+        FROM handler_profiles hp
+        INNER JOIN handler_skills hs ON hs.handler_id = hp.id
+        INNER JOIN skill_tags st ON st.id = hs.skill_tag_id
+        WHERE hp.user_id = #{handlerId}
+        ORDER BY st.id
+    </select>
+
 </mapper>

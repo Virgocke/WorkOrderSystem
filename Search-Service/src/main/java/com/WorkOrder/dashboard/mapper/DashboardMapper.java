@@ -5,6 +5,9 @@ import com.WorkOrder.dashboard.dto.DashboardHandlerHeatRow;
 import com.WorkOrder.dashboard.dto.DashboardSummaryDto;
 import com.WorkOrder.dashboard.dto.DashboardTicketRow;
 import com.WorkOrder.dashboard.dto.DashboardTrendRow;
+import com.WorkOrder.dashboard.dto.HandlerWorkbenchSummaryDto;
+import com.WorkOrder.model.handler.HandlerProfile;
+import com.WorkOrder.model.handler.HandlerSkillItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -57,4 +60,45 @@ public interface DashboardMapper {
      * @return 最近工单数据
      */
     List<DashboardTicketRow> selectRecentTickets();
+
+    /**
+     * 获取处理人工作台汇总数据。
+     *
+     * @param handlerId 处理人用户 ID
+     * @return 工作台汇总数据
+     */
+    HandlerWorkbenchSummaryDto selectWorkbenchSummary(@Param("handlerId") Long handlerId);
+
+    /**
+     * 获取处理人未终结工单的状态分组计数。
+     *
+     * @param handlerId 处理人用户 ID
+     * @return 状态分组计数
+     */
+    List<DashboardGroupCountDto> selectWorkbenchStatusCounts(
+            @Param("handlerId") Long handlerId);
+
+    /**
+     * 获取处理人最接近时限的未终结工单。
+     *
+     * @param handlerId 处理人用户 ID
+     * @return 最多八条临期工单
+     */
+    List<DashboardTicketRow> selectUpcomingTickets(@Param("handlerId") Long handlerId);
+
+    /**
+     * 获取处理人档案。
+     *
+     * @param handlerId 处理人用户 ID
+     * @return 处理人档案；不存在时为空
+     */
+    HandlerProfile selectHandlerProfile(@Param("handlerId") Long handlerId);
+
+    /**
+     * 获取处理人的技能列表。
+     *
+     * @param handlerId 处理人用户 ID
+     * @return 技能列表
+     */
+    List<HandlerSkillItem> selectHandlerSkills(@Param("handlerId") Long handlerId);
 }

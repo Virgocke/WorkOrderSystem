@@ -8,10 +8,13 @@ import com.WorkOrder.dashboard.dto.DashboardSummaryDto;
 import com.WorkOrder.dashboard.dto.DashboardTicketRow;
 import com.WorkOrder.dashboard.dto.DashboardTrendDto;
 import com.WorkOrder.dashboard.dto.DashboardTrendRow;
+import com.WorkOrder.dashboard.dto.HandlerWorkbenchDto;
+import com.WorkOrder.dashboard.dto.HandlerWorkbenchSummaryDto;
 import com.WorkOrder.dashboard.mapper.DashboardMapper;
 import com.WorkOrder.dashboard.service.DashboardService;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
+import com.WorkOrder.model.handler.HandlerProfile;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,6 +64,10 @@ public class DashboardServiceImpl implements DashboardService {
 
     /** 工单优先级编码与中文展示名称的映射。 */
     private static final Map<String, String> PRIORITY_LABELS = createPriorityLabels();
+
+    /** 处理人工作台需要固定返回的未终结状态顺序。 */
+    private static final List<String> WORKBENCH_STATUSES = Collections.unmodifiableList(
+            Arrays.asList("PENDING_RESPONSE", "PROCESSING", "RESOLVED"));
 
     /** 仪表盘数据库查询组件。 */
     private final DashboardMapper dashboardMapper;
@@ -116,6 +123,77 @@ public class DashboardServiceImpl implements DashboardService {
                 .recentTickets(toTicketResponses(
                         dashboardMapper.selectRecentTickets()))
                 .build();
+    }
+
+    /**
+     * 在同一只读事务快照中组装处理人工作台。
+     *
+     * @param handlerId 当前处理人的用户 ID
+     * @return 当前处理人的工作台数据
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public HandlerWorkbenchDto getHandlerWorkbench(Long handlerId) {
+        HandlerProfile profile = dashboardMapper.selectHandlerProfile(handlerId);
+        if (profile == null) {
+            throw new SystemException(SystemExceptionEnum.RESOURCE_NOT_FOUND);
+        }
+        profile.setSkills(defaultList(dashboardMapper.selectHandlerSkills(handlerId)));
+
+        HandlerWorkbenchSummaryDto summary =
+                dashboardMapper.selectWorkbenchSummary(handlerId);
+        if (summary == null) {
+            summary = new HandlerWorkbenchSummaryDto();
+        }
+
+        BigDecimal averageResolution = summary.getAvgResolutionMinutes();
+        if (averageResolution == null) {
+            averageResolution = BigDecimal.valueOf(profile.getAvgResolutionMinutes());
+        }
+
+        return HandlerWorkbenchDto.builder()
+                .pendingCount(summary.getPendingCount())
+                .nearTimeoutCount(summary.getNearTimeoutCount())
+                .doneToday(summary.getDoneToday())
+                .avgResolutionMinutes(averageResolution)
+                .byStatus(toWorkbenchStatusDtos(
+                        dashboardMapper.selectWorkbenchStatusCounts(handlerId)))
+                .upcoming(toTicketResponses(
+                        dashboardMapper.selectUpcomingTickets(handlerId)))
+                .profile(profile)
+                .build();
+    }
+
+    /**
+     * 按前端约定顺序返回工作台状态分布，缺失的状态补零。
+     *
+     * @param rows 数据库状态分组计数
+     * @return 待响应、处理中、已解决三种状态的计数
+     */
+    private List<DashboardCountDto> toWorkbenchStatusDtos(
+            List<DashboardGroupCountDto> rows) {
+        Map<String, Long> counts = rows == null
+                ? Collections.emptyMap()
+                : rows.stream().collect(Collectors.toMap(
+                        DashboardGroupCountDto::getGroupKey,
+                        DashboardGroupCountDto::getCount,
+                        Long::sum));
+
+        return WORKBENCH_STATUSES.stream()
+                .map(status -> new DashboardCountDto(
+                        STATUS_LABELS.get(status), counts.getOrDefault(status, 0L)))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 将可空列表转换为空安全列表。
+     *
+     * @param values 可空列表
+     * @param <T> 元素类型
+     * @return 原列表或空列表
+     */
+    private <T> List<T> defaultList(List<T> values) {
+        return values == null ? Collections.emptyList() : values;
     }
 
     /**
