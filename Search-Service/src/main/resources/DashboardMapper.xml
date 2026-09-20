@@ -281,4 +281,106 @@
         ORDER BY st.id
     </select>
 
+    <select id="selectHandlerReportPerformance"
+            resultType="com.WorkOrder.dashboard.dto.HandlerReportPerformanceDto">
+        SELECT u.id AS handlerId,
+               COALESCE(NULLIF(u.real_name, ''), u.username) AS realName,
+               d.name AS departmentName,
+               COALESCE(ticket_stats.assigned_count, 0) AS assignedCount,
+               COALESCE(ticket_stats.resolved_count, 0) AS resolvedCount,
+               COALESCE(ticket_stats.avg_response_minutes,
+                        hp.avg_response_minutes, 0) AS avgResponseMinutes,
+               COALESCE(ticket_stats.avg_resolution_minutes,
+                        hp.avg_resolution_minutes, 0) AS avgResolutionMinutes,
+               COALESCE(ticket_stats.sla_compliance_rate,
+                        hp.sla_compliance_rate, 100.0) AS slaComplianceRate,
+               COALESCE(rating_stats.rating_score,
+                        hp.rating_score, 5.0) AS ratingScore
+        FROM handler_profiles hp
+        INNER JOIN users u ON u.id = hp.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        LEFT JOIN (
+            SELECT t.handler_id,
+                   COUNT(*) AS assigned_count,
+                   SUM(t.status IN ('RESOLVED', 'CLOSED')) AS resolved_count,
+                   ROUND(AVG(
+                       CASE
+                           WHEN t.first_response_at &gt;= t.created_at
+                           THEN TIMESTAMPDIFF(
+                               MINUTE, t.created_at, t.first_response_at)
+                       END
+                   ), 1) AS avg_response_minutes,
+                   ROUND(AVG(
+                       CASE
+                           WHEN t.resolved_at &gt;= t.created_at
+                           THEN TIMESTAMPDIFF(
+                               MINUTE, t.created_at, t.resolved_at)
+                       END
+                   ), 1) AS avg_resolution_minutes,
+                   CASE
+                       WHEN SUM(t.status IN ('RESOLVED', 'CLOSED')) = 0 THEN NULL
+                       ELSE ROUND(
+                           SUM(
+                               t.status IN ('RESOLVED', 'CLOSED')
+                               AND t.resolved_at IS NOT NULL
+                               AND t.resolution_deadline IS NOT NULL
+                               AND t.resolved_at &lt;= t.resolution_deadline
+                           ) * 100.0
+                           / SUM(t.status IN ('RESOLVED', 'CLOSED')),
+                           1
+                       )
+                   END AS sla_compliance_rate
+            FROM tickets t
+            WHERE t.handler_id IS NOT NULL
+            GROUP BY t.handler_id
+        ) ticket_stats ON ticket_stats.handler_id = u.id
+        LEFT JOIN (
+            SELECT t.handler_id,
+                   ROUND(AVG(tr.rating), 1) AS rating_score
+            FROM tickets t
+            INNER JOIN ticket_ratings tr ON tr.ticket_id = t.id
+            WHERE t.handler_id IS NOT NULL
+            GROUP BY t.handler_id
+        ) rating_stats ON rating_stats.handler_id = u.id
+        WHERE u.role = 1
+          AND u.status = 1
+        ORDER BY u.id
+    </select>
+
+    <select id="selectCategoryReport"
+            resultType="com.WorkOrder.dashboard.dto.CategoryReportDto">
+        WITH RECURSIVE category_roots AS (
+            SELECT id AS category_id,
+                   id AS root_category_id
+            FROM ticket_categories
+            WHERE parent_id IS NULL
+
+            UNION ALL
+
+            SELECT child.id AS category_id,
+                   category_roots.root_category_id
+            FROM ticket_categories child
+            INNER JOIN category_roots
+              ON child.parent_id = category_roots.category_id
+        )
+        SELECT root.id AS categoryId,
+               root.name AS categoryName,
+               COUNT(*) AS count,
+               COALESCE(ROUND(SUM(
+                   CASE
+                       WHEN t.resolved_at &gt;= t.created_at
+                       THEN TIMESTAMPDIFF(
+                           MINUTE, t.created_at, t.resolved_at)
+                       ELSE 0
+                   END
+               ) / COUNT(*), 0), 0) AS avgResolutionMinutes
+        FROM tickets t
+        INNER JOIN category_roots
+          ON category_roots.category_id = t.category_id
+        INNER JOIN ticket_categories root
+          ON root.id = category_roots.root_category_id
+        GROUP BY root.id, root.name
+        ORDER BY count DESC, root.id
+    </select>
+
 </mapper>

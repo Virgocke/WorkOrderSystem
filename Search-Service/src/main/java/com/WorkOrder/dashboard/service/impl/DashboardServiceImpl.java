@@ -1,15 +1,6 @@
 package com.WorkOrder.dashboard.service.impl;
 
-import com.WorkOrder.dashboard.dto.DashboardCountDto;
-import com.WorkOrder.dashboard.dto.DashboardGroupCountDto;
-import com.WorkOrder.dashboard.dto.DashboardHandlerHeatRow;
-import com.WorkOrder.dashboard.dto.DashboardOverviewDto;
-import com.WorkOrder.dashboard.dto.DashboardSummaryDto;
-import com.WorkOrder.dashboard.dto.DashboardTicketRow;
-import com.WorkOrder.dashboard.dto.DashboardTrendDto;
-import com.WorkOrder.dashboard.dto.DashboardTrendRow;
-import com.WorkOrder.dashboard.dto.HandlerWorkbenchDto;
-import com.WorkOrder.dashboard.dto.HandlerWorkbenchSummaryDto;
+import com.WorkOrder.dashboard.dto.*;
 import com.WorkOrder.dashboard.mapper.DashboardMapper;
 import com.WorkOrder.dashboard.service.DashboardService;
 import com.WorkOrder.enums.SystemExceptionEnum;
@@ -162,6 +153,26 @@ public class DashboardServiceImpl implements DashboardService {
                         dashboardMapper.selectUpcomingTickets(handlerId)))
                 .profile(profile)
                 .build();
+    }
+
+    /**
+     * 获取处理人报表性能数据。
+     * @return 处理人报表性能数据列表
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<HandlerReportPerformanceDto> getHandlerReportPerformance() {
+        return defaultList(dashboardMapper.selectHandlerReportPerformance());
+    }
+
+    /**
+     * 获取分类报表数据。
+     * @return 分类报表数据列表
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryReportDto> getCategoryReport() {
+        return defaultList(dashboardMapper.selectCategoryReport());
     }
 
     /**
