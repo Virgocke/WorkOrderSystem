@@ -41,6 +41,27 @@
         ORDER BY u.id DESC
     </select>
 
+    <select id="selectUserResponseById" resultType="com.WorkOrder.model.user.UserResponse">
+        SELECT
+        <include refid="userResponseColumns"/>
+        FROM users u
+        LEFT JOIN departments d ON d.id = u.department_id
+        WHERE u.id = #{userId}
+        LIMIT 1
+    </select>
+
+    <delete id="deleteUserRoles">
+        DELETE FROM user_roles WHERE user_id = #{userId}
+    </delete>
+
+    <insert id="insertUserRole">
+        INSERT INTO user_roles (user_id, role_id)
+        SELECT #{userId}, id
+        FROM roles
+        WHERE code = #{roleCode}
+          AND status = 1
+    </insert>
+
     <select id="findProfileByUsername" resultType="com.WorkOrder.user.dto.UsersDto">
         SELECT
         <include refid="userResponseColumns"/>

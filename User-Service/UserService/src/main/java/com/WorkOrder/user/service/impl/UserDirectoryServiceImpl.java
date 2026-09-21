@@ -4,6 +4,7 @@ import com.WorkOrder.handler.mapper.HandlerProfileMapper;
 import com.WorkOrder.handler.model.Department;
 import com.WorkOrder.handler.model.HandlerProfiles;
 import com.WorkOrder.model.handler.HandlerProfile;
+import com.WorkOrder.user.dto.AdminUpdateUserDto;
 import com.WorkOrder.user.dto.CreateUserDto;
 import com.WorkOrder.user.mapper.DepartmentMapper;
 import com.WorkOrder.user.mapper.HandlerSkillMapper;
@@ -17,12 +18,14 @@ import com.WorkOrder.user.model.HandlerSkill;
 import com.WorkOrder.user.model.Users;
 import com.WorkOrder.user.service.UserDirectoryService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.Collection;
@@ -137,35 +140,91 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
             throw new SystemException(SystemExceptionEnum.CREATE_FAILED);
         }
 
+
         // 获取新创建的用户
         Users createdUser = usersMapper.selectOne(new LambdaQueryWrapper<Users>()
                 .eq(Users::getUsername, createUserDto.getUsername()));
+        // 同步用户角色
+        synchronizeUserRole(createdUser.getId(), createUserDto.getRole());
         if (createUserDto.getRole() == 1) {
-            HandlerProfiles handlerProfile = new HandlerProfiles();
-            handlerProfile.setUserId(createdUser.getId());
-            handlerProfile.setMaxCapacity(10);
-            handlerProfile.setCurrentLoad(0);
-            handlerProfile.setAvgResponseMinutes(0);
-            handlerProfile.setAvgResolutionMinutes(0);
-            handlerProfile.setSlaComplianceRate(new BigDecimal(0));
-            handlerProfile.setRatingScore(new BigDecimal(0));
-            int handlerInsert = handlerProfileMapper.insert(handlerProfile);
-            if (handlerInsert < 1) {
-                throw new SystemException(SystemExceptionEnum.CREATE_FAILED);
-            }
-
-//            HandlerSkill handlerSkill = new HandlerSkill();
-            // 处理人Id关联的是HandlerProfile表
-//            handlerSkill.setHandlerId(handlerprofile表里的Id);
-//            handlerSkill.setSkillTagId(null);
-//            handlerSkill.setProficiency(1);
-//            int handlerSkillInsert = handlerSkillMapper.insert(handlerSkill);
-//            if (handlerSkillInsert < 1) {
-//                throw new SystemException(SystemExceptionEnum.CREATE_FAILED);
-//            }
-
+            ensureHandlerProfile(createdUser.getId());
         }
         return toUserResponse(createdUser, new UserResponse());
+    }
+
+    /**
+     * 按接口文档 14.3 部分更新用户，并维护角色关联及处理人档案。
+     *
+     * @param userId 目标用户主键
+     * @param currentUserId 当前管理员用户主键
+     * @param request 待更新字段
+     * @return 更新后的用户管理员视图
+     */
+    @Override
+    @Transactional
+    public UserResponse updateUser(Long userId,
+                                   Long currentUserId,
+                                   AdminUpdateUserDto request) {
+        Users existing = usersMapper.selectById(userId);
+        if (existing == null) {
+            throw new SystemException(SystemExceptionEnum.USER_NOT_FOUND);
+        }
+        if (request.isStatusPresent()
+                && Integer.valueOf(0).equals(request.getStatus())
+                && Objects.equals(userId, currentUserId)) {
+            throw new SystemException("不能禁用自己的账号");
+        }
+        validatePresentValues(request);
+
+        LambdaUpdateWrapper<Users> update = new LambdaUpdateWrapper<>();
+        update.eq(Users::getId, userId);
+        boolean userChanged = false;
+
+        if (request.isRealNamePresent()) {
+            update.set(Users::getRealName, request.getRealName().trim());
+            userChanged = true;
+        }
+        if (request.isEmailPresent()) {
+            update.set(Users::getEmail, nullableText(request.getEmail()));
+            userChanged = true;
+        }
+        if (request.isPhonePresent()) {
+            update.set(Users::getPhone, nullableText(request.getPhone()));
+            userChanged = true;
+        }
+        if (request.isDepartmentIdPresent()) {
+            update.set(Users::getDepartmentId, request.getDepartmentId());
+            userChanged = true;
+        }
+        if (request.isPasswordPresent() && StringUtils.hasText(request.getPassword())) {
+            update.set(Users::getPassword, passwordEncoder.encode(request.getPassword()));
+            userChanged = true;
+        }
+        if (request.isRolePresent()) {
+            update.set(Users::getRole, request.getRole());
+            userChanged = true;
+        }
+        if (request.isStatusPresent()) {
+            update.set(Users::getStatus, request.getStatus());
+            userChanged = true;
+        }
+
+        if (userChanged) {
+            usersMapper.update(null, update);
+        }
+
+        if (request.isRolePresent()) {
+            synchronizeUserRole(userId, request.getRole());
+            if (request.getRole() == 1) {
+                ensureHandlerProfile(userId);
+            }
+        }
+
+        UserResponse updated = usersMapper.selectUserResponseById(userId);
+        if (updated == null) {
+            throw new SystemException(SystemExceptionEnum.USER_NOT_FOUND);
+        }
+        return updated;
     }
 
     /**
@@ -255,6 +314,66 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
             throw new NoSuchElementException("用户不存在：" + id);
         }
         return user;
+    }
+
+    /** 校验只有在 JSON 中显式出现时才要求非空的字段。 */
+    private void validatePresentValues(AdminUpdateUserDto request) {
+        if (request.isRealNamePresent() && !StringUtils.hasText(request.getRealName())) {
+            throw new SystemException("姓名不能为空");
+        }
+        if (request.isRolePresent() && request.getRole() == null) {
+            throw new SystemException("角色不能为空");
+        }
+        if (request.isStatusPresent() && request.getStatus() == null) {
+            throw new SystemException("状态不能为空");
+        }
+    }
+
+    /** 空白联系方式按清空字段处理，避免唯一索引中保存多个空字符串。 */
+    private String nullableText(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    /** 同步 users.role 对应的 RBAC 显式角色，保证权限查询与角色字段一致。 */
+    private void synchronizeUserRole(Long userId, int role) {
+        usersMapper.deleteUserRoles(userId);
+        if (usersMapper.insertUserRole(userId, roleCode(role)) != 1) {
+            throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /** 为首次成为处理人的用户创建默认档案；历史档案存在时直接复用。 */
+    private void ensureHandlerProfile(Long userId) {
+        Integer count = handlerProfileMapper.selectCount(
+                new LambdaQueryWrapper<HandlerProfiles>()
+                        .eq(HandlerProfiles::getUserId, userId));
+        if (count != null && count > 0) {
+            return;
+        }
+
+        HandlerProfiles handlerProfile = new HandlerProfiles();
+        handlerProfile.setUserId(userId);
+        handlerProfile.setMaxCapacity(10);
+        handlerProfile.setCurrentLoad(0);
+        handlerProfile.setAvgResponseMinutes(0);
+        handlerProfile.setAvgResolutionMinutes(0);
+        handlerProfile.setSlaComplianceRate(BigDecimal.ZERO);
+        handlerProfile.setRatingScore(BigDecimal.ZERO);
+        if (handlerProfileMapper.insert(handlerProfile) < 1) {
+            throw new SystemException(SystemExceptionEnum.CREATE_FAILED);
+        }
+    }
+
+    /** 将数值角色转换为 roles.code。 */
+    private String roleCode(int role) {
+        switch (role) {
+            case 2:
+                return "ADMIN";
+            case 1:
+                return "HANDLER";
+            default:
+                return "USER";
+        }
     }
 
     /**

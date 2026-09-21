@@ -4,6 +4,7 @@ import com.WorkOrder.model.Result;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.user.UserResponse;
 import com.WorkOrder.security.CurrentUserIdProvider;
+import com.WorkOrder.user.dto.AdminUpdateUserDto;
 import com.WorkOrder.user.dto.CreateUserDto;
 import com.WorkOrder.user.dto.PasswordDto;
 import com.WorkOrder.user.dto.UserUpdateDto;
@@ -113,6 +114,23 @@ public class UserController {
     @PostMapping
     public Result<UserResponse> create(@Valid @RequestBody CreateUserDto createUserDto) {
         return Result.success(userDirectoryService.create(createUserDto));
+    }
+
+    /**
+     * 由管理员编辑指定用户；请求体采用部分更新语义。
+     *
+     * @param id 目标用户主键
+     * @param request 待更新字段
+     * @param authentication 当前管理员认证信息
+     * @return 更新后的用户资料
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public Result<UserResponse> updateUser(@PathVariable Long id,
+                                           @Valid @RequestBody AdminUpdateUserDto request,
+                                           Authentication authentication) {
+        Long currentUserId = currentUserIdProvider.get(authentication);
+        return Result.success(userDirectoryService.updateUser(id, currentUserId, request));
     }
 
 

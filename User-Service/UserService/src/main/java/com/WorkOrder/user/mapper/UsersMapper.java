@@ -32,6 +32,20 @@ public interface UsersMapper extends BaseMapper<Users> {
                                       @Param("status") Integer status);
 
     /**
+     * 查询单个用户的管理员视图，包含部门名称且不包含密码。
+     *
+     * @param userId 用户主键
+     * @return 用户管理员视图
+     */
+    UserResponse selectUserResponseById(@Param("userId") Long userId);
+
+    /** 删除用户已有的显式角色关联。 */
+    int deleteUserRoles(@Param("userId") Long userId);
+
+    /** 按角色编码写入用户的唯一显式角色。 */
+    int insertUserRole(@Param("userId") Long userId, @Param("roleCode") String roleCode);
+
+    /**
      * 查询前端登录态所需的用户资料，密码字段不会进入返回对象。
      *
      * @param username 已认证的登录账号

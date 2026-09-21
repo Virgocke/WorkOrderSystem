@@ -1,5 +1,6 @@
 package com.WorkOrder.user.service;
 
+import com.WorkOrder.user.dto.AdminUpdateUserDto;
 import com.WorkOrder.user.dto.CreateUserDto;
 import com.WorkOrder.user.model.CreateUserRequest;
 import com.WorkOrder.user.model.UpdateHandlerProfileRequest;
@@ -39,6 +40,16 @@ public interface UserDirectoryService {
      * @return 创建后的用户资料
      */
     UserResponse create(CreateUserDto createUserDto);
+
+    /**
+     * 由管理员部分更新指定用户。
+     *
+     * @param userId 目标用户主键
+     * @param currentUserId 当前管理员用户主键
+     * @param request 待更新字段
+     * @return 更新后的用户资料
+     */
+    UserResponse updateUser(Long userId, Long currentUserId, AdminUpdateUserDto request);
 
     /**
      * 按主键查询用户资料。
