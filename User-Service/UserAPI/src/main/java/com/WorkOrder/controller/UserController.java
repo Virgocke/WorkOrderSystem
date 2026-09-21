@@ -1,8 +1,10 @@
 package com.WorkOrder.controller;
 
 import com.WorkOrder.model.Result;
+import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.user.UserResponse;
 import com.WorkOrder.security.CurrentUserIdProvider;
+import com.WorkOrder.user.dto.CreateUserDto;
 import com.WorkOrder.user.dto.PasswordDto;
 import com.WorkOrder.user.dto.UserUpdateDto;
 import com.WorkOrder.user.dto.UsersDto;
@@ -14,6 +16,7 @@ import com.WorkOrder.user.service.UserDirectoryService;
 import com.WorkOrder.user.service.UserInfoUpdateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
@@ -38,7 +42,27 @@ public class UserController {
     private final UserInfoUpdateService userInfoUpdateService;
     private final CurrentUserIdProvider currentUserIdProvider;
 
-
+    /**
+     * 分页查询用户账号，支持关键字、角色和状态筛选。
+     *
+     * @param page 页码
+     * @param pageSize 每页条数
+     * @param keyword 账号、姓名、邮箱或手机号关键字
+     * @param role 可选角色
+     * @param status 可选状态
+     * @return 用户分页结果
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping
+    public Result<PageResult<UserResponse>> listUsers(
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "role", required = false) Integer role,
+            @RequestParam(value = "status", required = false) Integer status) {
+        return Result.success(userDirectoryService.listUsers(
+                page, pageSize, keyword, role, status));
+    }
 
     /**
      * 获取当前登录用户资料。
@@ -79,6 +103,17 @@ public class UserController {
         return Result.success(userInfoUpdateService.updateUserPassword(authentication.getName(), passwordDto));
     }
 
+    /**
+     * 创建用户或处理人基础资料。
+     *
+     * @param createUserDto 创建用户或处理人基础资料的请求参数
+     * @return 创建后的用户资料
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping
+    public Result<UserResponse> create(@Valid @RequestBody CreateUserDto createUserDto) {
+        return Result.success(userDirectoryService.create(createUserDto));
+    }
 
 
 
@@ -88,16 +123,6 @@ public class UserController {
 
 
     //======================================调试用=======================================
-    /**
-     * 创建用户或处理人基础资料。
-     *
-     * @param request 创建请求
-     * @return 创建后的用户资料
-     */
-//    @PostMapping
-//    public Result<UserProfile> create(@Valid @RequestBody CreateUserRequest request) {
-//        return Result.success(userDirectoryService.create(request));
-//    }
 
     /**
      * 查询指定用户的公开资料。

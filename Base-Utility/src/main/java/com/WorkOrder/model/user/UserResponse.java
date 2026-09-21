@@ -15,6 +15,7 @@ public class UserResponse {
     private String email;
     private String phone;
     private Long departmentId; // 部门ID
+    private String departmentName; // 部门名称
     private int role; // 角色 0:普通用户 1:处理人 2:管理员
     private int status; // 状态
     private String createdAt; // 创建时间

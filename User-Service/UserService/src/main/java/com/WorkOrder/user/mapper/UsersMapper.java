@@ -1,11 +1,12 @@
 package com.WorkOrder.user.mapper;
 
 import com.WorkOrder.user.dto.UsersDto;
+import com.WorkOrder.model.user.UserResponse;
 import com.WorkOrder.user.model.Users;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -17,16 +18,25 @@ import java.util.List;
 @Mapper
 public interface UsersMapper extends BaseMapper<Users> {
     /**
+     * 分页查询管理员用户列表。返回对象不包含密码，并关联部门名称。
+     *
+     * @param page 分页参数
+     * @param keyword 账号、姓名、邮箱或手机号关键字
+     * @param role 可选角色
+     * @param status 可选状态
+     * @return 用户分页数据
+     */
+    Page<UserResponse> selectUserPage(Page<UserResponse> page,
+                                      @Param("keyword") String keyword,
+                                      @Param("role") Integer role,
+                                      @Param("status") Integer status);
+
+    /**
      * 查询前端登录态所需的用户资料，密码字段不会进入返回对象。
      *
      * @param username 已认证的登录账号
      * @return 不含密码的用户资料；账号不存在时返回 null
      */
-    @Select("SELECT u.id, u.username, u.real_name AS realName, u.email, u.phone, " +
-            "u.department_id AS departmentId, d.name AS departmentName, " +
-            "u.role, u.status, u.created_at AS createdAt " +
-            "FROM users u LEFT JOIN departments d ON d.id = u.department_id " +
-            "WHERE u.username = #{username} LIMIT 1")
     UsersDto findProfileByUsername(@Param("username") String username);
 
     /**
@@ -36,14 +46,5 @@ public interface UsersMapper extends BaseMapper<Users> {
      * @param role users.role 中的兼容角色值
      * @return 已启用的权限编码，按权限排序号排列
      */
-    @Select("SELECT p.code " +
-            "FROM roles r " +
-            "JOIN role_permissions rp ON rp.role_id = r.id " +
-            "JOIN permissions p ON p.id = rp.permission_id " +
-            "WHERE r.status = 1 AND p.status = 1 AND (" +
-            "EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = #{userId} AND ur.role_id = r.id) " +
-            "OR (NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = #{userId}) " +
-            "AND r.code = CASE #{role} WHEN 2 THEN 'ADMIN' WHEN 1 THEN 'HANDLER' ELSE 'USER' END)) " +
-            "GROUP BY p.code ORDER BY MIN(p.sort_order), p.code")
     List<String> findPermissionCodes(@Param("userId") Long userId, @Param("role") int role);
 }

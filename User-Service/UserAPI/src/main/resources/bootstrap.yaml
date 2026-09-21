@@ -20,6 +20,9 @@ spring:
         # group的名字随便取，但是必须都叫同一个名，不然调用不了
         group: WorkOrder-project
 
+mybatis-plus:
+  mapper-locations: classpath*:*Mapper.xml
+
 security:
   oauth2:
     jwt:
