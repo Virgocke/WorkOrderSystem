@@ -1,5 +1,6 @@
 package com.WorkOrder.handler.mapper;
 
+import com.WorkOrder.handler.dto.HandlerSkillRequest;
 import com.WorkOrder.handler.model.HandlerProfiles;
 import com.WorkOrder.model.handler.HandlerProfile;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -8,6 +9,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Virgor
@@ -51,4 +53,14 @@ public interface HandlerProfileMapper extends BaseMapper<HandlerProfiles> {
                           @Param("departmentIdPresent") boolean departmentIdPresent,
                           @Param("status") Integer status,
                           @Param("statusPresent") boolean statusPresent);
+
+    /** 统计给定技能 ID 中实际存在的标签数量。 */
+    int countSkillTagsByIds(@Param("skillIds") Set<Long> skillIds);
+
+    /** 按处理人的用户 ID 删除其全部技能。 */
+    int deleteHandlerSkillsByUserId(@Param("userId") Long userId);
+
+    /** 按处理人的用户 ID 批量新增技能。 */
+    int insertHandlerSkills(@Param("userId") Long userId,
+                            @Param("skills") List<HandlerSkillRequest> skills);
 }

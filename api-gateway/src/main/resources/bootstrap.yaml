@@ -20,7 +20,7 @@ spring:
         - id: userAndHandler-service
           uri: lb://userAndHandler-service
           predicates: 
-            - Path=/api/users/**,/api/handlers/**,/api/departments/**
+            - Path=/api/users/**,/api/handlers/**,/api/handler-skills/**,/api/departments/**
           filters: 
             - StripPrefix=1
 

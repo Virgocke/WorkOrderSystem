@@ -143,4 +143,34 @@
           AND role = 1
     </update>
 
+    <select id="countSkillTagsByIds" resultType="int">
+        SELECT COUNT(*)
+        FROM skill_tags
+        WHERE id IN
+        <foreach collection="skillIds" item="skillId" open="(" separator="," close=")">
+            #{skillId}
+        </foreach>
+    </select>
+
+    <delete id="deleteHandlerSkillsByUserId">
+        DELETE FROM handler_skills
+        WHERE handler_id IN (
+            SELECT id
+            FROM handler_profiles
+            WHERE user_id = #{userId}
+        )
+    </delete>
+
+    <insert id="insertHandlerSkills">
+        INSERT INTO handler_skills (handler_id, skill_tag_id, proficiency)
+        VALUES
+        <foreach collection="skills" item="skill" separator=",">
+            (
+                (SELECT id FROM handler_profiles WHERE user_id = #{userId}),
+                #{skill.skillId},
+                #{skill.proficiency}
+            )
+        </foreach>
+    </insert>
+
 </mapper>

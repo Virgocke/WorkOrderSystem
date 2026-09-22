@@ -2,6 +2,7 @@ package com.WorkOrder.controller;
 
 import com.WorkOrder.handler.dto.HandlerPageListDto;
 import com.WorkOrder.handler.dto.UpdateHandlerProfileRequest;
+import com.WorkOrder.handler.dto.UpdateHandlerSkillsRequest;
 import com.WorkOrder.handler.service.HandlerUserService;
 import com.WorkOrder.model.Result;
 import com.WorkOrder.model.handler.HandlerProfile;
@@ -71,5 +72,20 @@ public class HandlerController {
     public Result<HandlerProfile> updateHandler(@PathVariable Long id,
                                                 @Valid @RequestBody UpdateHandlerProfileRequest request) {
         return Result.success(handlerService.updateHandler(id, request));
+    }
+
+    /**
+     * 按处理人的用户 ID 全量覆盖技能配置。
+     *
+     * @param id 处理人用户 ID
+     * @param request 完整技能列表，空列表表示清空
+     * @return 更新后的处理人档案
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}/skills")
+    public Result<HandlerProfile> updateHandlerSkills(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateHandlerSkillsRequest request) {
+        return Result.success(handlerService.updateHandlerSkills(id, request));
     }
 }

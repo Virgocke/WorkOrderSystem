@@ -2,6 +2,7 @@ package com.WorkOrder.handler.service;
 
 import com.WorkOrder.handler.dto.HandlerPageListDto;
 import com.WorkOrder.handler.dto.UpdateHandlerProfileRequest;
+import com.WorkOrder.handler.dto.UpdateHandlerSkillsRequest;
 import com.WorkOrder.handler.model.HandlerProfiles;
 import com.WorkOrder.model.handler.HandlerProfile;
 import com.WorkOrder.model.page.PageResult;
@@ -46,4 +47,21 @@ public interface HandlerUserService extends IService<HandlerProfiles> {
      * @return 更新后的完整处理人档案
      */
     HandlerProfile updateHandler(Long userId, UpdateHandlerProfileRequest request);
+
+    /**
+     * 按用户 ID 全量覆盖处理人的技能。
+     *
+     * @param userId 处理人用户 ID
+     * @param request 完整技能列表，空列表表示清空
+     * @return 更新后的完整处理人档案
+     */
+    HandlerProfile updateHandlerSkills(Long userId, UpdateHandlerSkillsRequest request);
+
+    /**
+     * 查询当前处理人的完整档案及技能。
+     *
+     * @param userId Token 中的当前用户 ID
+     * @return 当前处理人档案
+     */
+    HandlerProfile getMyHandlerProfile(Long userId);
 }

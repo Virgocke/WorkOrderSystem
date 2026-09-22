@@ -3,7 +3,9 @@ package com.WorkOrder.handler.service.impl;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.handler.dto.HandlerPageListDto;
+import com.WorkOrder.handler.dto.HandlerSkillRequest;
 import com.WorkOrder.handler.dto.UpdateHandlerProfileRequest;
+import com.WorkOrder.handler.dto.UpdateHandlerSkillsRequest;
 import com.WorkOrder.handler.mapper.HandlerProfileMapper;
 import com.WorkOrder.handler.model.HandlerProfiles;
 import com.WorkOrder.handler.service.HandlerUserService;
@@ -16,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Virgor
@@ -122,6 +126,72 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
             throw new SystemException(SystemExceptionEnum.RESOURCE_NOT_FOUND);
         }
         return updated;
+    }
+
+    /**
+     * 在同一事务内全量覆盖处理人技能
+     * @param userId 处理人用户 ID
+     * @param request 完整技能列表，空列表表示清空
+     * @return
+     */
+    @Override
+    @Transactional
+    public HandlerProfile updateHandlerSkills(Long userId, UpdateHandlerSkillsRequest request) {
+        Set<Long> skillIds = validateSkillsRequest(userId, request);
+        if (handlerProfileMapper.selectHandlerProfileByUserId(userId) == null) {
+            throw new SystemException(SystemExceptionEnum.RESOURCE_NOT_FOUND);
+        }
+
+        if (!skillIds.isEmpty()
+                && handlerProfileMapper.countSkillTagsByIds(skillIds) != skillIds.size()) {
+            throw new SystemException(SystemExceptionEnum.RESOURCE_NOT_FOUND);
+        }
+
+        handlerProfileMapper.deleteHandlerSkillsByUserId(userId);
+        if (!request.getSkills().isEmpty()) {
+            int affected = handlerProfileMapper.insertHandlerSkills(userId, request.getSkills());
+            if (affected != request.getSkills().size()) {
+                throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
+            }
+        }
+
+        HandlerProfile updated = handlerProfileMapper.selectHandlerProfileByUserId(userId);
+        if (updated == null) {
+            throw new SystemException(SystemExceptionEnum.RESOURCE_NOT_FOUND);
+        }
+        return updated;
+    }
+
+    /** 按接口文档 15.6 查询 Token 所属处理人的档案与技能。 */
+    @Override
+    @Transactional(readOnly = true)
+    public HandlerProfile getMyHandlerProfile(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        HandlerProfile profile = handlerProfileMapper.selectHandlerProfileByUserId(userId);
+        if (profile == null) {
+            throw new SystemException(SystemExceptionEnum.RESOURCE_NOT_FOUND);
+        }
+        return profile;
+    }
+
+    /** 服务被非 Web 调用时仍校验技能 ID、熟练度和重复项。 */
+    private Set<Long> validateSkillsRequest(Long userId, UpdateHandlerSkillsRequest request) {
+        if (userId == null || userId <= 0 || request == null || request.getSkills() == null) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        Set<Long> skillIds = new HashSet<>();
+        for (HandlerSkillRequest skill : request.getSkills()) {
+            if (skill == null || skill.getSkillId() == null || skill.getSkillId() <= 0
+                    || skill.getProficiency() == null
+                    || skill.getProficiency() < 1 || skill.getProficiency() > 5
+                    || !skillIds.add(skill.getSkillId())) {
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
+        }
+        return skillIds;
     }
 
     /** 服务被非 Web 调用时仍执行与 Bean Validation 一致的边界校验。 */
