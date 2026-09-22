@@ -3,17 +3,16 @@ package com.WorkOrder.handler.mapper;
 import com.WorkOrder.handler.model.HandlerProfiles;
 import com.WorkOrder.model.handler.HandlerProfile;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Result;
-import org.apache.ibatis.annotations.Results;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 /**
  * @author Virgor
  * @date 2026年09月16日 02:39
- * @description
+ * @description 处理人Mapper
  */
 @Mapper
 public interface HandlerProfileMapper extends BaseMapper<HandlerProfiles> {
@@ -22,27 +21,34 @@ public interface HandlerProfileMapper extends BaseMapper<HandlerProfiles> {
      * 单次联表查询启用处理人，用户主键用于分配，档案主键不对外作为用户 ID。
      * @return 启用处理人列表
      */
-    @Select("SELECT u.id AS user_id, u.real_name, u.username, u.department_id, " +
-            "d.name AS department_name, u.status, hp.max_capacity, hp.current_load, " +
-            "hp.avg_response_minutes, hp.avg_resolution_minutes, " +
-            "hp.sla_compliance_rate, hp.rating_score " +
-            "FROM handler_profiles hp INNER JOIN users u ON u.id = hp.user_id " +
-            "LEFT JOIN departments d ON d.id = u.department_id " +
-            "WHERE u.role = 1 AND u.status = 1 ORDER BY u.id")
-    @Results(id = "enabledHandlerOption", value = {
-            @Result(column = "user_id", property = "id", id = true),
-            @Result(column = "user_id", property = "userId"),
-            @Result(column = "real_name", property = "realName"),
-            @Result(column = "username", property = "username"),
-            @Result(column = "department_id", property = "departmentId"),
-            @Result(column = "department_name", property = "departmentName"),
-            @Result(column = "status", property = "status"),
-            @Result(column = "max_capacity", property = "maxCapacity"),
-            @Result(column = "current_load", property = "currentLoad"),
-            @Result(column = "avg_response_minutes", property = "avgResponseMinutes"),
-            @Result(column = "avg_resolution_minutes", property = "avgResolutionMinutes"),
-            @Result(column = "sla_compliance_rate", property = "slaComplianceRate"),
-            @Result(column = "rating_score", property = "ratingScore")
-    })
     List<HandlerProfile> selectEnabledHandlerOptions();
+
+    /**
+     * 分页查询处理人档案。
+     */
+    Page<HandlerProfile> selectHandlerPage(Page<HandlerProfile> page,
+                                           @Param("keyword") String keyword,
+                                           @Param("status") Integer status);
+
+    /**
+     * 查询全部处理人档案，包含停用账号。
+     */
+    List<HandlerProfile> selectAllHandlerProfiles();
+
+    /** 按用户 ID 查询单个处理人档案及其技能。 */
+    HandlerProfile selectHandlerProfileByUserId(@Param("userId") Long userId);
+
+    /** 查询部门是否存在。 */
+    int countDepartmentById(@Param("departmentId") Long departmentId);
+
+    /** 按用户 ID 更新处理人最大容量。 */
+    int updateHandlerCapacity(@Param("userId") Long userId,
+                              @Param("maxCapacity") Integer maxCapacity);
+
+    /** 按用户 ID 部分更新处理人的部门和账号状态。 */
+    int updateHandlerUser(@Param("userId") Long userId,
+                          @Param("departmentId") Long departmentId,
+                          @Param("departmentIdPresent") boolean departmentIdPresent,
+                          @Param("status") Integer status,
+                          @Param("statusPresent") boolean statusPresent);
 }

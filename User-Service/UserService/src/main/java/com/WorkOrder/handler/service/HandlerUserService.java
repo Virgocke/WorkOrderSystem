@@ -1,7 +1,10 @@
 package com.WorkOrder.handler.service;
 
+import com.WorkOrder.handler.dto.HandlerPageListDto;
+import com.WorkOrder.handler.dto.UpdateHandlerProfileRequest;
 import com.WorkOrder.handler.model.HandlerProfiles;
 import com.WorkOrder.model.handler.HandlerProfile;
+import com.WorkOrder.model.page.PageResult;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 import java.util.List;
@@ -19,4 +22,28 @@ public interface HandlerUserService extends IService<HandlerProfiles> {
      * @return 启用处理人列表
      */
     List<HandlerProfile> getHandler();
+
+    /**
+     * 分页查询处理人档案。
+     *
+     * @param query 分页与筛选条件
+     * @return 处理人分页结果
+     */
+    PageResult<HandlerProfile> listHandlers(HandlerPageListDto query);
+
+    /**
+     * 查询全部处理人档案，包含停用账号。
+     *
+     * @return 全部处理人档案
+     */
+    List<HandlerProfile> listAllHandlers();
+
+    /**
+     * 按用户 ID 部分更新处理人容量、所属部门和账号状态。
+     *
+     * @param userId 处理人用户 ID
+     * @param request 待更新字段
+     * @return 更新后的完整处理人档案
+     */
+    HandlerProfile updateHandler(Long userId, UpdateHandlerProfileRequest request);
 }

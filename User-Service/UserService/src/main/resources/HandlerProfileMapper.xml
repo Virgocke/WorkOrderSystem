@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.handler.mapper.HandlerProfileMapper">
+
+    <resultMap id="handlerProfile" type="com.WorkOrder.model.handler.HandlerProfile">
+        <id column="user_id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="real_name" property="realName"/>
+        <result column="username" property="username"/>
+        <result column="department_id" property="departmentId"/>
+        <result column="department_name" property="departmentName"/>
+        <result column="status" property="status"/>
+        <result column="max_capacity" property="maxCapacity"/>
+        <result column="current_load" property="currentLoad"/>
+        <result column="avg_response_minutes" property="avgResponseMinutes"/>
+        <result column="avg_resolution_minutes" property="avgResolutionMinutes"/>
+        <result column="sla_compliance_rate" property="slaComplianceRate"/>
+        <result column="rating_score" property="ratingScore"/>
+    </resultMap>
+
+    <resultMap id="handlerSkillItem" type="com.WorkOrder.model.handler.HandlerSkillItem">
+        <id column="skill_id" property="skillId"/>
+        <result column="skill_name" property="skillName"/>
+        <result column="proficiency" property="proficiency"/>
+    </resultMap>
+
+    <resultMap id="handlerProfileWithSkills" type="com.WorkOrder.model.handler.HandlerProfile"
+               extends="handlerProfile">
+        <collection property="skills" column="handler_profile_id"
+                    select="selectHandlerSkills"/>
+    </resultMap>
+
+    <sql id="handlerProfileColumns">
+        u.id AS user_id,
+        u.real_name,
+        u.username,
+        u.department_id,
+        d.name AS department_name,
+        u.status,
+        hp.max_capacity,
+        hp.current_load,
+        hp.avg_response_minutes,
+        hp.avg_resolution_minutes,
+        hp.sla_compliance_rate,
+        hp.rating_score
+    </sql>
+
+    <select id="selectEnabledHandlerOptions" resultMap="handlerProfile">
+        SELECT
+            <include refid="handlerProfileColumns"/>
+        FROM handler_profiles hp
+        INNER JOIN users u ON u.id = hp.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        WHERE u.role = 1
+          AND u.status = 1
+        ORDER BY u.id
+    </select>
+
+    <select id="selectHandlerPage" resultMap="handlerProfile">
+        SELECT
+            <include refid="handlerProfileColumns"/>
+        FROM handler_profiles hp
+        INNER JOIN users u ON u.id = hp.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        WHERE u.role = 1
+        <if test="keyword != null">
+            AND (
+                LOWER(u.real_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(u.username) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR EXISTS (
+                    SELECT 1
+                    FROM handler_skills hs
+                    INNER JOIN skill_tags st ON st.id = hs.skill_tag_id
+                    WHERE hs.handler_id = hp.id
+                      AND LOWER(st.name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                )
+            )
+        </if>
+        <if test="status != null">
+            AND u.status = #{status}
+        </if>
+        ORDER BY u.id
+    </select>
+
+    <select id="selectAllHandlerProfiles" resultMap="handlerProfile">
+        SELECT
+            <include refid="handlerProfileColumns"/>
+        FROM handler_profiles hp
+        INNER JOIN users u ON u.id = hp.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        WHERE u.role = 1
+        ORDER BY u.id
+    </select>
+
+    <select id="selectHandlerProfileByUserId" resultMap="handlerProfileWithSkills">
+        SELECT
+            <include refid="handlerProfileColumns"/>,
+            hp.id AS handler_profile_id
+        FROM handler_profiles hp
+        INNER JOIN users u ON u.id = hp.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        WHERE u.id = #{userId}
+          AND u.role = 1
+        LIMIT 1
+    </select>
+
+    <select id="selectHandlerSkills" resultMap="handlerSkillItem">
+        SELECT
+            hs.skill_tag_id AS skill_id,
+            st.name AS skill_name,
+            hs.proficiency
+        FROM handler_skills hs
+        INNER JOIN skill_tags st ON st.id = hs.skill_tag_id
+        WHERE hs.handler_id = #{handlerProfileId}
+        ORDER BY hs.skill_tag_id
+    </select>
+
+    <select id="countDepartmentById" resultType="int">
+        SELECT COUNT(*)
+        FROM departments
+        WHERE id = #{departmentId}
+    </select>
+
+    <update id="updateHandlerCapacity">
+        UPDATE handler_profiles
+        SET max_capacity = #{maxCapacity}
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateHandlerUser">
+        UPDATE users
+        <set>
+            <if test="departmentIdPresent">
+                department_id = #{departmentId},
+            </if>
+            <if test="statusPresent">
+                status = #{status},
+            </if>
+        </set>
+        WHERE id = #{userId}
+          AND role = 1
+    </update>
+
+</mapper>
