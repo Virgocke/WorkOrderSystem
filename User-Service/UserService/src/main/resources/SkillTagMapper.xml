@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.skill.mapper.SkillTagMapper">
+
+    <resultMap id="skillTag" type="com.WorkOrder.model.handler.SkillTag">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="used_count" property="usedCount"/>
+    </resultMap>
+
+    <select id="selectSkillTagsWithUsedCount" resultMap="skillTag">
+        SELECT
+            st.id,
+            st.name,
+            st.description,
+            COUNT(DISTINCT hs.handler_id) AS used_count
+        FROM skill_tags st
+        LEFT JOIN handler_skills hs ON hs.skill_tag_id = st.id
+        GROUP BY st.id, st.name, st.description
+        ORDER BY st.id
+    </select>
+
+</mapper>
