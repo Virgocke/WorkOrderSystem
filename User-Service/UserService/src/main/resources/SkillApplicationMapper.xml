@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.skill.mapper.SkillApplicationMapper">
+
+    <resultMap id="skillApplicationView" type="com.WorkOrder.model.handler.SkillApplication">
+        <id column="id" property="id"/>
+        <result column="handler_id" property="handlerId"/>
+        <result column="handler_name" property="handlerName"/>
+        <result column="skill_tag_id" property="skillId"/>
+        <result column="skill_name" property="skillName"/>
+        <result column="proficiency" property="proficiency"/>
+        <result column="type" property="type"/>
+        <result column="reason" property="reason"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <sql id="applicationViewColumns">
+        sa.id,
+        sa.handler_id,
+        u.real_name AS handler_name,
+        sa.skill_tag_id,
+        st.name AS skill_name,
+        sa.proficiency,
+        sa.type,
+        sa.reason,
+        sa.status,
+        sa.created_at
+    </sql>
+
+    <select id="selectApplicationPage" resultMap="skillApplicationView">
+        SELECT
+        <include refid="applicationViewColumns"/>
+        FROM skill_applications sa
+        INNER JOIN users u ON u.id = sa.handler_id
+        INNER JOIN skill_tags st ON st.id = sa.skill_tag_id
+        <where>
+            <if test="handlerId != null">
+                sa.handler_id = #{handlerId}
+            </if>
+            <if test="status != null">
+                AND sa.status = #{status}
+            </if>
+        </where>
+        ORDER BY sa.created_at DESC, sa.id DESC
+    </select>
+
+    <select id="selectApplicationById" resultMap="skillApplicationView">
+        SELECT
+        <include refid="applicationViewColumns"/>
+        FROM skill_applications sa
+        INNER JOIN users u ON u.id = sa.handler_id
+        INNER JOIN skill_tags st ON st.id = sa.skill_tag_id
+        WHERE sa.id = #{id}
+    </select>
+
+    <update id="reviewPendingApplication">
+        UPDATE skill_applications
+        SET status = #{status},
+            reviewer_id = #{reviewerId},
+            review_reason = #{reviewReason},
+            reviewed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'PENDING'
+    </update>
+
+</mapper>

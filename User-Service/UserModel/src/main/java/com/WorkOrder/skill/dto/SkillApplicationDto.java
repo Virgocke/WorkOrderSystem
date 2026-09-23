@@ -13,19 +13,19 @@ import javax.validation.constraints.*;
 @Data
 public class SkillApplicationDto {
 
+    @NotNull
     @Positive
-    @NotBlank
     private Long skillId;
 
     @Min(0)
     @Max(5)
     @ApiModelProperty(value = "REMOVE 可不传 proficiency")
-    private int proficiency = 0;
+    private Integer proficiency;
 
-    @Pattern(regexp = "ADD|ADJUST|DELETE", message = "只能是ADD、ADJUST或DELETE")
+    @Pattern(regexp = "ADD|ADJUST|REMOVE", message = "只能是ADD、ADJUST或REMOVE")
     @NotBlank
     private String type;
 
-    @NotBlank
+    @Size(max = 300)
     private String reason;
 }
