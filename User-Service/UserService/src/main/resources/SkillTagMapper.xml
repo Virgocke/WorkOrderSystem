@@ -23,4 +23,54 @@
         ORDER BY st.id
     </select>
 
+    <select id="selectSkillTagById" resultMap="skillTag">
+        SELECT
+            st.id,
+            st.name,
+            st.description,
+            COUNT(DISTINCT hs.handler_id) AS used_count
+        FROM skill_tags st
+        LEFT JOIN handler_skills hs ON hs.skill_tag_id = st.id
+        WHERE st.id = #{id}
+        GROUP BY st.id, st.name, st.description
+    </select>
+
+    <select id="countByNameExcludingId" resultType="int">
+        SELECT COUNT(*)
+        FROM skill_tags
+        WHERE name = #{name}
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insertSkillTag" parameterType="com.WorkOrder.model.handler.SkillTag"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO skill_tags (name, description)
+        VALUES (#{name}, #{description})
+    </insert>
+
+    <update id="updateSkillTag">
+        UPDATE skill_tags
+        <set>
+            <if test="updateName">
+                name = #{name},
+            </if>
+            <if test="updateDescription">
+                description = #{description},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteSkillTagIfUnused">
+        DELETE FROM skill_tags
+        WHERE id = #{id}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM handler_skills
+              WHERE skill_tag_id = #{id}
+          )
+    </delete>
+
 </mapper>
