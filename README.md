@@ -48,6 +48,12 @@
 
 ## 用户服务（63070）
 
+### 技能调整申请表
+
+技能调整申请持久化在 `skill_applications` 表。新建数据库直接使用更新后的
+`sql/work_order_system_schema.sql`；已有数据库执行
+`sql/work_order_system_add_skill_applications.sql`，该增量脚本可重复执行。
+
 当前用户服务使用内存数据，便于前端在数据库接入前联调。所有接口都要求携带 OAuth2 签发的 Bearer JWT；接口统一以 `Result` 返回：
 
 - `POST /api/users`：创建用户

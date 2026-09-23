@@ -27,6 +27,7 @@ public enum SystemExceptionEnum {
     ACCESS_DENIED(1020, "无权限执行该操作"),
     TICKET_STATUS_NOT_ALLOWED(1021, "工单状态不允许执行该操作"),
     TICKET_NOT_RESOLVED(1022, "工单未解决，不允许执行该操作"),
+    APPLICATION_FAILED(1023, "申请失败"),
 
     // === 资源与数据相关 (1040~1049) ===
     TICKET_NOT_FOUND(1040, "工单不存在"),

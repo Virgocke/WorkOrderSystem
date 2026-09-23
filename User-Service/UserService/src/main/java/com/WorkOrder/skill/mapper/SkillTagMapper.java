@@ -1,6 +1,8 @@
 package com.WorkOrder.skill.mapper;
 
 import com.WorkOrder.model.handler.SkillTag;
+import com.WorkOrder.skill.model.SkillTagRecord;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -8,7 +10,7 @@ import java.util.List;
 
 /** 技能标签查询 Mapper。 */
 @Mapper
-public interface SkillTagMapper {
+public interface SkillTagMapper extends BaseMapper<SkillTagRecord> {
 
     /**
      * 查询全部技能标签及各标签的处理人使用数。
