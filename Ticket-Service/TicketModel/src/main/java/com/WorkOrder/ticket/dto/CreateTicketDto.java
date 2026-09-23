@@ -5,6 +5,7 @@ import lombok.Data;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Size;
 import java.util.List;
 
 /**
@@ -21,5 +22,6 @@ public class CreateTicketDto {
     @Min(0)
     @Max(4)
     private int priority;
-    private List<String> attachmentUrls;
+    @Size(max = 9, message = "工单最多上传 9 个附件")
+    private List<Long> attachmentIds;
 }

@@ -33,6 +33,13 @@ public class TicketRatingServiceImpl implements TicketRatingService {
     private final TicketMapper ticketMapper;
     private final UserFeignClient userFeignClient;
 
+
+    /**
+     * 获取工单评价
+     * @param ticketId 工单id
+     * @param userId 用户id
+     * @return 工单评价响应对象
+     */
     @Transactional
     @Override
     public TicketRatingResponse getTicketRating(Long ticketId, Long userId) {
@@ -62,8 +69,9 @@ public class TicketRatingServiceImpl implements TicketRatingService {
         Result<UserProfile> userProfile = userFeignClient.getById(userId);
         ticketRatingResponse.setUserName(userProfile.getData().getUsername());
 
-        //todo 设置处理人名称，处理人模块还没完成
-        ticketRatingResponse.setHandlerName(null);
+        Result<UserProfile> result = userFeignClient.getById(ticket.getHandlerId());
+        String handlerName = result.getData().getRealName();
+        ticketRatingResponse.setHandlerName(handlerName);
 
         return ticketRatingResponse;
     }

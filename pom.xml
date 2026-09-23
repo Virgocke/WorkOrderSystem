@@ -60,6 +60,8 @@
         <swagger-annotations.version>1.5.20</swagger-annotations.version>
 
         <elasticsearch.version>7.12.1</elasticsearch.version>
+
+        <minio.version>8.6.0</minio.version>
     </properties>
 
     <dependencyManagement>
@@ -213,15 +215,15 @@
 
             </dependency>
 
-<!--            &lt;!&ndash; 分布式文件系统 minIO的客户端API包 &ndash;&gt;-->
-<!--            <dependency>-->
-<!--                <groupId>io.minio</groupId>-->
+            <!-- 分布式文件系统 minIO的客户端API包 -->
+            <dependency>
+                <groupId>io.minio</groupId>
 
-<!--                <artifactId>minio</artifactId>-->
+                <artifactId>minio</artifactId>
 
-<!--                <version>${minio.version}</version>-->
+                <version>${minio.version}</version>
 
-<!--            </dependency>-->
+            </dependency>
 
             <!--google推荐的一套工具类库-->
             <dependency>

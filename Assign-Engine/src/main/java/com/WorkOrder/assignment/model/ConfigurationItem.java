@@ -1,5 +1,6 @@
 package com.WorkOrder.assignment.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Value;
 
@@ -13,5 +14,6 @@ public class ConfigurationItem {
     String description;
     Long version;
     Long updatedBy;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime updatedAt;
 }

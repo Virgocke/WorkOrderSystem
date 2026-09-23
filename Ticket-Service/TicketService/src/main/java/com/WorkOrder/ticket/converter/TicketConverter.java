@@ -6,6 +6,7 @@ import org.springframework.beans.BeanUtils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -69,6 +70,9 @@ public final class TicketConverter {
         response.setFirstResponseAt(formatTime(ticket.getFirstResponseAt()));
         response.setResolvedAt(formatTime(ticket.getResolvedAt()));
         response.setClosedAt(formatTime(ticket.getClosedAt()));
+        if (response.getAttachmentUrls() == null) {
+            response.setAttachmentUrls(Collections.emptyList());
+        }
 
         return response;
     }

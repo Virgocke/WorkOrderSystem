@@ -34,7 +34,7 @@ spring:
         - id: ticket-service
           uri: lb://ticket-service
           predicates:
-            - Path=/api/tickets/**,/api/ticket-categories/**
+            - Path=/api/tickets/**,/api/ticket-categories/**,/api/files/**
           filters:
             - StripPrefix=1
 
@@ -72,6 +72,7 @@ spring:
             - Path=/api/dashboard/**,/api/handler/**,/api/reports/**,/api/ratings/**
           filters:
             - StripPrefix=1
+
     nacos:
       server-addr: localhost:8848
       discovery:

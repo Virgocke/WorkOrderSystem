@@ -64,7 +64,8 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
         http.requestMatchers().antMatchers(
                 "/tickets/**",
                 "/ticket-categories",
-                "/ticket-categories/**")
+                "/ticket-categories/**",
+                        "/files/**")
                 .and()
                 .authorizeRequests()
                 .anyRequest()

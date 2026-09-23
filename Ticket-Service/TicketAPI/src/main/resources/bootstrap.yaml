@@ -19,6 +19,18 @@ spring:
         # 必须要在同一个group的服务，才可以互相调用
         # group的名字随便取，但是必须都叫同一个名，不然调用不了
         group: WorkOrder-project
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: minio
+  secret-key: minio123
+  bucket-name: workorder
+
+
 
 security:
   oauth2:

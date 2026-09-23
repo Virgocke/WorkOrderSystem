@@ -153,7 +153,7 @@
                t.escalated_level               AS escalatedLevel,
                t.remind_count                  AS remindCount,
                t.source,
-               CAST(t.attachment_urls AS CHAR) AS attachmentUrls,
+               '[]'                            AS attachmentUrls,
                t.updated_at                    AS updatedAt
         FROM tickets t
                  LEFT JOIN ticket_categories c ON c.id = t.category_id
@@ -223,7 +223,7 @@
                t.escalated_level               AS escalatedLevel,
                t.remind_count                  AS remindCount,
                t.source,
-               CAST(t.attachment_urls AS CHAR) AS attachmentUrls,
+               '[]'                            AS attachmentUrls,
                t.updated_at                    AS updatedAt
         FROM tickets t
                  LEFT JOIN ticket_categories c ON c.id = t.category_id

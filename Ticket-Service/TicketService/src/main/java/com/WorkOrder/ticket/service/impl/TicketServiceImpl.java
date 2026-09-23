@@ -2,6 +2,7 @@ package com.WorkOrder.ticket.service.impl;
 
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
+import com.WorkOrder.file.service.AttachmentService;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.model.user.UserProfile;
@@ -68,6 +69,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final TicketCategoryMapper categoryMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
+    private final AttachmentService attachmentService;
 
 
     /**
@@ -126,6 +128,12 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             throw new SystemException(SystemExceptionEnum.TICKET_CREATE_FAILED);
         }
 
+        attachmentService.bindToTicket(
+                creatorId,
+                ticket.getId(),
+                createTicketDto.getAttachmentIds()
+        );
+
         /**
          * 创建工单状态历史记录
          */
@@ -147,7 +155,10 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             throw new SystemException(SystemExceptionEnum.TICKET_CREATE_FAILED);
         }
 
-        return TicketConverter.toResponse(newTicket, ticketResponse);
+        return withAttachmentUrls(
+                TicketConverter.toResponse(newTicket, ticketResponse),
+                newTicket.getId()
+        );
     }
 
     /**
@@ -229,7 +240,10 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         String handlerName = ticket.getHandlerId() == null
                 ? null
                 : ticketMapper.selectDisplayNameByUserId(ticket.getHandlerId());
-        return TicketConverter.toResponse(ticket, categoryName, creatorName, handlerName);
+        return withAttachmentUrls(
+                TicketConverter.toResponse(ticket, categoryName, creatorName, handlerName),
+                ticket.getId()
+        );
     }
 
     /**
@@ -367,7 +381,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             ticketMapper.updateById(ticket);
         }
 
-        TicketResponse ticketResponse = TicketConverter.toResponse(ticket);
+        TicketResponse ticketResponse = withAttachmentUrls(
+                TicketConverter.toResponse(ticket), ticket.getId());
 
         return ticketResponse;
     }
@@ -394,7 +409,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
                 throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
             // todo 确认后用消息模块通知处理人handler
         }
-        return TicketConverter.toResponse(ticket);
+        return withAttachmentUrls(TicketConverter.toResponse(ticket), ticket.getId());
     }
 
     /**
@@ -523,13 +538,29 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             }
         }
 
+        Map<Long, List<String>> attachmentUrlsByTicketId =
+                attachmentService.getAttachmentUrlsByTicketIds(
+                        tickets.stream().map(Tickets::getId).collect(Collectors.toList()));
+
         return tickets.stream()
-                .map(ticket -> TicketConverter.toResponse(
-                        ticket,
-                        categoryNames.get(ticket.getCategoryId()),
-                        userNames.get(ticket.getCreatorId()),
-                        userNames.get(ticket.getHandlerId())))
+                .map(ticket -> {
+                    TicketResponse response = TicketConverter.toResponse(
+                            ticket,
+                            categoryNames.get(ticket.getCategoryId()),
+                            userNames.get(ticket.getCreatorId()),
+                            userNames.get(ticket.getHandlerId()));
+                    response.setAttachmentUrls(attachmentUrlsByTicketId.getOrDefault(
+                            ticket.getId(), Collections.emptyList()));
+                    return response;
+                })
                 .collect(Collectors.toList());
+    }
+
+    private TicketResponse withAttachmentUrls(TicketResponse response, Long ticketId) {
+        Map<Long, List<String>> urlsByTicketId = attachmentService
+                .getAttachmentUrlsByTicketIds(Collections.singleton(ticketId));
+        response.setAttachmentUrls(urlsByTicketId.getOrDefault(ticketId, Collections.emptyList()));
+        return response;
     }
 
     private String displayName(UserProfile user) {
