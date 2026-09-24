@@ -1,7 +1,10 @@
 package com.WorkOrder.ticket.config;
 
+import com.WorkOrder.file.mapper.AttachmentMapper;
+import com.WorkOrder.file.service.AttachmentService;
 import com.WorkOrder.security.CurrentUserIdProvider;
 import com.WorkOrder.ticket.mapper.TicketMapper;
+import com.WorkOrder.ticket.model.Attachment;
 import com.WorkOrder.ticket.model.Tickets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -20,6 +23,7 @@ public class TicketAuthorization {
 
     private final TicketMapper ticketMapper;
     private final CurrentUserIdProvider currentUserIdProvider;
+    private final AttachmentMapper attachmentMapper;
 
     /**
      * 判断当前用户是否有权限查看工单
@@ -73,4 +77,20 @@ public class TicketAuthorization {
         return Objects.equals(ticket.getHandlerId(), currentUserId);
     }
 
+    /**
+     * 判断当前用户是否是附件上传者
+     * @param attachmentId 附件ID
+     * @param authentication 当前用户认证信息
+     * @return 是否是附件上传者
+     */
+    public boolean isUploader(Long attachmentId, Authentication authentication) {
+        Long userId = currentUserIdProvider.get(authentication);
+        Attachment attachment = attachmentMapper.selectById(attachmentId);
+
+        if (attachmentId == null || attachment == null) {
+            return false;
+        }
+
+        return Objects.equals(attachment.getUploaderId(), userId);
+    }
 }

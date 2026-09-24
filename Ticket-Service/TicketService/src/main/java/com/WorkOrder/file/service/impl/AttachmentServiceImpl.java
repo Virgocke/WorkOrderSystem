@@ -1,12 +1,17 @@
 package com.WorkOrder.file.service.impl;
 
+import com.WorkOrder.file.dto.FilePreviewDto;
 import com.WorkOrder.file.mapper.AttachmentMapper;
 import com.WorkOrder.file.service.AttachmentService;
 import com.WorkOrder.file.service.MinioService;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
-import com.WorkOrder.ticket.dto.FileDto;
+import com.WorkOrder.file.dto.FileDto;
+import com.WorkOrder.ticket.mapper.TicketMapper;
+import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.model.Attachment;
+import com.WorkOrder.ticket.model.TicketOperationLog;
+import com.WorkOrder.ticket.model.Tickets;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -43,15 +48,21 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
     private final MinioService minioService;
     private final String bucketName;
     private final AttachmentServiceImpl attachmentServiceImpl;
+    private final TicketMapper ticketMapper;
+    private final TicketOperationLogMapper ticketOperationLogMapper;
 
     // 构造器，用于依赖注入
     public AttachmentServiceImpl(AttachmentMapper attachmentMapper,
                                  MinioService minioService,
                                  @Value("${minio.bucket-name}") String bucketName,
+                                 TicketMapper ticketMapper,
+                                 TicketOperationLogMapper ticketOperationLogMapper,
                                  @Lazy AttachmentServiceImpl attachmentServiceImpl) {
         this.attachmentMapper = attachmentMapper;
         this.minioService = minioService;
         this.bucketName = bucketName;
+        this.ticketMapper = ticketMapper;
+        this.ticketOperationLogMapper = ticketOperationLogMapper;
         this.attachmentServiceImpl = attachmentServiceImpl;
     }
 
@@ -319,11 +330,101 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
         }
     }
 
+    /**
+     * 获取附件预览信息
+     * @param attachmentId 附件ID
+     * @param userId 用户ID
+     * @param currentUserRole 当前用户角色
+     * @return
+     */
+    @Override
+    public FilePreviewDto getPreview(Long attachmentId, Long userId, String currentUserRole) {
+        Attachment attachment = attachmentMapper.selectById(attachmentId);
+        if (attachment == null) {
+            throw new SystemException(SystemExceptionEnum.ATTACHMENT_NOT_FOUND);
+        }
 
+        if (!userId.equals(attachment.getUploaderId())) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        if (LocalDateTime.now().isAfter(attachment.getExpiresAt())) {
+            throw new SystemException(SystemExceptionEnum.ATTACHMENT_TIME_EXPIRED);
+        }
+
+        if (attachment.getTicketId() == null) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        if ("DELETED".equals(attachment.getStatus())
+                || "QUARANTINED".equals(attachment.getStatus())) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+
+        if (attachment.getOperationLogId() != null) {
+            TicketOperationLog ticketOperationLog = ticketOperationLogMapper.selectById(attachment.getOperationLogId());
+            if (ticketOperationLog == null ||
+                    !ticketOperationLog.getTicketId().equals(attachment.getTicketId())) {
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
+            if ("INTERNAL_NOTE".equals(ticketOperationLog.getAction()) &&
+                    "USER".equals(currentUserRole)) {
+                throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+            }
+        }
+
+        if ("TEMP".equals(attachment.getStatus())) {
+            checkUploaderAndExpiration(attachment, userId);
+        }
+
+
+        Tickets ticket = ticketMapper.selectById(attachment.getTicketId());
+
+        boolean canView =
+            userId.equals(ticket.getCreatorId())
+                || userId.equals(ticket.getHandlerId())
+                || "ADMIN".equals(currentUserRole);
+
+        if (canView) {
+            try{
+                return new FilePreviewDto(
+                    attachment.getId(),
+                    minioService.getPresignedUrl(attachment.getObjectKey(), 60 * 60),
+                    attachment.getExpiresAt(),
+                    attachment.getOriginalName(),
+                    attachment.getContentType(),
+                    attachment.getSize()
+                );
+            } catch (Exception exception) {
+                throw new IllegalStateException("生成附件预览地址失败", exception);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 检查附件上传者和有效期
+     * @param attachment 附件
+     * @param userId 用户ID
+     */
+    private void checkUploaderAndExpiration(Attachment attachment, Long userId) {
+        if (!userId.equals(attachment.getUploaderId()) || LocalDateTime.now().isAfter(attachment.getExpiresAt())) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+    }
+
+
+    /**
+     * 批量更新附件信息
+     * @param entityList 附件列表
+     * @return 是否更新成功
+     */
     @Override
     public boolean updateBatchById(Collection<Attachment> entityList) {
         return super.updateBatchById(entityList);
     }
+
+
 
     /**
      * 构建对象名

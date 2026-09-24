@@ -1,6 +1,7 @@
 package com.WorkOrder.file.service;
 
-import com.WorkOrder.ticket.dto.FileDto;
+import com.WorkOrder.file.dto.FileDto;
+import com.WorkOrder.file.dto.FilePreviewDto;
 import com.WorkOrder.ticket.model.Attachment;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.springframework.web.multipart.MultipartFile;
@@ -48,4 +49,9 @@ public interface AttachmentService extends IService<Attachment> {
             Long operationLogId,
             List<Long> attachmentIds
     );
+
+    /**
+     * 获取文件预览信息
+     */
+    FilePreviewDto getPreview(Long attachmentId, Long userId, String currentUserRole);
 }

@@ -1,4 +1,4 @@
-package com.WorkOrder.ticket.dto;
+package com.WorkOrder.file.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

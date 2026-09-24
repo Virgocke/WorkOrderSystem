@@ -1,6 +1,5 @@
 package com.WorkOrder.file.service;
 
-import com.WorkOrder.ticket.dto.FileDto;
 import io.minio.ObjectWriteResponse;
 
 import java.io.InputStream;

@@ -1,7 +1,6 @@
 package com.WorkOrder.file.service.impl;
 
 import com.WorkOrder.file.service.MinioService;
-import com.WorkOrder.ticket.dto.FileDto;
 import io.minio.*;
 import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Autowired;

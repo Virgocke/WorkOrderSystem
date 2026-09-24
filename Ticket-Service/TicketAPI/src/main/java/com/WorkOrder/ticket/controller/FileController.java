@@ -1,15 +1,16 @@
 package com.WorkOrder.ticket.controller;
 
+import com.WorkOrder.file.dto.FilePreviewDto;
 import com.WorkOrder.file.service.AttachmentService;
 import com.WorkOrder.model.Result;
 import com.WorkOrder.security.CurrentUserIdProvider;
-import com.WorkOrder.ticket.dto.FileDto;
+import com.WorkOrder.file.dto.FileDto;
+import com.WorkOrder.security.CurrentUserRoleProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.parameters.P;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -24,12 +25,37 @@ public class FileController {
 
     private final AttachmentService attachmentService;
     private final CurrentUserIdProvider currentUserIdProvider;
+    private final CurrentUserRoleProvider currentUserRoleProvider;
 
 
+    /**
+     * 上传文件
+     * @param file 文件
+     * @param authentication 认证信息
+     * @return 文件信息
+     */
     @PostMapping
     public Result<FileDto> upload(@RequestParam("file") MultipartFile file,
                                   Authentication authentication) {
         Long userId = currentUserIdProvider.get(authentication);
         return Result.success(attachmentService.uploadImage(userId, file));
     }
+
+
+    /**
+     * 文件预览
+     * @param id 文件ID
+     * @param authentication 认证信息
+     * @return 文件预览信息
+     */
+    @PreAuthorize("ticketAuthorization.isUploader(id, authentication) or hasRole('ADMIN')")
+    @GetMapping("/{id}/preview")
+    public Result<FilePreviewDto> preview(@P("id") @PathVariable Long id, Authentication authentication) {
+        Long userId = currentUserIdProvider.get(authentication);
+        String userRole = currentUserRoleProvider.get(authentication);
+        return Result.success(
+                attachmentService.getPreview(id, userId, userRole)
+        );
+    }
 }
+
