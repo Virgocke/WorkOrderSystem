@@ -2,6 +2,7 @@ package com.WorkOrder.ticket.service.impl;
 
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
+import com.WorkOrder.file.mapper.AttachmentMapper;
 import com.WorkOrder.file.service.AttachmentService;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.ticket.TicketResponse;
@@ -13,10 +14,7 @@ import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
 import com.WorkOrder.ticket.mapper.TicketMapper;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
-import com.WorkOrder.ticket.model.TicketCategory;
-import com.WorkOrder.ticket.model.TicketOperationLog;
-import com.WorkOrder.ticket.model.TicketStatusHistory;
-import com.WorkOrder.ticket.model.Tickets;
+import com.WorkOrder.ticket.model.*;
 import com.WorkOrder.ticket.service.TicketService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -27,14 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -69,6 +60,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final TicketCategoryMapper categoryMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
+    private final AttachmentMapper attachmentMapper;
     private final AttachmentService attachmentService;
 
 
@@ -255,22 +247,26 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
      * @return 是否成功
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean ticketReplyInfo(Long ticketId, Long userId, String operatorRole, TicketReplyDto ticketReplyDto) {
         Tickets ticket = ticketMapper.selectById(ticketId);
         if (ticket == null){
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
 
-        Long operatorId = userId;
+        if (ticketReplyDto.getAttachmentIds().size() > 6) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
         // 操作类型
         String action;
         // 接收者ID
         Long receiverId;
         // 工单中的业务身份决定回复类型，登录角色独立保存到日志。
-        if (Objects.equals(operatorId, ticket.getCreatorId())) {
+        if (Objects.equals(userId, ticket.getCreatorId())) {
             action = "USER_REPLY";
             receiverId = ticket.getHandlerId();
-        } else if (Objects.equals(operatorId, ticket.getHandlerId())) {
+        } else if (Objects.equals(userId, ticket.getHandlerId())) {
             action = "HANDLER_REPLY";
             receiverId = ticket.getCreatorId();
         } else if ("ADMIN".equals(operatorRole)) {
@@ -285,15 +281,39 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         TicketOperationLog log = new TicketOperationLog();
         log.setTicketId(ticketId);
         log.setAction(action);
-        log.setOperatorId(operatorId);
+        log.setOperatorId(userId);
         log.setOperatorRole(operatorRole);
-        log.setContent(ticketReplyDto.getContent());
+
+        String content = "";
+        if (ticketReplyDto.getContent() != null){
+            content = content + ticketReplyDto.getContent();
+            log.setContent(content);
+        }
+
+
         // 插入工单操作日志
         int insert = ticketOperationLogMapper.insert(log);
 
         if (insert < 1){
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
+
+        Long operationLogId = log.getId();
+        List<Long> attachmentIds = new ArrayList<>();
+
+        if (ticketReplyDto.getAttachmentIds() == null || ticketReplyDto.getAttachmentIds().isEmpty()) {
+            attachmentIds = Collections.emptyList();
+        }
+
+        attachmentService.bindToOperationLog(
+                userId,
+                ticketId,
+                operationLogId,
+                attachmentIds
+        );
+
+
+
 
         //todo 发送通知，通知模块还没实现
 //        if (receiverId != null) {

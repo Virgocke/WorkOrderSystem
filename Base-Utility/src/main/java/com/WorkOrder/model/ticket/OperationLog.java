@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * @author Virgor
  * @date 2026年09月15日 03:14
@@ -31,8 +33,8 @@ public class OperationLog {
     private String operatorRole;
     @ApiModelProperty(value = "操作内容")
     private String content;
-    @ApiModelProperty(value = "附件 URL（图片回复/创建时携带）")
-    private String[] attachments;
+    @ApiModelProperty(value = "日志附件临时预览 URL，由后端动态生成")
+    private List<String> attachments;
 
     private String createdAt;
 }

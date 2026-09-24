@@ -18,7 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 public class TicketReplyDto {
     private String content;
-    private List<String> attachments;
+    private List<Long> attachmentIds;
 
     /**
      * 检查内容或附件是否至少有一个
@@ -32,9 +32,9 @@ public class TicketReplyDto {
 
         // 检查附件列表是否至少有一个非空且非空字符串
         boolean hasAttachment =
-                attachments != null
-                && attachments.stream()
-                    .anyMatch(item -> item != null && !item.trim().isEmpty());
+                attachmentIds != null
+                && attachmentIds.stream()
+                    .anyMatch(item -> item != null && item != 0);
 
         return hasContent || hasAttachment;
     }

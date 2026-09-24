@@ -1,5 +1,6 @@
 package com.WorkOrder.ticket.service.impl;
 
+import com.WorkOrder.file.service.AttachmentService;
 import com.WorkOrder.model.ticket.OperationLog;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.model.TicketOperationLog;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +29,7 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
 
     private final TicketOperationLogMapper ticketOperationLogMapper;
     private final TicketActorNameResolver actorNameResolver;
+    private final AttachmentService attachmentService;
 
     // 时间格式化器
     private static final DateTimeFormatter TIME_FORMATTER =
@@ -67,9 +70,22 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
                         .collect(Collectors.toList())
         );
 
+        // 获取操作日志附件URL
+        Map<Long, List<String>> attachmentUrlsByOperationLogId =
+                attachmentService.getAttachmentUrlsByOperationLogIds(
+                        ticketOperationLogList.stream()
+                                .map(TicketOperationLog::getId)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toList())
+                );
+
         // 转换为OperationLog
         List<OperationLog> operationLogList = ticketOperationLogList.stream()
-                .map(log -> convertToOperationLog(log, operatorNames))
+                .map(log -> convertToOperationLog(
+                        log,
+                        operatorNames,
+                        attachmentUrlsByOperationLogId
+                ))
                 .collect(Collectors.toList());
 
         return operationLogList;
@@ -79,10 +95,12 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
      * 将TicketOperationLog转换为OperationLog
      * @param log 工单操作日志
      * @param operatorNames 操作员名称映射
+     * @param attachmentUrlsByOperationLogId 操作日志附件URL映射
      * @return 转换后的工单操作日志
      */
     private OperationLog convertToOperationLog(TicketOperationLog log,
-                                               Map<Long, String> operatorNames) {
+                                               Map<Long, String> operatorNames,
+                                               Map<Long, List<String>> attachmentUrlsByOperationLogId) {
         OperationLog result = new OperationLog();
 
         result.setId(log.getId());
@@ -94,8 +112,11 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
         result.setContent(log.getContent());
         result.setCreatedAt(formatTime(log.getCreatedAt()));
 
-        // 附件表接入后再查询并填充。
-        result.setAttachments(new String[0]);
+        List<String> attachmentUrls = attachmentUrlsByOperationLogId.getOrDefault(
+                log.getId(),
+                Collections.emptyList()
+        );
+        result.setAttachments(attachmentUrls);
 
         return result;
     }

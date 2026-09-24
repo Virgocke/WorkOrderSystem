@@ -9,9 +9,11 @@ import com.WorkOrder.ticket.dto.FileDto;
 import com.WorkOrder.ticket.model.Attachment;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import io.minio.ObjectWriteResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,25 +23,16 @@ import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * @author Virgor
  * @date 2026年09月24日 02:42
- * @description
+ * @description 附件服务实现类
  */
 @Service
 @Slf4j
-public class AttachmentServiceImpl implements AttachmentService {
+public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachment> implements AttachmentService {
 
     private static final long MAX_SIZE = 20L * 1024 * 1024; // 20MB
 
@@ -49,14 +42,17 @@ public class AttachmentServiceImpl implements AttachmentService {
     private final AttachmentMapper attachmentMapper;
     private final MinioService minioService;
     private final String bucketName;
+    private final AttachmentServiceImpl attachmentServiceImpl;
 
     // 构造器，用于依赖注入
     public AttachmentServiceImpl(AttachmentMapper attachmentMapper,
                                  MinioService minioService,
-                                 @Value("${minio.bucket-name}") String bucketName) {
+                                 @Value("${minio.bucket-name}") String bucketName,
+                                 @Lazy AttachmentServiceImpl attachmentServiceImpl) {
         this.attachmentMapper = attachmentMapper;
         this.minioService = minioService;
         this.bucketName = bucketName;
+        this.attachmentServiceImpl = attachmentServiceImpl;
     }
 
     /**
@@ -117,13 +113,15 @@ public class AttachmentServiceImpl implements AttachmentService {
 
             FileDto fileDto = new FileDto();
 
-            String url = minioService.getPresignedUrl(objectName, 7 * 24 * 60 * 60);
+            // 获取预签名URL，用于临时访问，有效期10分钟
+            String url = minioService.getPresignedUrl(objectName, 10 * 60);
 
             fileDto.setUrl(url);
             fileDto.setId(attachment.getId());
             fileDto.setName(originalName);
             fileDto.setSize(file.getSize());
             fileDto.setType(imageType.contentType);
+
             return fileDto;
         } catch (Exception exception) {
             if (minioOperationStarted) {
@@ -225,6 +223,106 @@ public class AttachmentServiceImpl implements AttachmentService {
             }
         }
         return urlsByTicketId;
+    }
+
+    /**
+     * 根据操作日志ID批量获取附件URL列表
+     * @param operationLogIds 操作日志ID集合
+     * @return 操作日志ID与附件URL列表的映射
+     */
+    @Override
+    public Map<Long, List<String>> getAttachmentUrlsByOperationLogIds(Collection<Long> operationLogIds) {
+        if (operationLogIds == null || operationLogIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        // 过滤掉空值并去重
+        Set<Long> uniqueOperationLogIds = operationLogIds.stream()
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (uniqueOperationLogIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Attachment> attachments = attachmentMapper.selectList(
+                new LambdaQueryWrapper<Attachment>()
+                        .in(Attachment::getOperationLogId, uniqueOperationLogIds)
+                        .eq(Attachment::getStatus, "BOUND")
+                        .isNotNull(Attachment::getTicketId)
+                        .orderByAsc(Attachment::getId)
+        );
+
+        // 按操作日志ID分组，生成预览地址
+        Map<Long, List<String>> urlsByOperationLogId = new LinkedHashMap<>();
+        for (Attachment attachment : attachments) {
+            try {
+                String url = minioService.getPresignedUrl(attachment.getObjectKey(), 60 * 60);
+                urlsByOperationLogId
+                        .computeIfAbsent(attachment.getOperationLogId(), ignored -> new ArrayList<>())
+                        .add(url);
+            } catch (Exception exception) {
+                throw new IllegalStateException("生成日志附件预览地址失败", exception);
+            }
+        }
+        return urlsByOperationLogId;
+    }
+
+    /**
+     * 绑定附件到操作日志
+     * @param uploaderId 上传者ID
+     * @param ticketId 工单ID
+     * @param operationLogId 操作日志ID
+     * @param attachmentIds 附件ID列表
+     */
+    @Override
+    public void bindToOperationLog(Long uploaderId, Long ticketId, Long operationLogId, List<Long> attachmentIds) {
+        // 验证附件ID列表不重复
+        Set<Long> seen = new HashSet<>();
+        for (Long attachmentId : attachmentIds) {
+            if (!seen.add(attachmentId)) {
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
+        }
+
+        List<Attachment> attachments = attachmentMapper.selectBatchIds(attachmentIds);
+
+        for (Attachment attachment : attachments) {
+            if (uploaderId == null || !uploaderId.equals(attachment.getUploaderId())) {
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
+            if (!"TEMP".equals(attachment.getStatus())) {
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
+            if (LocalDateTime.now().isAfter(attachment.getExpiresAt())) {
+                throw new SystemException(SystemExceptionEnum.ATTACHMENT_TIME_EXPIRED);
+            }
+            if (ticketId == null || attachment.getTicketId() != null) {
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
+            if (operationLogId == null || attachment.getOperationLogId() != null) {
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
+            if (attachments.size() > 6) {
+                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
+            attachment.setTicketId(ticketId);
+            attachment.setOperationLogId(operationLogId);
+            attachment.setStatus("BOUND");
+            attachment.setBoundAt(LocalDateTime.now());
+            attachment.setExpiresAt(null);
+        }
+
+
+        boolean updated = attachmentServiceImpl.updateBatchById(attachments);
+        if (!updated) {
+            throw new IllegalStateException("更新附件状态失败");
+        }
+    }
+
+
+    @Override
+    public boolean updateBatchById(Collection<Attachment> entityList) {
+        return super.updateBatchById(entityList);
     }
 
     /**
