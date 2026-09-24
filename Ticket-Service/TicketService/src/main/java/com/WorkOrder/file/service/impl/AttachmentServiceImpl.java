@@ -1,6 +1,7 @@
 package com.WorkOrder.file.service.impl;
 
 import com.WorkOrder.file.dto.FilePreviewDto;
+import com.WorkOrder.file.config.MinioProperties;
 import com.WorkOrder.file.mapper.AttachmentMapper;
 import com.WorkOrder.file.service.AttachmentService;
 import com.WorkOrder.file.service.MinioService;
@@ -17,8 +18,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import io.minio.ObjectWriteResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -40,6 +39,7 @@ import java.util.*;
 public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachment> implements AttachmentService {
 
     private static final long MAX_SIZE = 20L * 1024 * 1024; // 20MB
+    private static final int PREVIEW_TTL_SECONDS = 10 * 60;
 
     private static final DateTimeFormatter OBJECT_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy/MM/dd"); // 日期格式：年/月/日
@@ -47,23 +47,20 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
     private final AttachmentMapper attachmentMapper;
     private final MinioService minioService;
     private final String bucketName;
-    private final AttachmentServiceImpl attachmentServiceImpl;
     private final TicketMapper ticketMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
 
     // 构造器，用于依赖注入
     public AttachmentServiceImpl(AttachmentMapper attachmentMapper,
                                  MinioService minioService,
-                                 @Value("${minio.bucket-name}") String bucketName,
+                                 MinioProperties minioProperties,
                                  TicketMapper ticketMapper,
-                                 TicketOperationLogMapper ticketOperationLogMapper,
-                                 @Lazy AttachmentServiceImpl attachmentServiceImpl) {
+                                 TicketOperationLogMapper ticketOperationLogMapper) {
         this.attachmentMapper = attachmentMapper;
         this.minioService = minioService;
-        this.bucketName = bucketName;
+        this.bucketName = minioProperties.getBucketName();
         this.ticketMapper = ticketMapper;
         this.ticketOperationLogMapper = ticketOperationLogMapper;
-        this.attachmentServiceImpl = attachmentServiceImpl;
     }
 
     /**
@@ -114,6 +111,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
             attachment.setOriginalName(originalName);
             attachment.setContentType(imageType.contentType);
             attachment.setSize(file.getSize());
+            attachment.setEtag(response.etag());
             attachment.setStatus("TEMP");
             attachment.setExpiresAt(now.plusHours(24));
             attachment.setCreatedAt(now);
@@ -125,7 +123,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
             FileDto fileDto = new FileDto();
 
             // 获取预签名URL，用于临时访问，有效期10分钟
-            String url = minioService.getPresignedUrl(objectName, 10 * 60);
+            String url = minioService.getPresignedUrl(objectName, PREVIEW_TTL_SECONDS);
 
             fileDto.setUrl(url);
             fileDto.setId(attachment.getId());
@@ -178,9 +176,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
                 .eq(Attachment::getStatus, "TEMP")
                 .isNull(Attachment::getTicketId)
                 .isNull(Attachment::getOperationLogId)
-                .and(wrapper -> wrapper.isNull(Attachment::getExpiresAt)
-                        .or()
-                        .gt(Attachment::getExpiresAt, now))
+                .gt(Attachment::getExpiresAt, now)
                 .set(Attachment::getTicketId, ticketId)
                 .set(Attachment::getStatus, "BOUND")
                 .set(Attachment::getBoundAt, now)
@@ -192,11 +188,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
         }
     }
 
-    /**
-     * 根据工单ID获取附件URL列表
-     * @param ticketIds 工单ID集合
-     * @return 工单ID与附件URL列表的映射
-     */
+    /** 根据工单 ID 批量获取直接绑定到工单的附件短期预览地址。 */
     @Override
     public Map<Long, List<String>> getAttachmentUrlsByTicketIds(Collection<Long> ticketIds) {
         if (ticketIds == null || ticketIds.isEmpty()) {
@@ -220,12 +212,11 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
                         .orderByAsc(Attachment::getId)
         );
 
-        // 按工单ID分组，生成预览地址
         Map<Long, List<String>> urlsByTicketId = new LinkedHashMap<>();
         for (Attachment attachment : attachments) {
             try {
-                // 生成预览地址，有效期 1 小时
-                String url = minioService.getPresignedUrl(attachment.getObjectKey(), 60 * 60);
+                String url = minioService.getPresignedUrl(
+                        attachment.getObjectKey(), PREVIEW_TTL_SECONDS);
                 urlsByTicketId
                         .computeIfAbsent(attachment.getTicketId(), ignored -> new ArrayList<>())
                         .add(url);
@@ -236,11 +227,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
         return urlsByTicketId;
     }
 
-    /**
-     * 根据操作日志ID批量获取附件URL列表
-     * @param operationLogIds 操作日志ID集合
-     * @return 操作日志ID与附件URL列表的映射
-     */
+    /** 根据操作日志 ID 批量获取附件短期预览地址。 */
     @Override
     public Map<Long, List<String>> getAttachmentUrlsByOperationLogIds(Collection<Long> operationLogIds) {
         if (operationLogIds == null || operationLogIds.isEmpty()) {
@@ -263,11 +250,11 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
                         .orderByAsc(Attachment::getId)
         );
 
-        // 按操作日志ID分组，生成预览地址
         Map<Long, List<String>> urlsByOperationLogId = new LinkedHashMap<>();
         for (Attachment attachment : attachments) {
             try {
-                String url = minioService.getPresignedUrl(attachment.getObjectKey(), 60 * 60);
+                String url = minioService.getPresignedUrl(
+                        attachment.getObjectKey(), PREVIEW_TTL_SECONDS);
                 urlsByOperationLogId
                         .computeIfAbsent(attachment.getOperationLogId(), ignored -> new ArrayList<>())
                         .add(url);
@@ -286,47 +273,42 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
      * @param attachmentIds 附件ID列表
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void bindToOperationLog(Long uploaderId, Long ticketId, Long operationLogId, List<Long> attachmentIds) {
-        // 验证附件ID列表不重复
-        Set<Long> seen = new HashSet<>();
+        if (attachmentIds == null || attachmentIds.isEmpty()) {
+            return;
+        }
+        if (uploaderId == null || ticketId == null || operationLogId == null) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        Set<Long> uniqueIds = new LinkedHashSet<>();
         for (Long attachmentId : attachmentIds) {
-            if (!seen.add(attachmentId)) {
+            if (attachmentId == null || attachmentId <= 0 || !uniqueIds.add(attachmentId)) {
                 throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
             }
         }
-
-        List<Attachment> attachments = attachmentMapper.selectBatchIds(attachmentIds);
-
-        for (Attachment attachment : attachments) {
-            if (uploaderId == null || !uploaderId.equals(attachment.getUploaderId())) {
-                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-            }
-            if (!"TEMP".equals(attachment.getStatus())) {
-                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-            }
-            if (LocalDateTime.now().isAfter(attachment.getExpiresAt())) {
-                throw new SystemException(SystemExceptionEnum.ATTACHMENT_TIME_EXPIRED);
-            }
-            if (ticketId == null || attachment.getTicketId() != null) {
-                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-            }
-            if (operationLogId == null || attachment.getOperationLogId() != null) {
-                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-            }
-            if (attachments.size() > 6) {
-                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-            }
-            attachment.setTicketId(ticketId);
-            attachment.setOperationLogId(operationLogId);
-            attachment.setStatus("BOUND");
-            attachment.setBoundAt(LocalDateTime.now());
-            attachment.setExpiresAt(null);
+        if (uniqueIds.size() > 6) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
 
+        LocalDateTime now = LocalDateTime.now();
+        LambdaUpdateWrapper<Attachment> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(Attachment::getId, uniqueIds)
+                .eq(Attachment::getUploaderId, uploaderId)
+                .eq(Attachment::getStatus, "TEMP")
+                .isNull(Attachment::getTicketId)
+                .isNull(Attachment::getOperationLogId)
+                .gt(Attachment::getExpiresAt, now)
+                .set(Attachment::getTicketId, ticketId)
+                .set(Attachment::getOperationLogId, operationLogId)
+                .set(Attachment::getStatus, "BOUND")
+                .set(Attachment::getBoundAt, now)
+                .set(Attachment::getExpiresAt, null);
 
-        boolean updated = attachmentServiceImpl.updateBatchById(attachments);
-        if (!updated) {
-            throw new IllegalStateException("更新附件状态失败");
+        int updated = attachmentMapper.update(null, updateWrapper);
+        if (updated != uniqueIds.size()) {
+            throw new SystemException(SystemExceptionEnum.ATTACHMENT_BIND_FAILED);
         }
     }
 
@@ -339,77 +321,66 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
      */
     @Override
     public FilePreviewDto getPreview(Long attachmentId, Long userId, String currentUserRole) {
+        if (attachmentId == null || userId == null) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
         Attachment attachment = attachmentMapper.selectById(attachmentId);
         if (attachment == null) {
             throw new SystemException(SystemExceptionEnum.ATTACHMENT_NOT_FOUND);
         }
 
-        if (!userId.equals(attachment.getUploaderId())) {
-            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-        }
-
-        if (LocalDateTime.now().isAfter(attachment.getExpiresAt())) {
-            throw new SystemException(SystemExceptionEnum.ATTACHMENT_TIME_EXPIRED);
-        }
-
-        if (attachment.getTicketId() == null) {
-            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-        }
-
-        if ("DELETED".equals(attachment.getStatus())
-                || "QUARANTINED".equals(attachment.getStatus())) {
+        LocalDateTime now = LocalDateTime.now();
+        if ("TEMP".equals(attachment.getStatus())) {
+            if (!Objects.equals(userId, attachment.getUploaderId())
+                    || attachment.getExpiresAt() == null
+                    || !attachment.getExpiresAt().isAfter(now)) {
+                throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+            }
+        } else if ("BOUND".equals(attachment.getStatus())) {
+            if (attachment.getTicketId() == null) {
+                throw new IllegalStateException("已绑定附件缺少工单 ID");
+            }
+            Tickets ticket = ticketMapper.selectById(attachment.getTicketId());
+            if (ticket == null) {
+                throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+            }
+            boolean canView = "ADMIN".equals(currentUserRole)
+                    || Objects.equals(userId, ticket.getCreatorId())
+                    || Objects.equals(userId, ticket.getHandlerId());
+            if (!canView) {
+                throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+            }
+            checkInternalNotePermission(attachment, currentUserRole);
+        } else {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
 
-        if (attachment.getOperationLogId() != null) {
-            TicketOperationLog ticketOperationLog = ticketOperationLogMapper.selectById(attachment.getOperationLogId());
-            if (ticketOperationLog == null ||
-                    !ticketOperationLog.getTicketId().equals(attachment.getTicketId())) {
-                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-            }
-            if ("INTERNAL_NOTE".equals(ticketOperationLog.getAction()) &&
-                    "USER".equals(currentUserRole)) {
-                throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
-            }
-        }
-
-        if ("TEMP".equals(attachment.getStatus())) {
-            checkUploaderAndExpiration(attachment, userId);
-        }
-
-
-        Tickets ticket = ticketMapper.selectById(attachment.getTicketId());
-
-        boolean canView =
-            userId.equals(ticket.getCreatorId())
-                || userId.equals(ticket.getHandlerId())
-                || "ADMIN".equals(currentUserRole);
-
-        if (canView) {
-            try{
-                return new FilePreviewDto(
+        try {
+            return new FilePreviewDto(
                     attachment.getId(),
-                    minioService.getPresignedUrl(attachment.getObjectKey(), 60 * 60),
-                    attachment.getExpiresAt(),
+                    minioService.getPresignedUrl(attachment.getObjectKey(), PREVIEW_TTL_SECONDS),
+                    now.plusSeconds(PREVIEW_TTL_SECONDS),
                     attachment.getOriginalName(),
                     attachment.getContentType(),
                     attachment.getSize()
-                );
-            } catch (Exception exception) {
-                throw new IllegalStateException("生成附件预览地址失败", exception);
-            }
+            );
+        } catch (Exception exception) {
+            throw new IllegalStateException("生成附件预览地址失败", exception);
         }
-        return null;
     }
 
-    /**
-     * 检查附件上传者和有效期
-     * @param attachment 附件
-     * @param userId 用户ID
-     */
-    private void checkUploaderAndExpiration(Attachment attachment, Long userId) {
-        if (!userId.equals(attachment.getUploaderId()) || LocalDateTime.now().isAfter(attachment.getExpiresAt())) {
-            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+    private void checkInternalNotePermission(Attachment attachment, String currentUserRole) {
+        if (attachment.getOperationLogId() == null) {
+            return;
+        }
+        TicketOperationLog operationLog = ticketOperationLogMapper.selectById(attachment.getOperationLogId());
+        if (operationLog == null
+                || !Objects.equals(operationLog.getTicketId(), attachment.getTicketId())) {
+            throw new IllegalStateException("附件与操作日志关系异常");
+        }
+        if ("INTERNAL_NOTE".equals(operationLog.getAction()) && "USER".equals(currentUserRole)) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
     }
 

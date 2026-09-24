@@ -254,7 +254,9 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
 
-        if (ticketReplyDto.getAttachmentIds().size() > 6) {
+        List<Long> attachmentIds = Optional.ofNullable(ticketReplyDto.getAttachmentIds())
+                .orElse(Collections.emptyList());
+        if (attachmentIds.size() > 6) {
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
 
@@ -298,17 +300,10 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
 
-        Long operationLogId = log.getId();
-        List<Long> attachmentIds = new ArrayList<>();
-
-        if (ticketReplyDto.getAttachmentIds() == null || ticketReplyDto.getAttachmentIds().isEmpty()) {
-            attachmentIds = Collections.emptyList();
-        }
-
         attachmentService.bindToOperationLog(
                 userId,
                 ticketId,
-                operationLogId,
+                log.getId(),
                 attachmentIds
         );
 

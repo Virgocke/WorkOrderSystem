@@ -30,14 +30,10 @@ public interface AttachmentService extends IService<Attachment> {
      */
     void bindToTicket(Long uploaderId, Long ticketId, List<Long> attachmentIds);
 
-    /**
-     * 批量获取工单附件的临时预览地址。
-     */
+    /** 批量获取工单附件的短期预览地址。 */
     Map<Long, List<String>> getAttachmentUrlsByTicketIds(Collection<Long> ticketIds);
 
-    /**
-     * 批量获取操作日志附件的临时预览地址。
-     */
+    /** 批量获取操作日志附件的短期预览地址。 */
     Map<Long, List<String>> getAttachmentUrlsByOperationLogIds(Collection<Long> operationLogIds);
 
     /**

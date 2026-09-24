@@ -70,7 +70,6 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
                         .collect(Collectors.toList())
         );
 
-        // 获取操作日志附件URL
         Map<Long, List<String>> attachmentUrlsByOperationLogId =
                 attachmentService.getAttachmentUrlsByOperationLogIds(
                         ticketOperationLogList.stream()
@@ -95,7 +94,7 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
      * 将TicketOperationLog转换为OperationLog
      * @param log 工单操作日志
      * @param operatorNames 操作员名称映射
-     * @param attachmentUrlsByOperationLogId 操作日志附件URL映射
+     * @param attachmentUrlsByOperationLogId 操作日志附件 URL 映射
      * @return 转换后的工单操作日志
      */
     private OperationLog convertToOperationLog(TicketOperationLog log,

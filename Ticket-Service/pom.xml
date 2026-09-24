@@ -54,10 +54,6 @@
             <version>2.2.4.RELEASE</version>
 
         </dependency>
-        <dependency>
-            <groupId>io.minio</groupId>
-            <artifactId>minio</artifactId>
-        </dependency>
     </dependencies>
 
 </project>

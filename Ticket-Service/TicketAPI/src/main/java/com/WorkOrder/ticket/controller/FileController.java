@@ -9,7 +9,6 @@ import com.WorkOrder.security.CurrentUserRoleProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -48,9 +47,9 @@ public class FileController {
      * @param authentication 认证信息
      * @return 文件预览信息
      */
-    @PreAuthorize("ticketAuthorization.isUploader(id, authentication) or hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}/preview")
-    public Result<FilePreviewDto> preview(@P("id") @PathVariable Long id, Authentication authentication) {
+    public Result<FilePreviewDto> preview(@PathVariable Long id, Authentication authentication) {
         Long userId = currentUserIdProvider.get(authentication);
         String userRole = currentUserRoleProvider.get(authentication);
         return Result.success(

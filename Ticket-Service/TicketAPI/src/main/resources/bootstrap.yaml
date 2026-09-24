@@ -25,10 +25,10 @@ spring:
       max-request-size: 21MB
 
 minio:
-  endpoint: http://localhost:9000
-  access-key: minio
-  secret-key: minio123
-  bucket-name: workorder
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET_KEY}
+  bucket-name: ${MINIO_BUCKET_NAME:workorder}
 
 
 

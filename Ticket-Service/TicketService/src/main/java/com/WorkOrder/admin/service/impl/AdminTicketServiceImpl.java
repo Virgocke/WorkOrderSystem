@@ -20,6 +20,7 @@ import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
+import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -49,6 +50,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
     private final AssignmentRecordMapper assignmentRecordMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
+    private final TicketResponseAttachmentEnricher ticketResponseAttachmentEnricher;
     
     @Override
     @Transactional
@@ -122,7 +124,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         // 转换为响应对象
         List<TicketResponse> ticketResponses = records.stream().map(TicketConverter::toResponse).collect(Collectors.toList());
 
-        return ticketResponses;
+        return ticketResponseAttachmentEnricher.enrichAll(ticketResponses);
     }
 
     /**
@@ -173,7 +175,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         }
         TicketResponse response = TicketConverter.toResponse(assignedTicket);
         response.setHandlerName(handler.getRealName());
-        return response;
+        return ticketResponseAttachmentEnricher.enrich(response);
     }
 
     /**
@@ -400,7 +402,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
-        return TicketConverter.toResponse(ticket);
+        return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
     /**

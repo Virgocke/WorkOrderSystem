@@ -87,7 +87,7 @@ public class TicketResponse {
     /** 来源：WEB、APP、API */
     private String source;
 
-    /** 图片附件 URL */
+    /** 图片附件短期预览 URL */
     private List<String> attachmentUrls;
 
     /** 更新时间 */

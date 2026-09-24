@@ -21,6 +21,7 @@ import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
+import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -49,6 +50,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
     private final TicketOperationLogMapper ticketOperationLogMapper;
     private final AssignmentRecordMapper assignmentRecordMapper;
     private final UserFeignClient userFeignClient;
+    private final TicketResponseAttachmentEnricher ticketResponseAttachmentEnricher;
 
     /**
      * 获取处理人工单列表
@@ -81,10 +83,11 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
         ticketList = ticketMapper.selectPage(page, queryWrapper).getRecords();
 
-        return ticketList
+        List<TicketResponse> ticketResponses = ticketList
                 .stream()
                 .map(TicketConverter::toResponse)
                 .collect(Collectors.toList());
+        return ticketResponseAttachmentEnricher.enrichAll(ticketResponses);
     }
 
     /**
@@ -154,7 +157,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
-        return TicketConverter.toResponse(ticket);
+        return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
     /**
@@ -232,7 +235,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
-        return TicketConverter.toResponse(ticket);
+        return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
     @Override
@@ -337,7 +340,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
         //todo 转交后要用消息模块通知被转交人
 
-        return TicketConverter.toResponse(ticket);
+        return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
     @Override
@@ -411,7 +414,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
         //todo 通知管理员，工单已升级，等通知系统完善
 
-        return TicketConverter.toResponse(ticket);
+        return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
     /**

@@ -33,7 +33,7 @@ public class OperationLog {
     private String operatorRole;
     @ApiModelProperty(value = "操作内容")
     private String content;
-    @ApiModelProperty(value = "日志附件临时预览 URL，由后端动态生成")
+    @ApiModelProperty(value = "日志附件短期预览 URL，由后端动态生成")
     private List<String> attachments;
 
     private String createdAt;

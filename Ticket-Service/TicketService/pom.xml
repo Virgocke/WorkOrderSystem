@@ -35,6 +35,10 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+        </dependency>
         <!--整合feign-->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
