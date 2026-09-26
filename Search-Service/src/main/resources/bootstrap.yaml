@@ -18,6 +18,9 @@ spring:
     username: root
     password: Virgo0916
 
+mybatis-plus:
+  mapper-locations: classpath*:*Mapper.xml
+
 security:
   oauth2:
     jwt:

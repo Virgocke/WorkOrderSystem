@@ -63,7 +63,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
     public void configure(HttpSecurity http) throws Exception {
         http.requestMatchers().antMatchers(
                         "/users/**", "/handlers/**", "/handler-skills/**", "/departments/**",
-                        "/skills/**")
+                        "/skills/**", "/skill-applications/**")
                 .and()
                 .authorizeRequests()
                 .anyRequest()

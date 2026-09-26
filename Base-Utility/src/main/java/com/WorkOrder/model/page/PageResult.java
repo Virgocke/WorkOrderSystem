@@ -1,6 +1,7 @@
 package com.WorkOrder.model.page;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
  * @description 分页结果
  */
 @Data
+@NoArgsConstructor
 public class PageResult<T> implements Serializable {
     // 分页数据
     private List<T> list;

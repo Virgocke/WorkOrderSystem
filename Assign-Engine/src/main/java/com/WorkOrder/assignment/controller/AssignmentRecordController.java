@@ -2,6 +2,7 @@ package com.WorkOrder.assignment.controller;
 
 import com.WorkOrder.assignment.dto.AssignmentRecordDto;
 import com.WorkOrder.assignment.service.AssignEngineService;
+import com.WorkOrder.model.Result;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.security.CurrentUserIdProvider;
 import com.WorkOrder.security.CurrentUserRoleProvider;
@@ -29,7 +30,7 @@ public class AssignmentRecordController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public PageResult<AssignmentRecordDto> getAssignmentRecords(
+    public Result<PageResult<AssignmentRecordDto>> getAssignmentRecords(
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
             @RequestParam("ticketId") Long ticketId,
@@ -37,6 +38,7 @@ public class AssignmentRecordController {
     ) {
         String operatorRole = currentUserRoleProvider.get(authentication);
         Long operatorId = currentUserIdProvider.get(authentication);
-        return assignEngineService.getAssignmentRecords(page, pageSize, ticketId, operatorRole, operatorId);
+        return Result.success(assignEngineService.getAssignmentRecords(
+                page, pageSize, ticketId, operatorRole, operatorId));
     }
 }

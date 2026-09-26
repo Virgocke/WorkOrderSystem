@@ -1,5 +1,6 @@
 package com.WorkOrder.skill.model;
 
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@TableName("skill_tags")
 public class SkillTagRecord {
     private Long id;
     private String name;

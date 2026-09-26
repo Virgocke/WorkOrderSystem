@@ -67,17 +67,19 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         LambdaQueryWrapper<Tickets> queryWrapper = new LambdaQueryWrapper<Tickets>();
         queryWrapper.eq(Tickets::getHandlerId, handlerId);
         // 如果传了状态参数，则添加查询条件
-        if (!handlerTicketPageDto.getStatus().equals("") && !handlerTicketPageDto.getStatus().equals("all")){
-            queryWrapper.eq(Tickets::getStatus, handlerTicketPageDto.getStatus());
+        String status = handlerTicketPageDto.getStatus();
+        if (status != null && !status.trim().isEmpty() && !"all".equals(status)){
+            queryWrapper.eq(Tickets::getStatus, status);
         }
         //todo keyword要用search模块查询，这里先不写
 
         // 根据排序参数添加查询条件
-        if (handlerTicketPageDto.getSort().equals("deadline")){
+        String sort = handlerTicketPageDto.getSort();
+        if (sort == null || sort.trim().isEmpty() || "deadline".equals(sort)){
             queryWrapper.orderByAsc(Tickets::getResponseDeadline);
-        } else if (handlerTicketPageDto.getSort().equals("priority")) {
+        } else if ("priority".equals(sort)) {
             queryWrapper.orderByDesc(Tickets::getPriority);
-        } else if (handlerTicketPageDto.getSort().equals("createdAt")) {
+        } else if ("createdAt".equals(sort)) {
             queryWrapper.orderByDesc(Tickets::getCreatedAt);
         }
 

@@ -16,6 +16,7 @@ import java.util.List;
 @Data
 public class CreateTicketDto {
     @NotBlank(message = "标题不能为空")
+    @Size(min = 3, max = 100, message = "标题长度不能超过 100")
     private String title;
     private String description;
     private Long categoryId;

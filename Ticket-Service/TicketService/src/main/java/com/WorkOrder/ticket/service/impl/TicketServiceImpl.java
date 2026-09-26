@@ -409,6 +409,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
      * @return 工单响应对象
      */
     @Override
+    @Transactional
     public TicketResponse confirmTicket(Long ticketId, Long userId) {
         Tickets ticket = ticketMapper.selectById(ticketId);
         if (ticket == null) {
@@ -422,6 +423,17 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             int update = ticketMapper.updateById(ticket);
             if(update < 1)
                 throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+
+            TicketStatusHistory history = new TicketStatusHistory();
+            history.setTicketId(ticketId);
+            history.setFromStatus(TicketStatusEnum.RESOLVED.name());
+            history.setToStatus(TicketStatusEnum.CLOSED.name());
+            history.setEvent("CONFIRM_RESOLUTION");
+            history.setOperatorId(userId);
+            history.setRemark("确认解决并关闭工单");
+            if (ticketStatusHistoryMapper.insert(history) != 1) {
+                throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+            }
             // todo 确认后用消息模块通知处理人handler
         }
         return withAttachmentUrls(TicketConverter.toResponse(ticket), ticket.getId());
