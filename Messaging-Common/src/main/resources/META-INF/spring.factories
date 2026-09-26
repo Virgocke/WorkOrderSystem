@@ -1,0 +1,5 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.WorkOrder.messaging.config.MessagingAutoConfiguration
+
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.WorkOrder.messaging.config.RocketMqPropertyBridgeEnvironmentPostProcessor

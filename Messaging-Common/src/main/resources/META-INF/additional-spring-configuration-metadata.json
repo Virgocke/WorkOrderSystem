@@ -1,0 +1,86 @@
+{
+  "groups": [
+    {
+      "name": "work-order.messaging",
+      "type": "com.WorkOrder.messaging.config.MessagingProperties",
+      "description": "智能工单消息底座配置。"
+    },
+    {
+      "name": "work-order.messaging.outbox",
+      "type": "com.WorkOrder.messaging.config.MessagingProperties$Outbox",
+      "description": "事务性 Outbox Relay 配置。"
+    }
+  ],
+  "properties": [
+    {
+      "name": "work-order.messaging.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "是否启用消息底座自动配置。"
+    },
+    {
+      "name": "work-order.messaging.producer-group",
+      "type": "java.lang.String",
+      "description": "RocketMQ 生产组；自动映射到 rocketmq.producer.group。"
+    },
+    {
+      "name": "work-order.messaging.name-server",
+      "type": "java.lang.String",
+      "defaultValue": "localhost:9876",
+      "description": "RocketMQ NameServer；自动映射到 rocketmq.name-server。"
+    },
+    {
+      "name": "work-order.messaging.send-timeout-ms",
+      "type": "java.lang.Integer",
+      "defaultValue": 5000,
+      "description": "同步发送超时时间。"
+    },
+    {
+      "name": "work-order.messaging.ordered",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否按 aggregateId 选择队列进行顺序发送。"
+    },
+    {
+      "name": "work-order.messaging.outbox.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "是否启用 Outbox Relay 和恢复任务。"
+    },
+    {
+      "name": "work-order.messaging.outbox.source-service",
+      "type": "java.lang.String",
+      "description": "当前生产服务标识，只扫描该服务的 Outbox 记录。"
+    },
+    {
+      "name": "work-order.messaging.outbox.poll-interval-ms",
+      "type": "java.lang.Long",
+      "defaultValue": 1000,
+      "description": "Outbox 轮询间隔。"
+    },
+    {
+      "name": "work-order.messaging.outbox.batch-size",
+      "type": "java.lang.Integer",
+      "defaultValue": 50,
+      "description": "单次认领记录数。"
+    },
+    {
+      "name": "work-order.messaging.outbox.sending-timeout-seconds",
+      "type": "java.lang.Integer",
+      "defaultValue": 120,
+      "description": "SENDING 锁超时秒数。"
+    },
+    {
+      "name": "work-order.messaging.outbox.recovery-interval-ms",
+      "type": "java.lang.Integer",
+      "defaultValue": 30000,
+      "description": "超时发送记录恢复任务间隔。"
+    },
+    {
+      "name": "work-order.messaging.outbox.max-retries",
+      "type": "java.lang.Integer",
+      "defaultValue": 12,
+      "description": "进入 DEAD 前允许的最大发送失败次数。"
+    }
+  ]
+}
