@@ -14,6 +14,7 @@ import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
 import com.WorkOrder.ticket.mapper.TicketMapper;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
+import com.WorkOrder.ticket.messaging.TicketRepliedEventPublisher;
 import com.WorkOrder.ticket.model.*;
 import com.WorkOrder.ticket.service.TicketService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -62,6 +63,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final TicketOperationLogMapper ticketOperationLogMapper;
     private final AttachmentMapper attachmentMapper;
     private final AttachmentService attachmentService;
+    private final TicketRepliedEventPublisher ticketRepliedEventPublisher;
 
 
     /**
@@ -280,11 +282,13 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         }
 
         // 创建工单操作日志
+        LocalDateTime repliedAt = LocalDateTime.now();
         TicketOperationLog log = new TicketOperationLog();
         log.setTicketId(ticketId);
         log.setAction(action);
         log.setOperatorId(userId);
         log.setOperatorRole(operatorRole);
+        log.setCreatedAt(repliedAt);
 
         String content = "";
         if (ticketReplyDto.getContent() != null){
@@ -308,17 +312,14 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         );
 
 
-
-
-        //todo 发送通知，通知模块还没实现
-//        if (receiverId != null) {
-//            notificationService.send(
-//                    receiverId,
-//                    "工单有新回复",
-//                    ticketReplyDto.getContent()
-//            );
-//        }
-
+        // 与回复日志和附件绑定处于同一事务；Outbox 写入失败时整笔回复回滚。
+        ticketRepliedEventPublisher.publish(
+                ticket,
+                log,
+                receiverId,
+                repliedAt,
+                attachmentIds.size()
+        );
 
         return true;
     }
@@ -421,8 +422,9 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             ticket.setStatus(TicketStatusEnum.CLOSED.name());
             ticket.setClosedAt(LocalDateTime.now());
             int update = ticketMapper.updateById(ticket);
-            if(update < 1)
+            if (update < 1) {
                 throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+            }
 
             TicketStatusHistory history = new TicketStatusHistory();
             history.setTicketId(ticketId);

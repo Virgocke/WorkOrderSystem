@@ -31,8 +31,8 @@ work-order:
     enabled: ${WORK_ORDER_MESSAGING_ENABLED:true}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
     ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
-    ticket-assigned:
-      consumer-group: ${ROCKETMQ_TICKET_ASSIGNED_CONSUMER_GROUP:notification-ticket-event-v1}
-      selector-expression: ASSIGNED
+    ticket-events:
+      consumer-group: ${ROCKETMQ_TICKET_EVENT_CONSUMER_GROUP:notification-ticket-event-v1}
+      selector-expression: ASSIGNED || REPLIED
     consumer:
       max-reconsume-times: 16

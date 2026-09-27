@@ -134,7 +134,6 @@ public class MessagingAutoConfiguration {
          * @return Outbox Relay
          */
         @Bean
-        @ConditionalOnBean(OutboxMessageSender.class)
         OutboxRelay outboxRelay(OutboxMapper outboxMapper, OutboxMessageSender messageSender,
                                 MessagingProperties properties) {
             return new OutboxRelay(outboxMapper, messageSender, properties);
