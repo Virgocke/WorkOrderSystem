@@ -12,6 +12,9 @@ import java.time.LocalDateTime;
 public class Notifications {
 
     private Long id;
+    /** 生成该通知的领域事件 ID，与接收人和渠道共同构成业务幂等键。 */
+    @TableField("source_event_id")
+    private String sourceEventId;
     private Long ticketId;
     private Long receiverId;
     private String channel;

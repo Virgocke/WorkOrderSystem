@@ -12,7 +12,6 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication
 @EnableFeignClients
 public class NotificationApplication {
-    //todo 接入 RocketMQ 消息消费、通知记录生成及站内信/邮件/短信等渠道投递。
     public static void main(String[] args) {
         SpringApplication.run(NotificationApplication.class, args);
     }

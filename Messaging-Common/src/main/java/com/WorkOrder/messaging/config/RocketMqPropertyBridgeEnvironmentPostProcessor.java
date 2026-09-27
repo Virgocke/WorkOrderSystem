@@ -27,6 +27,9 @@ public class RocketMqPropertyBridgeEnvironmentPostProcessor
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment,
                                        SpringApplication application) {
+        if (!environment.getProperty("work-order.messaging.enabled", Boolean.class, false)) {
+            return;
+        }
         Map<String, Object> bridged = new LinkedHashMap<>();
         bridge(environment, bridged, "work-order.messaging.name-server", "rocketmq.name-server");
         bridge(environment, bridged, "work-order.messaging.producer-group", "rocketmq.producer.group");

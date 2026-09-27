@@ -48,6 +48,7 @@
 
 ```powershell
 mysql -u root -p < sql/work_order_system_schema.sql
+mysql -u root -p WorkOrderSystem < sql/work_order_system_add_messaging.sql
 mysql -u root -p WorkOrderSystem < sql/work_order_system_seed.sql
 ```
 
@@ -62,6 +63,7 @@ mysql -u root -p WorkOrderSystem < sql/work_order_system_seed.sql
 | `sql/work_order_system_add_skill_applications.sql` | 技能调整申请 |
 | `sql/work_order_system_add_unique_phone.sql` | 手机号唯一约束 |
 | `sql/work_order_system_rbac.sql` | RBAC 角色与权限数据 |
+| `sql/work_order_system_add_messaging.sql` | RocketMQ Outbox、消费幂等日志与通知来源事件唯一约束 |
 
 ### 3. 配置本地环境
 

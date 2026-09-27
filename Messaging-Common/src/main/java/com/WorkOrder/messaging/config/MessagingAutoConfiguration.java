@@ -33,7 +33,9 @@ import javax.sql.DataSource;
 @ConditionalOnBean(DataSource.class)
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(MessagingProperties.class)
-@AutoConfigureAfter({DataSourceAutoConfiguration.class, JacksonAutoConfiguration.class})
+@AutoConfigureAfter(
+        value = {DataSourceAutoConfiguration.class, JacksonAutoConfiguration.class},
+        name = "org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration")
 public class MessagingAutoConfiguration {
 
     /**

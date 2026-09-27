@@ -40,3 +40,13 @@ security:
 
 mybatis-plus:
   mapper-locations: classpath*:*Mapper.xml
+
+work-order:
+  messaging:
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:true}
+    name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+    producer-group: ${ROCKETMQ_PRODUCER_GROUP:ticket-service-producer}
+    ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
+    outbox:
+      enabled: ${WORK_ORDER_OUTBOX_ENABLED:true}
+      source-service: ticket-service

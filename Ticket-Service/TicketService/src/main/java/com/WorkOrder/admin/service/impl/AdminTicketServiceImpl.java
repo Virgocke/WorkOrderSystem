@@ -20,6 +20,7 @@ import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
+import com.WorkOrder.ticket.messaging.TicketAssignedEventPublisher;
 import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -51,6 +52,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
     private final TicketResponseAttachmentEnricher ticketResponseAttachmentEnricher;
+    private final TicketAssignedEventPublisher ticketAssignedEventPublisher;
     
     @Override
     @Transactional
@@ -331,8 +333,10 @@ public class AdminTicketServiceImpl implements AdminTicketService {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
+        // 与工单、分配记录和审计记录处于同一事务；Outbox 写入失败时整笔派单回滚。
+        ticketAssignedEventPublisher.publish(ticket, handlerId, operatorId, assignedAt, reason);
+
         //todo 接入用户服务的处理人负载维护，按新旧处理人及工单状态更新在办工单数。
-        //todo 接入 Notification-Service，在事务提交后通知新处理人，避免回滚后发送通知。
     }
 
     @Override
