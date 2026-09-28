@@ -31,6 +31,14 @@ public interface TicketMapper extends BaseMapper<Tickets> {
     int incrementRemindCount(@Param("ticketId") Long ticketId, @Param("userId") Long userId);
 
     /**
+     * 查询当前启用的管理员 ID，作为催办通知接收人快照的一部分。
+     *
+     * @return 按用户 ID 升序排列的启用管理员 ID
+     */
+    @Select("SELECT id FROM users WHERE role = 2 AND status = 1 ORDER BY id")
+    List<Long> selectActiveAdminIds();
+
+    /**
      * 查询当前用户的工单历史统计。
      *
      * @param userId 当前用户ID

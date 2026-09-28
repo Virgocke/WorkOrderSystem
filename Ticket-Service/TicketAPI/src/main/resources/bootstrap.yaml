@@ -43,7 +43,7 @@ mybatis-plus:
 
 work-order:
   messaging:
-    enabled: ${WORK_ORDER_MESSAGING_ENABLED:true}
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
     producer-group: ${ROCKETMQ_PRODUCER_GROUP:ticket-service-producer}
     ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}

@@ -3,3 +3,6 @@ com.WorkOrder.messaging.config.MessagingAutoConfiguration
 
 org.springframework.boot.env.EnvironmentPostProcessor=\
 com.WorkOrder.messaging.config.RocketMqPropertyBridgeEnvironmentPostProcessor
+
+org.springframework.context.ApplicationContextInitializer=\
+com.WorkOrder.messaging.config.RocketMqPropertyBridgeEnvironmentPostProcessor

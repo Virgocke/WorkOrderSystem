@@ -28,11 +28,11 @@ security:
 
 work-order:
   messaging:
-    enabled: ${WORK_ORDER_MESSAGING_ENABLED:true}
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
     ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
     ticket-events:
       consumer-group: ${ROCKETMQ_TICKET_EVENT_CONSUMER_GROUP:notification-ticket-event-v1}
-      selector-expression: ASSIGNED || REPLIED
+      selector-expression: ASSIGNED || REPLIED || REMINDED
     consumer:
       max-reconsume-times: 16

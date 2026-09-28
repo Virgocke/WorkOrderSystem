@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 @RocketMQMessageListener(
         consumerGroup = "${work-order.messaging.ticket-events.consumer-group:notification-ticket-event-v1}",
         topic = "${work-order.messaging.ticket-topic:wo-ticket-event}",
-        selectorExpression = "${work-order.messaging.ticket-events.selector-expression:ASSIGNED || REPLIED}",
+        selectorExpression = "${work-order.messaging.ticket-events.selector-expression:ASSIGNED || REPLIED || REMINDED}",
         consumeMode = ConsumeMode.CONCURRENTLY,
         maxReconsumeTimes = 16
 )
@@ -29,12 +29,14 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
     static final String DEFAULT_TOPIC = "wo-ticket-event";
     static final String ASSIGNED_TAG = "ASSIGNED";
     static final String REPLIED_TAG = "REPLIED";
+    static final String REMINDED_TAG = "REMINDED";
 
     private static final Pattern EVENT_ID_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
 
     private final IdempotentConsumerExecutor idempotentConsumerExecutor;
     private final TicketAssignedNotificationHandler assignedHandler;
     private final TicketRepliedNotificationHandler repliedHandler;
+    private final TicketRemindedNotificationHandler remindedHandler;
     private final String consumerGroup;
     private final String topic;
 
@@ -44,6 +46,7 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
      * @param idempotentConsumerExecutor 幂等消费事务执行器
      * @param assignedHandler 派单通知处理器
      * @param repliedHandler 回复通知处理器
+     * @param remindedHandler 催办通知处理器
      * @param consumerGroup 通知服务消费组
      * @param topic 工单事件 Topic
      */
@@ -51,12 +54,14 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
             IdempotentConsumerExecutor idempotentConsumerExecutor,
             TicketAssignedNotificationHandler assignedHandler,
             TicketRepliedNotificationHandler repliedHandler,
+            TicketRemindedNotificationHandler remindedHandler,
             @Value("${work-order.messaging.ticket-events.consumer-group:notification-ticket-event-v1}")
                     String consumerGroup,
             @Value("${work-order.messaging.ticket-topic:wo-ticket-event}") String topic) {
         this.idempotentConsumerExecutor = idempotentConsumerExecutor;
         this.assignedHandler = assignedHandler;
         this.repliedHandler = repliedHandler;
+        this.remindedHandler = remindedHandler;
         this.consumerGroup = consumerGroup;
         this.topic = topic;
     }
@@ -94,6 +99,10 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
             repliedHandler.handle(event);
             return;
         }
+        if (EventType.TICKET_REMINDED.name().equals(event.getEventType())) {
+            remindedHandler.handle(event);
+            return;
+        }
         throw new IllegalArgumentException("不支持的工单通知事件：" + event.getEventType());
     }
 
@@ -109,6 +118,9 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
         }
         if (EventType.TICKET_REPLIED.name().equals(event.getEventType())) {
             return REPLIED_TAG;
+        }
+        if (EventType.TICKET_REMINDED.name().equals(event.getEventType())) {
+            return REMINDED_TAG;
         }
         throw new IllegalArgumentException("不支持的工单通知事件：" + event.getEventType());
     }

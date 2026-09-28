@@ -14,6 +14,7 @@ import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
 import com.WorkOrder.ticket.mapper.TicketMapper;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
+import com.WorkOrder.ticket.messaging.TicketRemindedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketRepliedEventPublisher;
 import com.WorkOrder.ticket.model.*;
 import com.WorkOrder.ticket.service.TicketService;
@@ -48,6 +49,13 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private static final List<String> SLA_STATUSES = Collections.unmodifiableList(Arrays.asList(
             "NORMAL", "NEAR_TIMEOUT", "TIMEOUT", "ESCALATED"));
 
+    /** 仍处于处理链路、允许用户催办的工单状态。 */
+    private static final Set<String> REMINDABLE_STATUSES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(
+                    TicketStatusEnum.PENDING_ASSIGN.name(),
+                    TicketStatusEnum.PENDING_RESPONSE.name(),
+                    TicketStatusEnum.PROCESSING.name())));
+
     /**
      * SLA板排序
      */
@@ -64,6 +72,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final AttachmentMapper attachmentMapper;
     private final AttachmentService attachmentService;
     private final TicketRepliedEventPublisher ticketRepliedEventPublisher;
+    private final TicketRemindedEventPublisher ticketRemindedEventPublisher;
 
 
     /**
@@ -331,29 +340,24 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
       * @return 是否成功
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean ticketExpedite(Long ticketId, Long userId, String clientIp) {
         Tickets ticket = ticketMapper.selectById(ticketId);
-        if (ticket == null) {
-            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
-        }
-        if (!Objects.equals(ticket.getCreatorId(), userId)) {
-            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
-        }
-        if (ticket.getRemindCount() >= 3) {
-            throw new SystemException(SystemExceptionEnum.TICKET_ALREADY_ESCALATED);
-        }
+        validateReminderRequest(ticket, userId);
 
         if (ticketMapper.incrementRemindCount(ticketId, userId) != 1) {
-            // 并发请求可能已用完最后一次催办机会，重新查询以返回准确的错误。
+            // 状态、权限或次数可能在并发请求中变化，重新查询以返回准确错误。
             Tickets latestTicket = ticketMapper.selectById(ticketId);
-            if (latestTicket == null) {
-                throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
-            }
-            if (latestTicket.getRemindCount() >= 3) {
-                throw new SystemException(SystemExceptionEnum.TICKET_ALREADY_ESCALATED);
-            }
+            validateReminderRequest(latestTicket, userId);
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
+
+        // UPDATE 持有该工单行锁直到事务结束；此处读取的是本次原子累加后的稳定快照。
+        Tickets remindedTicket = ticketMapper.selectById(ticketId);
+        if (remindedTicket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+        LocalDateTime remindedAt = LocalDateTime.now();
 
         // 创建工单操作日志
         TicketOperationLog log = new TicketOperationLog();
@@ -363,6 +367,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         log.setOperatorRole("USER");
         log.setContent("用户催办工单");
         log.setIpAddress(clientIp);
+        log.setCreatedAt(remindedAt);
 
         // 插入工单操作日志
         int insert = ticketOperationLogMapper.insert(log);
@@ -370,8 +375,52 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
 
-        //todo 操作日志及消息通知待接入；催办不修改升级级别或 SLA 状态。
+        LinkedHashSet<Long> receiverIds = new LinkedHashSet<>();
+        if (remindedTicket.getHandlerId() != null
+                && !Objects.equals(remindedTicket.getHandlerId(), userId)) {
+            receiverIds.add(remindedTicket.getHandlerId());
+        }
+        List<Long> activeAdminIds = ticketMapper.selectActiveAdminIds();
+        if (activeAdminIds != null) {
+            activeAdminIds.stream()
+                    .filter(Objects::nonNull)
+                    .filter(receiverId -> !Objects.equals(receiverId, userId))
+                    .forEach(receiverIds::add);
+        }
+
+        // 与次数更新及操作日志处于同一事务；Outbox 写入失败时整笔催办回滚。
+        ticketRemindedEventPublisher.publish(
+                remindedTicket,
+                log,
+                remindedTicket.getRemindCount(),
+                remindedAt,
+                receiverIds
+        );
+
+        // 催办不修改工单状态、升级级别或 SLA 状态。
         return true;
+    }
+
+    /**
+     * 校验催办权限、业务状态和次数上限。
+     * 待用户确认、已关闭和已撤销工单均不允许催办。
+     *
+     * @param ticket 当前工单快照
+     * @param userId 催办用户 ID
+     */
+    private void validateReminderRequest(Tickets ticket, Long userId) {
+        if (ticket == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+        if (!Objects.equals(ticket.getCreatorId(), userId)) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+        if (!REMINDABLE_STATUSES.contains(ticket.getStatus())) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
+        }
+        if (ticket.getRemindCount() >= 3) {
+            throw new SystemException(SystemExceptionEnum.TICKET_ALREADY_ESCALATED);
+        }
     }
 
     /**

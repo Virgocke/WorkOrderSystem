@@ -2,6 +2,8 @@ package com.WorkOrder.messaging.config;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
@@ -10,11 +12,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 将项目统一配置映射到 RocketMQ Spring Starter 的原生配置名。
+ * 在环境准备和应用上下文初始化两个阶段，将项目统一配置映射到
+ * RocketMQ Spring Starter 的原生配置名。
+ * {@code bootstrap.yaml} 可能晚于环境后处理器加载，因此上下文初始化阶段会再次桥接。
  * 显式配置的 rocketmq.* 始终拥有更高优先级。
  */
 public class RocketMqPropertyBridgeEnvironmentPostProcessor
-        implements EnvironmentPostProcessor, Ordered {
+        implements EnvironmentPostProcessor,
+        ApplicationContextInitializer<ConfigurableApplicationContext>, Ordered {
     private static final String PROPERTY_SOURCE_NAME = "workOrderRocketMqPropertyBridge";
 
     /**
@@ -27,6 +32,25 @@ public class RocketMqPropertyBridgeEnvironmentPostProcessor
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment,
                                        SpringApplication application) {
+        bridgeProperties(environment);
+    }
+
+    /**
+     * 在 Spring Cloud Bootstrap 属性已经加入主应用环境后再次执行桥接。
+     *
+     * @param applicationContext 即将刷新的主应用上下文
+     */
+    @Override
+    public void initialize(ConfigurableApplicationContext applicationContext) {
+        bridgeProperties(applicationContext.getEnvironment());
+    }
+
+    /**
+     * 将已启用的统一消息配置复制为 RocketMQ Starter 原生配置。
+     *
+     * @param environment 当前应用环境
+     */
+    private void bridgeProperties(ConfigurableEnvironment environment) {
         if (!environment.getProperty("work-order.messaging.enabled", Boolean.class, false)) {
             return;
         }

@@ -5,13 +5,14 @@
 
 <mapper namespace="com.WorkOrder.ticket.mapper.TicketMapper">
 
-    <!-- 同一条 SQL 中检查上限并累加，防止并发催办丢失次数或超过 3 次。 -->
+    <!-- 同一条 SQL 中检查权限、状态和上限，防止并发催办越权、越界或作用于已解决工单。 -->
     <update id="incrementRemindCount">
         UPDATE tickets
         SET remind_count = remind_count + 1
         WHERE id = #{ticketId}
           AND creator_id = #{userId}
           AND remind_count &lt; 3
+          AND status IN ('PENDING_ASSIGN', 'PENDING_RESPONSE', 'PROCESSING')
     </update>
 
     <!-- SLA 看板一次补齐当页工单的创建人和处理人名称，避免逐条查询。 -->

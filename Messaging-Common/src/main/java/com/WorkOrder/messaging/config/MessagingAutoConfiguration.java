@@ -104,10 +104,12 @@ public class MessagingAutoConfiguration {
 
     @Configuration
     @ConditionalOnClass(RocketMQTemplate.class)
-    @ConditionalOnBean(RocketMQTemplate.class)
+    @ConditionalOnProperty(prefix = "work-order.messaging.outbox", name = "enabled", havingValue = "true")
     static class RocketMqSenderConfiguration {
         /**
-         * 在没有自定义发送端口时创建 RocketMQTemplate 适配器。
+         * 在 Outbox 启用且没有自定义发送端口时创建 RocketMQTemplate 适配器。
+         * RocketMQTemplate 在方法参数注入阶段解析，避免嵌套配置的
+         * ConditionalOnBean 早于 RocketMQAutoConfiguration 注册 Bean 定义。
          *
          * @param rocketMQTemplate RocketMQ Spring 发送模板
          * @param properties 消息配置
