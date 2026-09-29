@@ -21,6 +21,7 @@ import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
+import com.WorkOrder.ticket.messaging.TicketTransferredEventPublisher;
 import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -31,8 +32,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -44,6 +49,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HandlerTicketServiceImpl implements HandlerTicketService {
 
+    private static final Set<String> TRANSFERABLE_STATUSES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(
+                    TicketStatusEnum.PENDING_RESPONSE.name(),
+                    TicketStatusEnum.PROCESSING.name())));
+
     private final HandlerProfileMapper handlerProfileMapper;
     private final TicketMapper ticketMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
@@ -51,6 +61,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
     private final AssignmentRecordMapper assignmentRecordMapper;
     private final UserFeignClient userFeignClient;
     private final TicketResponseAttachmentEnricher ticketResponseAttachmentEnricher;
+    private final TicketTransferredEventPublisher ticketTransferredEventPublisher;
 
     /**
      * 获取处理人工单列表
@@ -241,7 +252,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse transferTicketToOtherHandler(
             Long ticketId,
             TransferTicketDto transferTicketDto,
@@ -260,10 +271,21 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
 
+        if (!TRANSFERABLE_STATUSES.contains(ticket.getStatus()) || ticket.getHandlerId() == null) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
+        }
+
+        if (transferTicketDto == null || transferTicketDto.getToHandlerId() == null
+                || transferTicketDto.getReason() == null
+                || transferTicketDto.getReason().trim().isEmpty()) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        String transferReason = transferTicketDto.getReason().trim();
+
         // 取出旧处理人ID
         Long oldHandlerId = ticket.getHandlerId();
         // 如果旧处理人ID与新处理人ID相同，则抛出异常
-        if (oldHandlerId.equals(transferTicketDto.getToHandlerId())){
+        if (Objects.equals(oldHandlerId, transferTicketDto.getToHandlerId())){
             throw new SystemException(SystemExceptionEnum.TICKET_TRANSFER_SAME_HANDLER);
         }
 
@@ -278,18 +300,19 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.ACCOUNT_DISABLED);
         }
 
-        // 设置新的处理人ID
+        LocalDateTime transferredAt = LocalDateTime.now();
+
+        // 设置新的处理人ID，转派不改变工单状态和既有 SLA 截止时间。
         ticket.setHandlerId(transferTicketDto.getToHandlerId());
-        ticket.setAssignedAt(LocalDateTime.now());
+        ticket.setAssignedAt(transferredAt);
 
         int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
                 .eq(Tickets::getId, ticketId)
-                // 只有当前处理人或管理员才能转交工单
+                // 同时核对旧处理人与原状态，避免并发转派或状态流转被覆盖。
                 .eq(Tickets::getHandlerId, oldHandlerId)
-                // 如果不是管理员，则需要检查处理人ID
-                .eq(!isAdmin, Tickets::getHandlerId, operatorId)
+                .eq(Tickets::getStatus, ticket.getStatus())
                 .set(Tickets::getHandlerId,transferTicketDto.getToHandlerId())
-                .set(Tickets::getAssignedAt, ticket.getAssignedAt()));
+                .set(Tickets::getAssignedAt, transferredAt));
 
         // 失败则抛出异常
         if (update != 1) {
@@ -301,7 +324,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 saveTicketStatusHistory(ticket,
                         ticket.getStatus(),
                         operatorId,
-                        transferTicketDto.getReason(),
+                        transferReason,
                         "TRANSFER");
 
         if (!saveTicketStatusHistory){
@@ -309,13 +332,14 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
 
         // 与工单状态、状态历史在同一事务中保存操作日志。
-        if (!saveTicketOperationLog(
+        TicketOperationLog transferLog = saveTicketOperationLogAndReturn(
                 ticket,
                 "TRANSFER",
                 operatorId,
                 operatorRole,
                 clientIp,
-                "转交工单")) {
+                "转交工单");
+        if (transferLog == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
@@ -340,7 +364,16 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
 
-        //todo 转交后要用消息模块通知被转交人
+        // 与处理人更新、审计记录和分配记录在同一事务中写入 Outbox。
+        ticketTransferredEventPublisher.publish(
+                ticket,
+                oldHandlerId,
+                operatorId,
+                operatorRole,
+                transferredAt,
+                transferReason,
+                transferLog,
+                assignmentRecord);
 
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
@@ -513,6 +546,28 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             String operatorRole,
             String clientIp,
             String content) {
+        return saveTicketOperationLogAndReturn(
+                ticket, action, operatorId, operatorRole, clientIp, content) != null;
+    }
+
+    /**
+     * 保存工单操作日志并返回已持久化实体，供领域事件关联审计记录。
+     *
+     * @param ticket 工单
+     * @param action 操作类型
+     * @param operatorId 操作人 ID
+     * @param operatorRole 操作人角色
+     * @param clientIp 客户端 IP
+     * @param content 日志内容
+     * @return 保存成功后的日志；写入失败时返回 null
+     */
+    private TicketOperationLog saveTicketOperationLogAndReturn(
+            Tickets ticket,
+            String action,
+            Long operatorId,
+            String operatorRole,
+            String clientIp,
+            String content) {
         TicketOperationLog ticketOperationLog = new TicketOperationLog();
         ticketOperationLog.setTicketId(ticket.getId());
         ticketOperationLog.setAction(action);
@@ -522,8 +577,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         ticketOperationLog.setContent(content);
         int insert = ticketOperationLogMapper.insert(ticketOperationLog);
         if (insert != 1) {
-            return false;
+            return null;
         }
-        return true;
+        return ticketOperationLog;
     }
 }

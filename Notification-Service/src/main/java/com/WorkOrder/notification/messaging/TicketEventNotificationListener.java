@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 @RocketMQMessageListener(
         consumerGroup = "${work-order.messaging.ticket-events.consumer-group:notification-ticket-event-v1}",
         topic = "${work-order.messaging.ticket-topic:wo-ticket-event}",
-        selectorExpression = "${work-order.messaging.ticket-events.selector-expression:ASSIGNED || REPLIED || REMINDED}",
+        selectorExpression = "${work-order.messaging.ticket-events.selector-expression:ASSIGNED || REPLIED || REMINDED || TRANSFERRED}",
         consumeMode = ConsumeMode.CONCURRENTLY,
         maxReconsumeTimes = 16
 )
@@ -30,6 +30,7 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
     static final String ASSIGNED_TAG = "ASSIGNED";
     static final String REPLIED_TAG = "REPLIED";
     static final String REMINDED_TAG = "REMINDED";
+    static final String TRANSFERRED_TAG = "TRANSFERRED";
 
     private static final Pattern EVENT_ID_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
 
@@ -37,6 +38,7 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
     private final TicketAssignedNotificationHandler assignedHandler;
     private final TicketRepliedNotificationHandler repliedHandler;
     private final TicketRemindedNotificationHandler remindedHandler;
+    private final TicketTransferredNotificationHandler transferredHandler;
     private final String consumerGroup;
     private final String topic;
 
@@ -47,6 +49,7 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
      * @param assignedHandler 派单通知处理器
      * @param repliedHandler 回复通知处理器
      * @param remindedHandler 催办通知处理器
+     * @param transferredHandler 转派通知处理器
      * @param consumerGroup 通知服务消费组
      * @param topic 工单事件 Topic
      */
@@ -55,6 +58,7 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
             TicketAssignedNotificationHandler assignedHandler,
             TicketRepliedNotificationHandler repliedHandler,
             TicketRemindedNotificationHandler remindedHandler,
+            TicketTransferredNotificationHandler transferredHandler,
             @Value("${work-order.messaging.ticket-events.consumer-group:notification-ticket-event-v1}")
                     String consumerGroup,
             @Value("${work-order.messaging.ticket-topic:wo-ticket-event}") String topic) {
@@ -62,6 +66,7 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
         this.assignedHandler = assignedHandler;
         this.repliedHandler = repliedHandler;
         this.remindedHandler = remindedHandler;
+        this.transferredHandler = transferredHandler;
         this.consumerGroup = consumerGroup;
         this.topic = topic;
     }
@@ -103,6 +108,10 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
             remindedHandler.handle(event);
             return;
         }
+        if (EventType.TICKET_TRANSFERRED.name().equals(event.getEventType())) {
+            transferredHandler.handle(event);
+            return;
+        }
         throw new IllegalArgumentException("不支持的工单通知事件：" + event.getEventType());
     }
 
@@ -121,6 +130,9 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
         }
         if (EventType.TICKET_REMINDED.name().equals(event.getEventType())) {
             return REMINDED_TAG;
+        }
+        if (EventType.TICKET_TRANSFERRED.name().equals(event.getEventType())) {
+            return TRANSFERRED_TAG;
         }
         throw new IllegalArgumentException("不支持的工单通知事件：" + event.getEventType());
     }

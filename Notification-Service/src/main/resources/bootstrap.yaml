@@ -33,6 +33,6 @@ work-order:
     ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
     ticket-events:
       consumer-group: ${ROCKETMQ_TICKET_EVENT_CONSUMER_GROUP:notification-ticket-event-v1}
-      selector-expression: ASSIGNED || REPLIED || REMINDED
+      selector-expression: ASSIGNED || REPLIED || REMINDED || TRANSFERRED
     consumer:
       max-reconsume-times: 16
