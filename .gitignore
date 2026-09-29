@@ -39,3 +39,17 @@ build/
 ### Mac OS ###
 .DS_Store
 /.idea/
+/Notification-Service/src/test/
+/Assign-Engine/src/test/
+/Authentication/src/test/
+/Messaging-Common/src/test/
+/Search-Service/src/test/
+/Security-Common/src/test/
+/Sla-Monitor/src/test/
+/Ticket-Event-Contract/src/test/
+/Ticket-Service/TicketAPI/src/test/
+/Ticket-Service/TicketModel/src/test/
+/Ticket-Service/TicketService/src/test/
+/User-Service/UserAPI/src/test/
+/User-Service/UserModel/src/test/
+/User-Service/UserService/src/test/

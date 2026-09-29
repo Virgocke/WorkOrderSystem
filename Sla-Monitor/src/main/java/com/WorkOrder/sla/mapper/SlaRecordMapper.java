@@ -45,4 +45,18 @@ public interface SlaRecordMapper extends BaseMapper<SlaRecord> {
                          @Param("responseDeadline") LocalDateTime responseDeadline,
                          @Param("resolutionDeadline") LocalDateTime resolutionDeadline,
                          @Param("resolvedAt") LocalDateTime resolvedAt);
+
+    /** 记录首次终态及时间；乱序解决或升级事件不能恢复已终止的 SLA。 */
+    @Insert("INSERT INTO sla_records "
+            + "(ticket_id, response_deadline, resolution_deadline, terminal_status, terminal_at) "
+            + "VALUES (#{ticketId}, #{responseDeadline}, #{resolutionDeadline}, "
+            + "#{terminalStatus}, #{terminalAt}) "
+            + "ON DUPLICATE KEY UPDATE "
+            + "terminal_status = COALESCE(terminal_status, VALUES(terminal_status)), "
+            + "terminal_at = COALESCE(terminal_at, VALUES(terminal_at))")
+    int upsertTerminal(@Param("ticketId") long ticketId,
+                       @Param("responseDeadline") LocalDateTime responseDeadline,
+                       @Param("resolutionDeadline") LocalDateTime resolutionDeadline,
+                       @Param("terminalStatus") String terminalStatus,
+                       @Param("terminalAt") LocalDateTime terminalAt);
 }

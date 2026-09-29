@@ -16,9 +16,11 @@ import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
 import com.WorkOrder.ticket.messaging.TicketRemindedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketRepliedEventPublisher;
+import com.WorkOrder.ticket.messaging.TicketTerminalEventPublisher;
 import com.WorkOrder.ticket.model.*;
 import com.WorkOrder.ticket.service.TicketService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -73,6 +75,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final AttachmentService attachmentService;
     private final TicketRepliedEventPublisher ticketRepliedEventPublisher;
     private final TicketRemindedEventPublisher ticketRemindedEventPublisher;
+    /** 关闭和撤销工单事件的事务内发布器。 */
+    private final TicketTerminalEventPublisher ticketTerminalEventPublisher;
 
 
     /**
@@ -430,26 +434,44 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
      * @return 工单响应对象
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse cancelTicket(Long ticketId, Long userId) {
         Tickets ticket = ticketMapper.selectById(ticketId);
         if (ticket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
         String ticketStatus = ticket.getStatus();
-        if (
-                !ticketStatus.equals(TicketStatusEnum.PENDING_ASSIGN.name()) &&
-                !ticketStatus.equals(TicketStatusEnum.PENDING_RESPONSE.name()) &&
-                !ticketStatus.equals(TicketStatusEnum.PROCESSING.name())){
+        if (!TicketStatusEnum.PENDING_ASSIGN.name().equals(ticketStatus)
+                && !TicketStatusEnum.PENDING_RESPONSE.name().equals(ticketStatus)
+                && !TicketStatusEnum.PROCESSING.name().equals(ticketStatus)) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
-        } else {
-            ticket.setStatus(TicketStatusEnum.CANCELLED.name());
-            ticketMapper.updateById(ticket);
+        }
+        LocalDateTime cancelledAt = LocalDateTime.now();
+        int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
+                .eq(Tickets::getId, ticketId)
+                .eq(Tickets::getStatus, ticketStatus)
+                .set(Tickets::getStatus, TicketStatusEnum.CANCELLED.name()));
+        if (update != 1) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+        ticket.setStatus(TicketStatusEnum.CANCELLED.name());
+
+        TicketStatusHistory history = new TicketStatusHistory();
+        history.setTicketId(ticketId);
+        history.setFromStatus(ticketStatus);
+        history.setToStatus(TicketStatusEnum.CANCELLED.name());
+        history.setEvent("CANCEL");
+        history.setOperatorId(userId);
+        history.setRemark("撤销工单");
+        history.setCreatedAt(cancelledAt);
+        if (ticketStatusHistoryMapper.insert(history) != 1) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
-        TicketResponse ticketResponse = withAttachmentUrls(
-                TicketConverter.toResponse(ticket), ticket.getId());
+        // 工单状态、历史和 Outbox 同事务提交，发布失败时整体回滚。
+        ticketTerminalEventPublisher.publishCancelled(ticket, ticketStatus, userId, cancelledAt);
 
-        return ticketResponse;
+        return withAttachmentUrls(TicketConverter.toResponse(ticket), ticket.getId());
     }
 
     /**
@@ -459,34 +481,40 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
      * @return 工单响应对象
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse confirmTicket(Long ticketId, Long userId) {
         Tickets ticket = ticketMapper.selectById(ticketId);
         if (ticket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
-        if(!ticket.getStatus().equals(TicketStatusEnum.RESOLVED.name())){
+        if (!TicketStatusEnum.RESOLVED.name().equals(ticket.getStatus())) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
-        } else {
-            ticket.setStatus(TicketStatusEnum.CLOSED.name());
-            ticket.setClosedAt(LocalDateTime.now());
-            int update = ticketMapper.updateById(ticket);
-            if (update < 1) {
-                throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
-            }
-
-            TicketStatusHistory history = new TicketStatusHistory();
-            history.setTicketId(ticketId);
-            history.setFromStatus(TicketStatusEnum.RESOLVED.name());
-            history.setToStatus(TicketStatusEnum.CLOSED.name());
-            history.setEvent("CONFIRM_RESOLUTION");
-            history.setOperatorId(userId);
-            history.setRemark("确认解决并关闭工单");
-            if (ticketStatusHistoryMapper.insert(history) != 1) {
-                throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
-            }
-            // todo 确认后用消息模块通知处理人handler
         }
+        LocalDateTime closedAt = LocalDateTime.now();
+        int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
+                .eq(Tickets::getId, ticketId)
+                .eq(Tickets::getStatus, TicketStatusEnum.RESOLVED.name())
+                .set(Tickets::getStatus, TicketStatusEnum.CLOSED.name())
+                .set(Tickets::getClosedAt, closedAt));
+        if (update != 1) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+        ticket.setStatus(TicketStatusEnum.CLOSED.name());
+        ticket.setClosedAt(closedAt);
+
+        TicketStatusHistory history = new TicketStatusHistory();
+        history.setTicketId(ticketId);
+        history.setFromStatus(TicketStatusEnum.RESOLVED.name());
+        history.setToStatus(TicketStatusEnum.CLOSED.name());
+        history.setEvent("CONFIRM_RESOLUTION");
+        history.setOperatorId(userId);
+        history.setRemark("确认解决并关闭工单");
+        history.setCreatedAt(closedAt);
+        if (ticketStatusHistoryMapper.insert(history) != 1) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
+        // 工单状态、历史和 Outbox 同事务提交，发布失败时整体回滚。
+        ticketTerminalEventPublisher.publishClosed(ticket, userId);
         return withAttachmentUrls(TicketConverter.toResponse(ticket), ticket.getId());
     }
 

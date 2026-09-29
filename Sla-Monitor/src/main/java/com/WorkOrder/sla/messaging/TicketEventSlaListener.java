@@ -5,6 +5,8 @@ import com.WorkOrder.messaging.contract.EventType;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import com.WorkOrder.sla.mapper.SlaRecordMapper;
 import com.WorkOrder.ticket.contract.TicketEscalatedPayload;
+import com.WorkOrder.ticket.contract.TicketClosedPayload;
+import com.WorkOrder.ticket.contract.TicketCancelledPayload;
 import com.WorkOrder.ticket.contract.TicketResolvedPayload;
 import org.apache.rocketmq.spring.annotation.ConsumeMode;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -15,13 +17,13 @@ import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;
 
-/** 在同一 SLA 消费组内处理工单升级与解决事实。 */
+/** 在同一 SLA 消费组内处理工单升级、解决及终态事实。 */
 @Component
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 @RocketMQMessageListener(
         consumerGroup = "${work-order.messaging.sla-ticket-events.consumer-group:sla-ticket-event-v1}",
         topic = "${work-order.messaging.ticket-topic:wo-ticket-event}",
-        selectorExpression = "ESCALATED || RESOLVED",
+        selectorExpression = "ESCALATED || RESOLVED || CLOSED || CANCELLED",
         consumeMode = ConsumeMode.CONCURRENTLY,
         maxReconsumeTimes = 16
 )
@@ -38,7 +40,7 @@ public class TicketEventSlaListener implements RocketMQListener<WorkOrderEvent> 
     /** 当前工单事件 Topic。 */
     private final String topic;
 
-    /** 创建同组消费升级与解决事件的监听器。 */
+    /** 创建同组消费升级、解决与终态事件的监听器。 */
     public TicketEventSlaListener(
             IdempotentConsumerExecutor executor,
             SlaRecordMapper slaRecordMapper,
@@ -74,6 +76,24 @@ public class TicketEventSlaListener implements RocketMQListener<WorkOrderEvent> 
                             payload.getResponseDeadline().toLocalDateTime(),
                             payload.getResolutionDeadline().toLocalDateTime(),
                             payload.getResolvedAt().toLocalDateTime()));
+            return;
+        }
+        if (EventType.TICKET_CLOSED.name().equals(event.getEventType())) {
+            TicketClosedPayload payload = TicketClosedPayload.from(event);
+            executor.execute(consumerGroup, event, topic, "CLOSED", () ->
+                    slaRecordMapper.upsertTerminal(payload.getTicketId(),
+                            payload.getResponseDeadline().toLocalDateTime(),
+                            payload.getResolutionDeadline().toLocalDateTime(),
+                            "CLOSED", payload.getClosedAt().toLocalDateTime()));
+            return;
+        }
+        if (EventType.TICKET_CANCELLED.name().equals(event.getEventType())) {
+            TicketCancelledPayload payload = TicketCancelledPayload.from(event);
+            executor.execute(consumerGroup, event, topic, "CANCELLED", () ->
+                    slaRecordMapper.upsertTerminal(payload.getTicketId(),
+                            payload.getResponseDeadline().toLocalDateTime(),
+                            payload.getResolutionDeadline().toLocalDateTime(),
+                            "CANCELLED", payload.getCancelledAt().toLocalDateTime()));
             return;
         }
         throw new IllegalArgumentException("不支持的 SLA 工单事件：" + event.getEventType());

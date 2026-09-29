@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 @RocketMQMessageListener(
         consumerGroup = "${work-order.messaging.ticket-events.consumer-group:notification-ticket-event-v1}",
         topic = "${work-order.messaging.ticket-topic:wo-ticket-event}",
-        selectorExpression = "${work-order.messaging.ticket-events.selector-expression:ASSIGNED || REPLIED || REMINDED || TRANSFERRED || ESCALATED || RESOLVED}",
+        selectorExpression = "${work-order.messaging.ticket-events.selector-expression:ASSIGNED || REPLIED || REMINDED || TRANSFERRED || ESCALATED || RESOLVED || CLOSED || CANCELLED}",
         consumeMode = ConsumeMode.CONCURRENTLY,
         maxReconsumeTimes = 16
 )
@@ -41,6 +41,10 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
     static final String ESCALATED_TAG = "ESCALATED";
     /** 解决事件标签。 */
     static final String RESOLVED_TAG = "RESOLVED";
+    /** 关闭事件标签。 */
+    static final String CLOSED_TAG = "CLOSED";
+    /** 撤销事件标签。 */
+    static final String CANCELLED_TAG = "CANCELLED";
 
     /** 统一事件 ID 的 32 位十六进制格式。 */
     private static final Pattern EVENT_ID_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
@@ -59,6 +63,10 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
     private final TicketEscalatedNotificationHandler escalatedHandler;
     /** 解决通知处理器。 */
     private final TicketResolvedNotificationHandler resolvedHandler;
+    /** 关闭通知处理器。 */
+    private final TicketClosedNotificationHandler closedHandler;
+    /** 撤销通知处理器。 */
+    private final TicketCancelledNotificationHandler cancelledHandler;
     /** 当前通知消费组。 */
     private final String consumerGroup;
     /** 当前工单事件 Topic。 */
@@ -74,6 +82,8 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
      * @param transferredHandler 转派通知处理器
      * @param escalatedHandler 升级通知处理器
      * @param resolvedHandler 解决通知处理器
+     * @param closedHandler 关闭通知处理器
+     * @param cancelledHandler 撤销通知处理器
      * @param consumerGroup 通知服务消费组
      * @param topic 工单事件 Topic
      */
@@ -85,6 +95,8 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
             TicketTransferredNotificationHandler transferredHandler,
             TicketEscalatedNotificationHandler escalatedHandler,
             TicketResolvedNotificationHandler resolvedHandler,
+            TicketClosedNotificationHandler closedHandler,
+            TicketCancelledNotificationHandler cancelledHandler,
             @Value("${work-order.messaging.ticket-events.consumer-group:notification-ticket-event-v1}")
                     String consumerGroup,
             @Value("${work-order.messaging.ticket-topic:wo-ticket-event}") String topic) {
@@ -95,6 +107,8 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
         this.transferredHandler = transferredHandler;
         this.escalatedHandler = escalatedHandler;
         this.resolvedHandler = resolvedHandler;
+        this.closedHandler = closedHandler;
+        this.cancelledHandler = cancelledHandler;
         this.consumerGroup = consumerGroup;
         this.topic = topic;
     }
@@ -148,6 +162,14 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
             resolvedHandler.handle(event);
             return;
         }
+        if (EventType.TICKET_CLOSED.name().equals(event.getEventType())) {
+            closedHandler.handle(event);
+            return;
+        }
+        if (EventType.TICKET_CANCELLED.name().equals(event.getEventType())) {
+            cancelledHandler.handle(event);
+            return;
+        }
         throw new IllegalArgumentException("不支持的工单通知事件：" + event.getEventType());
     }
 
@@ -175,6 +197,12 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
         }
         if (EventType.TICKET_RESOLVED.name().equals(event.getEventType())) {
             return RESOLVED_TAG;
+        }
+        if (EventType.TICKET_CLOSED.name().equals(event.getEventType())) {
+            return CLOSED_TAG;
+        }
+        if (EventType.TICKET_CANCELLED.name().equals(event.getEventType())) {
+            return CANCELLED_TAG;
         }
         throw new IllegalArgumentException("不支持的工单通知事件：" + event.getEventType());
     }
