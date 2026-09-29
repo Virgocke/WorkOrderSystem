@@ -14,6 +14,7 @@ import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
 import com.WorkOrder.ticket.mapper.TicketMapper;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
+import com.WorkOrder.ticket.messaging.TicketCreatedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketRemindedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketRepliedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketTerminalEventPublisher;
@@ -73,6 +74,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final TicketOperationLogMapper ticketOperationLogMapper;
     private final AttachmentMapper attachmentMapper;
     private final AttachmentService attachmentService;
+    /** 工单创建事件的事务内发布器。 */
+    private final TicketCreatedEventPublisher ticketCreatedEventPublisher;
     private final TicketRepliedEventPublisher ticketRepliedEventPublisher;
     private final TicketRemindedEventPublisher ticketRemindedEventPublisher;
     /** 关闭和撤销工单事件的事务内发布器。 */
@@ -93,7 +96,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         TicketCategory ticketCategory = categoryMapper.selectById(createTicketDto.getCategoryId()); // 根据类别ID获取类别信息
         LocalDateTime now = LocalDateTime.now(); // 获取当前时间
 
-        if (createTicketDto.getPriority() == 0|| createTicketDto.getPriority() > 4){
+        if (createTicketDto.getPriority() < 1 || createTicketDto.getPriority() > 4) {
             int defaultPriority = ticketCategory.getDefaultPriority();
             createTicketDto.setPriority(defaultPriority);
         }
@@ -151,13 +154,16 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         history.setEvent("CREATE");
         history.setOperatorId(creatorId);
         history.setRemark("用户创建工单");
-        // 插入工单状态历史记录
-        ticketStatusHistoryMapper.insert(history);
+        history.setCreatedAt(now);
+        if (ticketStatusHistoryMapper.insert(history) != 1) {
+            throw new SystemException(SystemExceptionEnum.TICKET_CREATE_FAILED);
+        }
+
+        // 工单、附件绑定、状态历史和创建事件在同一事务中提交。
+        ticketCreatedEventPublisher.publish(ticket, now);
 
 
-        Tickets newTicket = ticketMapper.selectOne(
-                new LambdaQueryWrapper<Tickets>()
-                        .eq(Tickets::getTicketNo, ticketNo));
+        Tickets newTicket = ticketMapper.selectById(ticket.getId());
         if (newTicket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_CREATE_FAILED);
         }

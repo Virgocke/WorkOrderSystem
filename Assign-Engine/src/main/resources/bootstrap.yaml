@@ -34,3 +34,15 @@ assignment:
     load: 25
     sla: 20
     rating: 15
+
+work-order:
+  messaging:
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
+    name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+    producer-group: ${ROCKETMQ_ASSIGN_PRODUCER_GROUP:assign-engine-producer}
+    ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
+    outbox:
+      enabled: ${WORK_ORDER_OUTBOX_ENABLED:true}
+      source-service: assign-engine
+    ticket-created:
+      consumer-group: ${ROCKETMQ_ASSIGN_CREATED_CONSUMER_GROUP:assign-ticket-created-v1}

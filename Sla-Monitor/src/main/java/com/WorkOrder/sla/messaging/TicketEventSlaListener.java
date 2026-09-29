@@ -5,6 +5,7 @@ import com.WorkOrder.messaging.contract.EventType;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import com.WorkOrder.sla.mapper.SlaRecordMapper;
 import com.WorkOrder.ticket.contract.TicketEscalatedPayload;
+import com.WorkOrder.ticket.contract.TicketCreatedPayload;
 import com.WorkOrder.ticket.contract.TicketClosedPayload;
 import com.WorkOrder.ticket.contract.TicketCancelledPayload;
 import com.WorkOrder.ticket.contract.TicketResolvedPayload;
@@ -17,13 +18,13 @@ import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;
 
-/** 在同一 SLA 消费组内处理工单升级、解决及终态事实。 */
+/** 在同一 SLA 消费组内处理工单创建、升级、解决及终态事实。 */
 @Component
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 @RocketMQMessageListener(
         consumerGroup = "${work-order.messaging.sla-ticket-events.consumer-group:sla-ticket-event-v1}",
         topic = "${work-order.messaging.ticket-topic:wo-ticket-event}",
-        selectorExpression = "ESCALATED || RESOLVED || CLOSED || CANCELLED",
+        selectorExpression = "CREATED || ESCALATED || RESOLVED || CLOSED || CANCELLED",
         consumeMode = ConsumeMode.CONCURRENTLY,
         maxReconsumeTimes = 16
 )
@@ -60,6 +61,17 @@ public class TicketEventSlaListener implements RocketMQListener<WorkOrderEvent> 
                 || !EVENT_ID_PATTERN.matcher(event.getEventId()).matches()
                 || event.getProducer() == null || event.getProducer().trim().isEmpty()) {
             throw new IllegalArgumentException("SLA 事件信封缺少有效的事件 ID 或生产服务");
+        }
+        if (EventType.TICKET_CREATED.name().equals(event.getEventType())) {
+            if (!"ticket-service".equals(event.getProducer())) {
+                throw new IllegalArgumentException("创建事件生产服务无效");
+            }
+            TicketCreatedPayload payload = TicketCreatedPayload.from(event);
+            executor.execute(consumerGroup, event, topic, "CREATED", () ->
+                    slaRecordMapper.initializeFromCreation(payload.getTicketId(),
+                            payload.getResponseDeadline().toLocalDateTime(),
+                            payload.getResolutionDeadline().toLocalDateTime()));
+            return;
         }
         if (EventType.TICKET_ESCALATED.name().equals(event.getEventType())) {
             TicketEscalatedPayload payload = TicketEscalatedPayload.from(event);

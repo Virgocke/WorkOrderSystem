@@ -149,6 +149,7 @@ Authorization: Bearer <access_token>
 
 - 工单包含分类、优先级、处理人、状态、SLA 时限、操作记录、评分与附件元数据；每张工单最多催办 3 次，`remindCount` 与升级级别独立。
 - 处理人逐级升级待响应或处理中工单时，升级事实进入事务性 Outbox；通知服务为启用管理员生成站内通知，SLA 服务在独立消费组内同步升级级别。
+- 工单创建时发布 `TICKET_CREATED`；SLA 服务幂等初始化记录，派单引擎按现有评分规则生成 `ASSIGNMENT_PROPOSED`，工单服务在仍待分配时条件确认并发送处理人通知。技能匹配与处理人负载维护仍待完善。
 - 智能派单基于技能、当前负载、SLA 与评分进行候选人推荐。`GET /api/configurations` 可读取权重配置，管理员通过 `PUT /api/configurations` 以版本号进行并发安全更新；权重保存后无需重启即可生效。
 - 通知列表通过 `GET /api/notifications` 查询，未读数通过 `GET /api/notifications/unread-count` 查询；告警可经 `POST /api/alerts/{id}/handle` 标记为已处理。
 - 用户、部门、处理人、技能标签与技能调整申请均已提供服务端接口；权限模型包含普通用户、处理人和管理员三类角色，并提供 RBAC 基础数据。

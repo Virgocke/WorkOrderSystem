@@ -104,7 +104,8 @@ public class MessagingAutoConfiguration {
 
     @Configuration
     @ConditionalOnClass(RocketMQTemplate.class)
-    @ConditionalOnProperty(prefix = "work-order.messaging.outbox", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = "work-order.messaging", name = {"enabled", "outbox.enabled"},
+            havingValue = "true")
     static class RocketMqSenderConfiguration {
         /**
          * 在 Outbox 启用且没有自定义发送端口时创建 RocketMQTemplate 适配器。
@@ -125,7 +126,8 @@ public class MessagingAutoConfiguration {
 
     @Configuration
     @EnableScheduling
-    @ConditionalOnProperty(prefix = "work-order.messaging.outbox", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = "work-order.messaging", name = {"enabled", "outbox.enabled"},
+            havingValue = "true")
     static class OutboxSchedulingConfiguration {
         /**
          * 在消息发送端口可用时创建 Outbox 轮询任务。
@@ -156,6 +158,7 @@ public class MessagingAutoConfiguration {
 
     @Configuration
     @ConditionalOnClass(MeterRegistry.class)
+    @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
     @ConditionalOnBean(MeterRegistry.class)
     static class MetricsConfiguration {
         /**

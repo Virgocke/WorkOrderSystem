@@ -20,6 +20,14 @@ public interface AssignEngineService {
     List<AssignCandidate> recommend(Long ticketId, String operatorRole);
 
     /**
+     * 供创建事件消费者取得仍有容量的最高分候选人。
+     *
+     * @param ticketId 新建工单 ID
+     * @return 最高分且仍有容量的处理人；没有候选人时返回 null
+     */
+    AssignCandidate recommendForSystem(Long ticketId);
+
+    /**
      * 获取工单分配记录。
      * @param page 页码
      * @param pageSize 每页大小

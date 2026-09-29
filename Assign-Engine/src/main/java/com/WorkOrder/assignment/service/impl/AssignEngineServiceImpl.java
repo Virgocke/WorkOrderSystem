@@ -61,6 +61,30 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         if (!"ADMIN".equals(operatorRole)) {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
+        return recommendCandidates(ticketId);
+    }
+
+    /**
+     * 创建事件使用同一评分规则，跳过档案负载已达到上限的处理人。
+     *
+     * @param ticketId 新建工单 ID
+     * @return 最高分候选人；无人可用时返回 null
+     */
+    @Override
+    public AssignCandidate recommendForSystem(Long ticketId) {
+        return recommendCandidates(ticketId).stream()
+                .filter(candidate -> candidate.getHandler().getCurrentLoad()
+                        < candidate.getHandler().getMaxCapacity())
+                .findFirst().orElse(null);
+    }
+
+    /**
+     * 查询并按当前权重给所有启用处理人评分。
+     *
+     * @param ticketId 工单 ID
+     * @return 按综合得分降序排列的候选人
+     */
+    private List<AssignCandidate> recommendCandidates(Long ticketId) {
         if (ticketId == null || ticketId <= 0) {
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }

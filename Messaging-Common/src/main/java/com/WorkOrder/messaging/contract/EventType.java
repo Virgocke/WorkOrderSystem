@@ -2,7 +2,7 @@ package com.WorkOrder.messaging.contract;
 
 /** 首期统一维护的领域事件类型。 */
 public enum EventType {
-    /** 工单事件 */
+    /** 工单创建事件 */
     TICKET_CREATED,
     /** 工单指派事件 */
     TICKET_ASSIGNED,
@@ -22,7 +22,7 @@ public enum EventType {
     TICKET_CANCELLED,
     /** 工单升级事件 */
     TICKET_ESCALATED,
-    /** 工单降级事件 */
+    /** 自动派单候选提议事件 */
     ASSIGNMENT_PROPOSED,
     /** 工单指派失败事件 */
     ASSIGNMENT_FAILED,

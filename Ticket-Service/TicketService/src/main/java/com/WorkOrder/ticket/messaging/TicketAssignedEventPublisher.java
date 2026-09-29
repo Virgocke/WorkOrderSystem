@@ -15,7 +15,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-/** 组装并发布管理员派单事件。 */
+/** 组装并发布管理员或系统派单事件。 */
 @Component
 public class TicketAssignedEventPublisher {
     /** 默认工单事件 Topic。 */
@@ -61,6 +61,34 @@ public class TicketAssignedEventPublisher {
      */
     public void publish(Tickets ticket, Long handlerId, Long operatorId,
                         LocalDateTime assignedAt, String reason) {
+        publishEvent(ticket, handlerId, operatorId, "ADMIN", assignedAt, reason);
+    }
+
+    /**
+     * 将系统自动派单结果写入当前事务的 Outbox。
+     *
+     * @param ticket 已分配的工单
+     * @param handlerId 新处理人 ID
+     * @param assignedAt 派单时间
+     * @param reason 派单说明
+     */
+    public void publishSystem(Tickets ticket, Long handlerId, LocalDateTime assignedAt,
+                              String reason) {
+        publishEvent(ticket, handlerId, null, "SYSTEM", assignedAt, reason);
+    }
+
+    /**
+     * 组装并校验手动或系统派单事件。
+     *
+     * @param ticket 已更新的工单
+     * @param handlerId 新处理人 ID
+     * @param operatorId 手动派单操作人 ID，系统派单时为空
+     * @param operatorRole ADMIN 或 SYSTEM
+     * @param assignedAt 派单业务时间
+     * @param reason 派单说明
+     */
+    private void publishEvent(Tickets ticket, Long handlerId, Long operatorId,
+                              String operatorRole, LocalDateTime assignedAt, String reason) {
         DomainEventPublisher publisher = domainEventPublisher.orElse(null);
         if (publisher == null) {
             if (messagingEnabled) {
@@ -76,7 +104,12 @@ public class TicketAssignedEventPublisher {
         payload.put("ticketNo", ticket.getTicketNo());
         payload.put("ticketTitle", ticket.getTitle());
         payload.put("handlerId", handlerId);
-        payload.put("assignedBy", operatorId);
+        if (operatorId == null) {
+            payload.putNull("assignedBy");
+        } else {
+            payload.put("assignedBy", operatorId);
+        }
+        payload.put("assignedByRole", operatorRole);
         payload.put("assignedAt", occurredAt.toOffsetDateTime().toString());
         payload.put("reason", reason);
 
@@ -85,7 +118,7 @@ public class TicketAssignedEventPublisher {
                         "TICKET",
                         String.valueOf(ticket.getId()),
                         payload)
-                .withActorId(String.valueOf(operatorId));
+                .withActorId(operatorId == null ? "SYSTEM" : String.valueOf(operatorId));
         // 设置事件发生时间
         event.setOccurredAt(occurredAt.toOffsetDateTime());
         // 发布事件

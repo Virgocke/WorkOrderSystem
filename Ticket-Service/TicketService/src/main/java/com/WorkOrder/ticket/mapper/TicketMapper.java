@@ -8,7 +8,9 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -19,6 +21,24 @@ import java.util.List;
  */
 @Mapper
 public interface TicketMapper extends BaseMapper<Tickets> {
+
+    /**
+     * 只有待分配、没有处理人且目标处理人的档案负载低于容量时才确认系统派单。
+     *
+     * @param ticketId 工单 ID
+     * @param handlerId 候选处理人用户 ID
+     * @param assignedAt 实际确认派单时间
+     * @return 成功确认时为 1；已人工分配或状态变化时为 0
+     */
+    @Update("UPDATE tickets SET handler_id = #{handlerId}, assigned_at = #{assignedAt}, "
+            + "status = 'PENDING_RESPONSE' WHERE id = #{ticketId} "
+            + "AND status = 'PENDING_ASSIGN' AND handler_id IS NULL "
+            + "AND EXISTS (SELECT 1 FROM users u JOIN handler_profiles hp "
+            + "ON hp.user_id = u.id WHERE u.id = #{handlerId} AND u.role = 1 "
+            + "AND u.status = 1 AND hp.current_load < hp.max_capacity)")
+    int assignIfPending(@Param("ticketId") long ticketId,
+                        @Param("handlerId") long handlerId,
+                        @Param("assignedAt") LocalDateTime assignedAt);
 
     /** 查询用于工单详情展示的用户名称，姓名为空时退回登录账号。 */
     @Select("SELECT COALESCE(NULLIF(real_name, ''), username) FROM users WHERE id = #{userId} LIMIT 1")

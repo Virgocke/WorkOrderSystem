@@ -16,6 +16,21 @@ import java.time.LocalDateTime;
 @Mapper
 public interface SlaRecordMapper extends BaseMapper<SlaRecord> {
     /**
+     * 以创建事件初始化 SLA 记录；较晚到达时保留已有升级、解决和终态事实。
+     *
+     * @param ticketId 工单主键
+     * @param responseDeadline 响应截止时间
+     * @param resolutionDeadline 解决截止时间
+     * @return 新增或重复事件影响的行数
+     */
+    @Insert("INSERT INTO sla_records (ticket_id, response_deadline, resolution_deadline) "
+            + "VALUES (#{ticketId}, #{responseDeadline}, #{resolutionDeadline}) "
+            + "ON DUPLICATE KEY UPDATE ticket_id = ticket_id")
+    int initializeFromCreation(@Param("ticketId") long ticketId,
+                               @Param("responseDeadline") LocalDateTime responseDeadline,
+                               @Param("resolutionDeadline") LocalDateTime resolutionDeadline);
+
+    /**
      * 从升级事件创建 SLA 快照或只提高已有级别。
      * 保留已有记录的截止时间和响应统计；乱序到达也不能使级别倒退。
      *

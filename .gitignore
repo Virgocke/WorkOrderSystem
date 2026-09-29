@@ -53,3 +53,8 @@ build/
 /User-Service/UserAPI/src/test/
 /User-Service/UserModel/src/test/
 /User-Service/UserService/src/test/
+/docs/
+/logs/
+/deploy/
+/CONTEXT.md
+/Base-Utility/src/test/
