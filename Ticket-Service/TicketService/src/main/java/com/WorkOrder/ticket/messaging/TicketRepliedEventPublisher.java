@@ -3,6 +3,7 @@ package com.WorkOrder.ticket.messaging;
 import com.WorkOrder.messaging.contract.EventType;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import com.WorkOrder.messaging.outbox.DomainEventPublisher;
+import com.WorkOrder.ticket.contract.TicketRepliedPayload;
 import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.Tickets;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +26,9 @@ import static org.springframework.util.StringUtils.hasText;
  */
 @Component
 public class TicketRepliedEventPublisher {
+    /** 默认工单事件 Topic。 */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
+    /** 回复事件标签。 */
     static final String TAG = "REPLIED";
 
     // 事务性 Outbox 发布器
@@ -108,6 +111,7 @@ public class TicketRepliedEventPublisher {
         ).withActorId(String.valueOf(replyLog.getOperatorId()));
 
         event.setOccurredAt(occurredAt.toOffsetDateTime());
+        TicketRepliedPayload.from(event);
         publisher.publish(event, topic, TAG);
     }
 

@@ -4,6 +4,7 @@ import com.WorkOrder.handler.model.AssignmentRecord;
 import com.WorkOrder.messaging.contract.EventType;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import com.WorkOrder.messaging.outbox.DomainEventPublisher;
+import com.WorkOrder.ticket.contract.TicketTransferredPayload;
 import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.Tickets;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,12 +21,18 @@ import java.util.Optional;
 @Component
 public class TicketTransferredEventPublisher {
 
+    /** 默认工单事件 Topic。 */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
+    /** 转派事件标签。 */
     static final String TAG = "TRANSFERRED";
 
+    /** 与工单事务共用数据库事务的 Outbox 发布器。 */
     private final Optional<DomainEventPublisher> domainEventPublisher;
+    /** 当前工单事件 Topic。 */
     private final String topic;
+    /** 消息底座是否启用。 */
     private final boolean messagingEnabled;
+    /** 事件载荷构建器。 */
     private final ObjectMapper objectMapper;
 
     /**
@@ -100,6 +107,7 @@ public class TicketTransferredEventPublisher {
                         payload)
                 .withActorId(String.valueOf(transferredBy));
         event.setOccurredAt(occurredAt.toOffsetDateTime());
+        TicketTransferredPayload.from(event);
         publisher.publish(event, topic, TAG);
     }
 

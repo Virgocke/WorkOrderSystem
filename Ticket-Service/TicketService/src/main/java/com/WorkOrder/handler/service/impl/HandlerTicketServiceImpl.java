@@ -22,6 +22,8 @@ import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
 import com.WorkOrder.ticket.messaging.TicketTransferredEventPublisher;
+import com.WorkOrder.ticket.messaging.TicketEscalatedEventPublisher;
+import com.WorkOrder.ticket.messaging.TicketResolvedEventPublisher;
 import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -49,19 +51,32 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HandlerTicketServiceImpl implements HandlerTicketService {
 
-    private static final Set<String> TRANSFERABLE_STATUSES = Collections.unmodifiableSet(
+    /** 允许处理人执行转派或升级的工单状态。 */
+    private static final Set<String> ACTIVE_HANDLER_STATUSES = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList(
                     TicketStatusEnum.PENDING_RESPONSE.name(),
                     TicketStatusEnum.PROCESSING.name())));
 
+    /** 处理人档案数据访问入口。 */
     private final HandlerProfileMapper handlerProfileMapper;
+    /** 工单主表数据访问入口。 */
     private final TicketMapper ticketMapper;
+    /** 工单状态历史数据访问入口。 */
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
+    /** 工单操作日志数据访问入口。 */
     private final TicketOperationLogMapper ticketOperationLogMapper;
+    /** 转派分配记录数据访问入口。 */
     private final AssignmentRecordMapper assignmentRecordMapper;
+    /** 用于校验目标处理人的用户服务客户端。 */
     private final UserFeignClient userFeignClient;
+    /** 工单响应中的附件信息补全器。 */
     private final TicketResponseAttachmentEnricher ticketResponseAttachmentEnricher;
+    /** 转派事实的事务性事件发布器。 */
     private final TicketTransferredEventPublisher ticketTransferredEventPublisher;
+    /** 升级事实的事务性事件发布器。 */
+    private final TicketEscalatedEventPublisher ticketEscalatedEventPublisher;
+    /** 解决事实的事务性事件发布器。 */
+    private final TicketResolvedEventPublisher ticketResolvedEventPublisher;
 
     /**
      * 获取处理人工单列表
@@ -183,7 +198,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
      * @return 工单解决结果
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse resolveTicket(
             Long ticketId,
             String solution,
@@ -217,7 +232,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         ticket.setStatus(TicketStatusEnum.RESOLVED.name());
         ticket.setResolvedAt(LocalDateTime.now());
 
-        // 仅首次响应可以变更状态，避免重复请求产生重复日志。
+        // 仅允许从处理中变更状态，避免并发解决产生重复日志与事件。
         int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
                 .eq(Tickets::getId, ticketId)
                 .eq(Tickets::getStatus, oldStatus)
@@ -238,19 +253,23 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
 
         // 与工单状态、状态历史在同一事务中保存操作日志。
-        if (!saveTicketOperationLog(
+        TicketOperationLog resolutionLog = saveTicketOperationLogAndReturn(
                 ticket,
                 "RESOLVE",
                 operatorId,
                 operatorRole,
                 clientIp,
-                "解决工单")) {
+                "解决工单");
+        if (resolutionLog == null || resolutionLog.getId() == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
+
+        ticketResolvedEventPublisher.publish(ticket, oldStatus, resolutionLog);
 
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
+    /** 条件更新处理人后，同事务保存转派记录、审计日志与事件快照。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TicketResponse transferTicketToOtherHandler(
@@ -271,7 +290,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
 
-        if (!TRANSFERABLE_STATUSES.contains(ticket.getStatus()) || ticket.getHandlerId() == null) {
+        if (!ACTIVE_HANDLER_STATUSES.contains(ticket.getStatus()) || ticket.getHandlerId() == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
         }
 
@@ -378,8 +397,9 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
+    /** 仅当前处理人可逐级升级活动工单，并同事务发布升级事实。 */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse escalateTicket(
             Long ticketId,
             String reason,
@@ -392,30 +412,40 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
 
-        // 如果当前登录用户不是处理人，则抛出异常
-        boolean isHandler = "HANDLER".equals(operatorRole);
-        if (!isHandler){
+        if (!"HANDLER".equals(operatorRole)) {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
 
         // 如果当前工单的处理人不是当前处理人，则抛出异常
-        if (!operatorId.equals(ticket.getHandlerId())){
+        if (!Objects.equals(operatorId, ticket.getHandlerId())) {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
 
-        // 如果当前工单的转交级别已经达到3次，则抛出异常
+        if (!ACTIVE_HANDLER_STATUSES.contains(ticket.getStatus())) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_NOT_ALLOWED);
+        }
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        String escalationReason = reason.trim();
+
         int escalatedLevel = ticket.getEscalatedLevel();
-        if (escalatedLevel == 3) {
+        if (escalatedLevel >= 3) {
             throw new SystemException(SystemExceptionEnum.TICKET_ESCALATED_LEVEL_MAX);
         }
+        if (escalatedLevel < 0) {
+            throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
+        }
 
-        // 设置新的工单状态
+        LocalDateTime escalatedAt = LocalDateTime.now();
         ticket.setEscalatedLevel(escalatedLevel + 1);
         ticket.setSlaStatus("ESCALATED");
 
         int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
                 .eq(Tickets::getId, ticketId)
                 .eq(Tickets::getHandlerId, operatorId)
+                .eq(Tickets::getStatus, ticket.getStatus())
+                .eq(Tickets::getEscalatedLevel, escalatedLevel)
                 .set(Tickets::getEscalatedLevel, ticket.getEscalatedLevel())
                 .set(Tickets::getSlaStatus, ticket.getSlaStatus()));
         // 更新工单信息，失败则抛出异常
@@ -429,7 +459,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                         ticket,
                         ticket.getStatus(),
                         operatorId,
-                        reason,
+                        escalationReason,
                         "ESCALATE");
 
         if (!saveTicketStatusHistory){
@@ -437,17 +467,25 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
 
         // 与工单状态、状态历史在同一事务中保存操作日志。
-        if (!saveTicketOperationLog(
+        TicketOperationLog escalationLog = saveTicketOperationLogAndReturn(
                 ticket,
                 "ESCALATE",
                 operatorId,
                 operatorRole,
                 clientIp,
-                "升级工单")) {
+                "升级工单");
+        if (escalationLog == null || escalationLog.getId() == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
-        //todo 通知管理员，工单已升级，等通知系统完善
+        // 接收人快照与工单、审计记录和 Outbox 同事务固定，消费时无需回查用户服务。
+        List<Long> activeAdminIds = ticketMapper.selectActiveAdminIds();
+        List<Long> receiverIds = activeAdminIds == null ? Collections.emptyList() : activeAdminIds.stream()
+                .filter(id -> id != null && id > 0 && !id.equals(operatorId))
+                .distinct()
+                .collect(Collectors.toList());
+        ticketEscalatedEventPublisher.publish(ticket, escalatedLevel, escalationReason,
+                escalatedAt, escalationLog, receiverIds);
 
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }

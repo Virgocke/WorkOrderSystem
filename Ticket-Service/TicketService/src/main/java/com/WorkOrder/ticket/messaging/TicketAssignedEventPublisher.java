@@ -3,6 +3,7 @@ package com.WorkOrder.ticket.messaging;
 import com.WorkOrder.messaging.contract.EventType;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import com.WorkOrder.messaging.outbox.DomainEventPublisher;
+import com.WorkOrder.ticket.contract.TicketAssignedPayload;
 import com.WorkOrder.ticket.model.Tickets;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -17,7 +18,9 @@ import java.util.Optional;
 /** 组装并发布管理员派单事件。 */
 @Component
 public class TicketAssignedEventPublisher {
+    /** 默认工单事件 Topic。 */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
+    /** 派单事件标签。 */
     static final String TAG = "ASSIGNED";
 
     // 事务性 Outbox 发布器
@@ -86,6 +89,7 @@ public class TicketAssignedEventPublisher {
         // 设置事件发生时间
         event.setOccurredAt(occurredAt.toOffsetDateTime());
         // 发布事件
+        TicketAssignedPayload.from(event);
         publisher.publish(event, topic, TAG);
     }
 }

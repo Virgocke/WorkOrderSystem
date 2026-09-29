@@ -3,26 +3,28 @@ package com.WorkOrder.notification.messaging;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import com.WorkOrder.notification.mapper.NotificationMapper;
 import com.WorkOrder.notification.model.Notifications;
-import com.WorkOrder.ticket.contract.TicketRepliedPayload;
+import com.WorkOrder.ticket.contract.TicketResolvedPayload;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-/** 将回复事件中的接收人快照转换为站内通知。 */
+/** 通知创建人查看解决结果并确认工单。 */
 @Component
-public class TicketRepliedNotificationHandler {
+public class TicketResolvedNotificationHandler {
     /** 站内通知持久化入口。 */
     private final NotificationMapper notificationMapper;
 
     /** 注入站内通知持久化入口。 */
-    public TicketRepliedNotificationHandler(NotificationMapper notificationMapper) {
+    public TicketResolvedNotificationHandler(NotificationMapper notificationMapper) {
         this.notificationMapper = notificationMapper;
     }
 
-    /** 调用方保证全部通知与消费日志在同一本地事务中写入。 */
+    /** 按事件内的创建人快照写入“查看并确认”通知；失败时交由消息重试。 */
     public void handle(WorkOrderEvent event) {
-        TicketRepliedPayload payload = TicketRepliedPayload.from(event);
-        String content = buildContent(payload);
+        TicketResolvedPayload payload = TicketResolvedPayload.from(event);
+        String ticket = payload.getTicketTitle() == null ? payload.getTicketNo()
+                : payload.getTicketNo() + "（" + payload.getTicketTitle() + "）";
+        String content = "工单 " + ticket + " 已解决，请查看解决方案并确认。";
         LocalDateTime sentAt = LocalDateTime.now();
         for (Long receiverId : payload.getReceiverIds()) {
             Notifications notification = new Notifications();
@@ -34,17 +36,8 @@ public class TicketRepliedNotificationHandler {
             notification.setStatus("SENT");
             notification.setSentAt(sentAt);
             if (notificationMapper.insert(notification) != 1) {
-                throw new IllegalStateException("工单回复站内通知写入失败");
+                throw new IllegalStateException("工单解决站内通知写入失败");
             }
         }
-    }
-
-    /** 按回复类型生成给处理人或创建人的不同提示。 */
-    private String buildContent(TicketRepliedPayload payload) {
-        String ticket = payload.getTicketTitle() == null ? payload.getTicketNo()
-                : payload.getTicketNo() + "（" + payload.getTicketTitle() + "）";
-        return "USER_REPLY".equals(payload.getReplyType())
-                ? "用户已回复工单 " + ticket + "，请及时处理。"
-                : "工单 " + ticket + " 有新的处理回复，请及时查看。";
     }
 }

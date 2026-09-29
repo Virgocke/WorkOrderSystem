@@ -39,7 +39,7 @@ public enum SystemExceptionEnum {
     TICKET_RATING_HAS_BEEN_MADE(1046, "工单已评价，不允许重复评价"),
     TICKET_STATUS_UPDATE_ERROR(1047, "工单状态更新失败"),
     TICKET_TRANSFER_SAME_HANDLER(1048, "工单当前处理人不能是转办人"),
-    TICKET_ESCALATED_LEVEL_MAX(1049, "工单催办次数已上限，请联系管理员"),
+    TICKET_ESCALATED_LEVEL_MAX(1049, "工单升级级别已达上限，请联系管理员"),
     NOTIFICATION_READ_FAILED(1050, "通知已读失败"),
     ALERT_HANDLE_FAILED(1051, "告警处理失败，请刷新后重试"),
     ATTACHMENT_TIME_EXPIRED(1052, "临时附件保存时间已过，请重新上传"),
@@ -56,13 +56,17 @@ public enum SystemExceptionEnum {
     // === 服务内部错误 ===
     INTERNAL_SERVER_ERROR(5000, "系统内部错误，请稍后重试"),
     ;
+    /** 返回给调用方的错误说明。 */
     private final String errMessage;
+    /** 稳定的业务错误码。 */
     private final int code;
 
+    /** @return 错误说明 */
     public String getErrMessage() {
         return errMessage;
     }
 
+    /** 保存错误码与对应的错误说明。 */
     SystemExceptionEnum(int code, String errmessage) {
         this.code = code;
         this.errMessage = errmessage;

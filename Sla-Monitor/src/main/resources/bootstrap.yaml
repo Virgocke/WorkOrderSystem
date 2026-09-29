@@ -22,3 +22,13 @@ security:
   oauth2:
     jwt:
       signing-key: ${OAUTH_JWT_SIGNING_KEY:local-development-signing-key-change-before-production}
+
+work-order:
+  messaging:
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
+    name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+    ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
+    sla-ticket-events:
+      consumer-group: ${ROCKETMQ_SLA_TICKET_EVENT_CONSUMER_GROUP:sla-ticket-event-v1}
+    consumer:
+      max-reconsume-times: 16

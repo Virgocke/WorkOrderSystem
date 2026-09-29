@@ -19,27 +19,49 @@ import java.util.regex.Pattern;
 @RocketMQMessageListener(
         consumerGroup = "${work-order.messaging.ticket-events.consumer-group:notification-ticket-event-v1}",
         topic = "${work-order.messaging.ticket-topic:wo-ticket-event}",
-        selectorExpression = "${work-order.messaging.ticket-events.selector-expression:ASSIGNED || REPLIED || REMINDED || TRANSFERRED}",
+        selectorExpression = "${work-order.messaging.ticket-events.selector-expression:ASSIGNED || REPLIED || REMINDED || TRANSFERRED || ESCALATED || RESOLVED}",
         consumeMode = ConsumeMode.CONCURRENTLY,
         maxReconsumeTimes = 16
 )
 public class TicketEventNotificationListener implements RocketMQListener<WorkOrderEvent> {
 
+    /** 默认通知消费者组，用于独立记录幂等消费。 */
     static final String DEFAULT_CONSUMER_GROUP = "notification-ticket-event-v1";
+    /** 默认工单事件 Topic。 */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
+    /** 派单事件标签。 */
     static final String ASSIGNED_TAG = "ASSIGNED";
+    /** 回复事件标签。 */
     static final String REPLIED_TAG = "REPLIED";
+    /** 催办事件标签。 */
     static final String REMINDED_TAG = "REMINDED";
+    /** 转派事件标签。 */
     static final String TRANSFERRED_TAG = "TRANSFERRED";
+    /** 升级事件标签。 */
+    static final String ESCALATED_TAG = "ESCALATED";
+    /** 解决事件标签。 */
+    static final String RESOLVED_TAG = "RESOLVED";
 
+    /** 统一事件 ID 的 32 位十六进制格式。 */
     private static final Pattern EVENT_ID_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
 
+    /** 同事务写入消费日志与业务通知的执行器。 */
     private final IdempotentConsumerExecutor idempotentConsumerExecutor;
+    /** 派单通知处理器。 */
     private final TicketAssignedNotificationHandler assignedHandler;
+    /** 回复通知处理器。 */
     private final TicketRepliedNotificationHandler repliedHandler;
+    /** 催办通知处理器。 */
     private final TicketRemindedNotificationHandler remindedHandler;
+    /** 转派通知处理器。 */
     private final TicketTransferredNotificationHandler transferredHandler;
+    /** 升级通知处理器。 */
+    private final TicketEscalatedNotificationHandler escalatedHandler;
+    /** 解决通知处理器。 */
+    private final TicketResolvedNotificationHandler resolvedHandler;
+    /** 当前通知消费组。 */
     private final String consumerGroup;
+    /** 当前工单事件 Topic。 */
     private final String topic;
 
     /**
@@ -50,6 +72,8 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
      * @param repliedHandler 回复通知处理器
      * @param remindedHandler 催办通知处理器
      * @param transferredHandler 转派通知处理器
+     * @param escalatedHandler 升级通知处理器
+     * @param resolvedHandler 解决通知处理器
      * @param consumerGroup 通知服务消费组
      * @param topic 工单事件 Topic
      */
@@ -59,6 +83,8 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
             TicketRepliedNotificationHandler repliedHandler,
             TicketRemindedNotificationHandler remindedHandler,
             TicketTransferredNotificationHandler transferredHandler,
+            TicketEscalatedNotificationHandler escalatedHandler,
+            TicketResolvedNotificationHandler resolvedHandler,
             @Value("${work-order.messaging.ticket-events.consumer-group:notification-ticket-event-v1}")
                     String consumerGroup,
             @Value("${work-order.messaging.ticket-topic:wo-ticket-event}") String topic) {
@@ -67,6 +93,8 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
         this.repliedHandler = repliedHandler;
         this.remindedHandler = remindedHandler;
         this.transferredHandler = transferredHandler;
+        this.escalatedHandler = escalatedHandler;
+        this.resolvedHandler = resolvedHandler;
         this.consumerGroup = consumerGroup;
         this.topic = topic;
     }
@@ -112,6 +140,14 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
             transferredHandler.handle(event);
             return;
         }
+        if (EventType.TICKET_ESCALATED.name().equals(event.getEventType())) {
+            escalatedHandler.handle(event);
+            return;
+        }
+        if (EventType.TICKET_RESOLVED.name().equals(event.getEventType())) {
+            resolvedHandler.handle(event);
+            return;
+        }
         throw new IllegalArgumentException("不支持的工单通知事件：" + event.getEventType());
     }
 
@@ -133,6 +169,12 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
         }
         if (EventType.TICKET_TRANSFERRED.name().equals(event.getEventType())) {
             return TRANSFERRED_TAG;
+        }
+        if (EventType.TICKET_ESCALATED.name().equals(event.getEventType())) {
+            return ESCALATED_TAG;
+        }
+        if (EventType.TICKET_RESOLVED.name().equals(event.getEventType())) {
+            return RESOLVED_TAG;
         }
         throw new IllegalArgumentException("不支持的工单通知事件：" + event.getEventType());
     }
