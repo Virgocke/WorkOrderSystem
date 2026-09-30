@@ -17,8 +17,10 @@ public class TicketCategoryTreeDto {
     private String name;
     private Long parentId;
     private int defaultPriority;
-    private int defaultResponseSla;
-    private int defaultResolutionSla;
+    /** 响应时限（分钟）；null 表示使用系统默认值。 */
+    private Integer defaultResponseSla;
+    /** 解决时限（分钟）；null 表示使用系统默认值。 */
+    private Integer defaultResolutionSla;
     private String description;
     /** 当前分类直接配置的技能标签 ID；空列表表示继承最近祖先分类。 */
     private List<Long> requiredSkillIds = new ArrayList<>();

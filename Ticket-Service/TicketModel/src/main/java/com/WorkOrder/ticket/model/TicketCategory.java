@@ -1,6 +1,7 @@
 package com.WorkOrder.ticket.model;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
@@ -19,8 +20,12 @@ public class TicketCategory {
     private String name;
     private Long parentId;
     private int defaultPriority;
-    private int defaultResponseSla;
-    private int defaultResolutionSla;
+    /** 响应时限（分钟）；null 表示使用系统默认值。 */
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
+    private Integer defaultResponseSla;
+    /** 解决时限（分钟）；null 表示使用系统默认值。 */
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
+    private Integer defaultResolutionSla;
     private String description;
     /** 非数据库列，用于分类写入接口返回当前分类配置的技能。 */
     @TableField(exist = false)

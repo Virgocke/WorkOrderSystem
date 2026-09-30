@@ -24,11 +24,15 @@ public class TicketCategoryDto {
     @NotNull(message = "默认优先级不能为空")
     private int defaultPriority;
 
-    @NotNull(message = "默认响应SLA不能为空")
-    private int defaultResponseSla;
+    /** 响应时限（分钟）；null 或省略表示使用系统默认值。 */
+    @Min(5)
+    @Max(2880)
+    private Integer defaultResponseSla;
 
-    @NotNull(message = "默认解决SLA不能为空")
-    private int defaultResolutionSla;
+    /** 解决时限（分钟）；null 或省略表示使用系统默认值。 */
+    @Min(30)
+    @Max(10080)
+    private Integer defaultResolutionSla;
 
     private String description;
 

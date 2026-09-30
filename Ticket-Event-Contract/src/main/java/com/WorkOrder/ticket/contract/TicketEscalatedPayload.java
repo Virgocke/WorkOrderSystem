@@ -23,8 +23,8 @@ public final class TicketEscalatedPayload {
     private final String ticketNo;
     /** 可空的工单标题。 */
     private final String ticketTitle;
-    /** 当前处理人 ID。 */
-    private final long handlerId;
+    /** 当前处理人 ID，自动升级待分配工单时可为空。 */
+    private final Long handlerId;
     /** 升级前级别。 */
     private final int fromEscalationLevel;
     /** 升级后级别。 */
@@ -35,13 +35,15 @@ public final class TicketEscalatedPayload {
     private final String status;
     /** 升级原因。 */
     private final String reason;
-    /** 发起升级的处理人 ID。 */
-    private final long escalatedBy;
+    /** 人工升级的处理人 ID，系统升级时为空。 */
+    private final Long escalatedBy;
+    /** AUTO 为系统升级；旧版事件缺省为 MANUAL。 */
+    private final String escalationSource;
     /** 升级发生时间，包含时区偏移量。 */
     private final OffsetDateTime escalatedAt;
     /** 升级操作日志 ID。 */
     private final long escalationLogId;
-    /** 事务内确定的管理员接收人快照。 */
+    /** 事务内确定的部门负责人或管理员接收人快照。 */
     private final List<Long> receiverIds;
     /** 响应截止时间，供缺失 SLA 记录初始化。 */
     private final LocalDateTime responseDeadline;
@@ -50,11 +52,12 @@ public final class TicketEscalatedPayload {
 
     /** 保存校验后的升级快照。 */
     private TicketEscalatedPayload(long ticketId, String ticketNo, String ticketTitle,
-                                   long handlerId, int fromEscalationLevel, int escalationLevel,
+                                   Long handlerId, int fromEscalationLevel, int escalationLevel,
                                    String slaStatus, String status, String reason,
-                                   long escalatedBy, OffsetDateTime escalatedAt,
+                                   Long escalatedBy, OffsetDateTime escalatedAt,
                                    long escalationLogId, List<Long> receiverIds,
-                                   LocalDateTime responseDeadline, LocalDateTime resolutionDeadline) {
+                                   LocalDateTime responseDeadline, LocalDateTime resolutionDeadline,
+                                   String escalationSource) {
         this.ticketId = ticketId;
         this.ticketNo = ticketNo;
         this.ticketTitle = ticketTitle;
@@ -65,6 +68,7 @@ public final class TicketEscalatedPayload {
         this.status = status;
         this.reason = reason;
         this.escalatedBy = escalatedBy;
+        this.escalationSource = escalationSource;
         this.escalatedAt = escalatedAt;
         this.escalationLogId = escalationLogId;
         this.receiverIds = Collections.unmodifiableList(receiverIds);
@@ -84,8 +88,17 @@ public final class TicketEscalatedPayload {
         long ticketId = positiveLong(payload, "ticketId");
         String ticketNo = requiredText(payload, "ticketNo");
         String ticketTitle = optionalText(payload, "ticketTitle");
-        long handlerId = positiveLong(payload, "handlerId");
-        long escalatedBy = positiveLong(payload, "escalatedBy");
+        String source = payload != null && payload.has("escalationSource")
+                ? requiredText(payload, "escalationSource") : "MANUAL";
+        if (!"AUTO".equals(source) && !"MANUAL".equals(source)) {
+            throw new IllegalArgumentException("升级来源无效");
+        }
+        boolean automatic = "AUTO".equals(source);
+        Long handlerId = automatic && !payload.hasNonNull("handlerId") ? null : positiveLong(payload, "handlerId");
+        Long escalatedBy = automatic ? null : positiveLong(payload, "escalatedBy");
+        if (automatic && payload.hasNonNull("escalatedBy")) {
+            throw new IllegalArgumentException("系统升级不能冒用用户身份");
+        }
         long escalationLogId = positiveLong(payload, "escalationLogId");
         int fromLevel = level(payload, "fromEscalationLevel");
         int toLevel = level(payload, "escalationLevel");
@@ -94,22 +107,28 @@ public final class TicketEscalatedPayload {
         LocalDateTime responseDeadline = dateTime(payload, "responseDeadline").toLocalDateTime();
         LocalDateTime resolutionDeadline = dateTime(payload, "resolutionDeadline").toLocalDateTime();
         List<Long> receiverIds = receiverIds(payload, escalatedBy);
+        if (automatic && receiverIds.isEmpty()) {
+            throw new IllegalArgumentException("自动升级必须包含接收人");
+        }
 
         String slaStatus = requiredText(payload, "slaStatus");
         String status = requiredText(payload, "status");
-        if (fromLevel < 0 || fromLevel >= 3 || toLevel != fromLevel + 1
-                || !"ESCALATED".equals(slaStatus) || !activeStatus(status)) {
+        if (fromLevel < 0 || fromLevel >= 3 || toLevel > 3 || toLevel <= fromLevel
+                || (!automatic && toLevel != fromLevel + 1)
+                || !"ESCALATED".equals(slaStatus)
+                || !(activeStatus(status) || (automatic && "PENDING_ASSIGN".equals(status)))
+                || (handlerId == null && !"PENDING_ASSIGN".equals(status))) {
             throw new IllegalArgumentException("升级事件级别或状态无效");
         }
         if (!String.valueOf(ticketId).equals(event.getAggregateId())
-                || handlerId != escalatedBy
-                || !String.valueOf(escalatedBy).equals(event.getActorId())
+                || (!automatic && !handlerId.equals(escalatedBy))
+                || !(automatic ? "SYSTEM" : String.valueOf(escalatedBy)).equals(event.getActorId())
                 || !event.getOccurredAt().isEqual(escalatedAt)) {
             throw new IllegalArgumentException("升级事件信封与业务快照不一致");
         }
         return new TicketEscalatedPayload(ticketId, ticketNo, ticketTitle, handlerId,
                 fromLevel, toLevel, slaStatus, status, reason, escalatedBy, escalatedAt,
-                escalationLogId, receiverIds, responseDeadline, resolutionDeadline);
+                escalationLogId, receiverIds, responseDeadline, resolutionDeadline, source);
     }
 
     /** 读取正整数 ID。 */
@@ -162,8 +181,8 @@ public final class TicketEscalatedPayload {
         }
     }
 
-    /** 检查并保留生产时已确定的管理员接收人顺序。 */
-    private static List<Long> receiverIds(JsonNode payload, long escalatedBy) {
+    /** 检查并保留生产时已确定的接收人顺序。 */
+    private static List<Long> receiverIds(JsonNode payload, Long escalatedBy) {
         JsonNode values = required(payload, "receiverIds");
         if (!values.isArray()) {
             throw new IllegalArgumentException("升级事件 payload.receiverIds 必须为数组");
@@ -172,7 +191,7 @@ public final class TicketEscalatedPayload {
         Set<Long> seen = new HashSet<>();
         for (JsonNode value : values) {
             if (!value.isIntegralNumber() || !value.canConvertToLong()
-                    || value.longValue() <= 0 || value.longValue() == escalatedBy
+                    || value.longValue() <= 0 || Long.valueOf(value.longValue()).equals(escalatedBy)
                     || !seen.add(value.longValue())) {
                 throw new IllegalArgumentException("升级事件 payload.receiverIds 存在非法或重复接收人");
             }
@@ -200,8 +219,8 @@ public final class TicketEscalatedPayload {
     public String getTicketNo() { return ticketNo; }
     /** @return 可空的工单标题 */
     public String getTicketTitle() { return ticketTitle; }
-    /** @return 当前处理人 ID */
-    public long getHandlerId() { return handlerId; }
+    /** @return 当前处理人 ID，自动升级未派单工单时可为空 */
+    public Long getHandlerId() { return handlerId; }
     /** @return 升级前级别 */
     public int getFromEscalationLevel() { return fromEscalationLevel; }
     /** @return 升级后的级别 */
@@ -212,13 +231,15 @@ public final class TicketEscalatedPayload {
     public String getStatus() { return status; }
     /** @return 升级原因 */
     public String getReason() { return reason; }
-    /** @return 发起升级的处理人 ID */
-    public long getEscalatedBy() { return escalatedBy; }
+    /** @return 人工升级的处理人 ID，系统升级时为空 */
+    public Long getEscalatedBy() { return escalatedBy; }
+    /** @return 是否为自动升级 */
+    public boolean isAutomatic() { return "AUTO".equals(escalationSource); }
     /** @return 带时区偏移量的升级时间 */
     public OffsetDateTime getEscalatedAt() { return escalatedAt; }
     /** @return 升级操作日志 ID */
     public long getEscalationLogId() { return escalationLogId; }
-    /** @return 管理员接收人快照 */
+    /** @return 部门负责人或管理员接收人快照 */
     public List<Long> getReceiverIds() { return receiverIds; }
     /** @return 响应截止时间 */
     public LocalDateTime getResponseDeadline() { return responseDeadline; }

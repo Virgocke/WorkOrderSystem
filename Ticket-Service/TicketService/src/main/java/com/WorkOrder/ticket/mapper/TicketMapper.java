@@ -21,6 +21,15 @@ import java.util.List;
  */
 @Mapper
 public interface TicketMapper extends BaseMapper<Tickets> {
+    /** 锁定工单源记录，串行化自动升级与响应、解决、转派等修改。 */
+    @Select("SELECT * FROM tickets WHERE id = #{ticketId} FOR UPDATE")
+    Tickets selectForEscalation(@Param("ticketId") long ticketId);
+
+    /** 当前处理人（未派单时为创建人）所属部门的启用负责人。 */
+    @Select("SELECT manager.id FROM users owner JOIN departments d ON d.id = owner.department_id "
+            + "JOIN users manager ON manager.id = d.manager_id AND manager.status = 1 "
+            + "WHERE owner.id = #{ownerId}")
+    Long selectActiveDepartmentManager(@Param("ownerId") Long ownerId);
 
     /** 在当前事务锁住目标处理人的档案行，串行化该处理人的并发派单与负载检查。 */
     @Select("SELECT id FROM handler_profiles WHERE user_id = #{handlerId} FOR UPDATE")

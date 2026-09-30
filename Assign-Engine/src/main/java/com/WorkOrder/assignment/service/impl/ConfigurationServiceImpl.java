@@ -10,6 +10,8 @@ import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.assignment.AssignmentWeightsSnapshot;
 import com.WorkOrder.model.ticket.TicketNumberRule;
+import com.WorkOrder.model.ticket.SlaDefaults;
+import com.WorkOrder.model.ticket.EscalationRule;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,6 +63,10 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                     storedWeights(value, row.getVersion());
                 } else if ("ticketNoRule".equals(row.getConfigKey())) {
                     storedTicketNumberRule(value);
+                } else if ("slaDefaults".equals(row.getConfigKey())) {
+                    storedSlaDefaults(value);
+                } else if ("escalationRules".equals(row.getConfigKey())) {
+                    EscalationRule.fromJson(value);
                 }
 
                 items.put(row.getConfigKey(),
@@ -113,8 +119,11 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 weightsSnapshot(item.getValue(), item.getVersion());
             } else if ("ticketNoRule".equals(item.getConfigKey())) {
                 TicketNumberRule.fromJson(item.getValue());
-            } else if ("escalationRules".equals(item.getConfigKey())
-                    ? !item.getValue().isArray() : !item.getValue().isObject()) {
+            } else if ("slaDefaults".equals(item.getConfigKey())) {
+                SlaDefaults.fromJson(item.getValue());
+            } else if ("escalationRules".equals(item.getConfigKey())) {
+                EscalationRule.fromJson(item.getValue());
+            } else if (!item.getValue().isObject()) {
                 throw new IllegalArgumentException("配置值结构不合法");
             }
         }
@@ -156,7 +165,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
             }
         }
-        //todo 接入SLA默认值、通知渠道和升级规则的业务消费；编号规则由工单服务在创建时读取。
+        //todo 接入通知渠道的业务消费；升级规则由SLA监控和工单执行服务读取。
         //todo 将configuration_change_logs接入审计查询页面，目前已持久化修改记录。
         return true;
     }
@@ -179,6 +188,15 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             return weightsSnapshot(value, version);
         } catch (IllegalArgumentException exception) {
             throw new IllegalStateException("数据库中的分配权重不合法", exception);
+        }
+    }
+
+    /** 数据库中的非法 SLA 配置不静默降级为默认值。 */
+    private SlaDefaults storedSlaDefaults(JsonNode value) {
+        try {
+            return SlaDefaults.fromJson(value);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("数据库中的SLA默认值不合法", exception);
         }
     }
 
@@ -208,7 +226,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 parse(TicketNumberRule.DEFAULT_JSON), "工单编号规则"));
         // SLA默认值配置
         items.put("slaDefaults", defaultItem("slaDefaults",
-                parse("{\"responseMin\":30,\"resolutionMin\":240}"), "SLA默认值"));
+                parse(SlaDefaults.DEFAULT_JSON), "SLA默认值"));
 
         AssignmentWeightsSnapshot weights = defaultWeights();
         ObjectNode value = objectMapper.createObjectNode();

@@ -21,6 +21,7 @@ import com.WorkOrder.ticket.messaging.TicketTerminalEventPublisher;
 import com.WorkOrder.ticket.model.*;
 import com.WorkOrder.ticket.service.TicketService;
 import com.WorkOrder.ticket.service.TicketNumberService;
+import com.WorkOrder.ticket.service.TicketSlaService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -72,6 +73,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     private final TicketMapper ticketMapper;
     private final TicketNumberService ticketNumberService;
+    private final TicketSlaService ticketSlaService;
     private final TicketCategoryMapper categoryMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
@@ -97,6 +99,9 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     public TicketResponse createTicket(Long creatorId, String creatorName, CreateTicketDto createTicketDto) {
         TicketResponse ticketResponse = new TicketResponse(); // 创建工单响应对象
         TicketCategory ticketCategory = categoryMapper.selectById(createTicketDto.getCategoryId()); // 根据类别ID获取类别信息
+        if (ticketCategory == null) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai")); // 编号日期与工单创建时间共用同一时刻
 
         if (createTicketDto.getPriority() < 1 || createTicketDto.getPriority() > 4) {
@@ -121,13 +126,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         ticketResponse.setAssignedAt(null); // 设置分配时间为空
 
         ticket.setStatus(TicketStatusEnum.PENDING_ASSIGN.name()); // 设置工单状态为待分配
-        ticket.setResponseDeadline(
-                now.plusMinutes(ticketCategory.getDefaultResponseSla())
-        ); // 设置响应截止时间
-
-        ticket.setResolutionDeadline(
-                now.plusMinutes(ticketCategory.getDefaultResolutionSla())
-        ); // 设置解决截止时间
+        ticketSlaService.initializeDeadlines(ticket, ticketCategory, now); // 初始化SLA截止时间
 
         ticket.setFirstResponseAt(null); // 设置首次响应时间为null
         ticket.setResolvedAt(null); // 设置解决时间为null

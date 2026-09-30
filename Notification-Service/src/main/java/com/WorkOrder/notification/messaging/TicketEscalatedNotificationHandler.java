@@ -4,23 +4,28 @@ import com.WorkOrder.ticket.contract.TicketEscalatedPayload;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import com.WorkOrder.notification.mapper.NotificationMapper;
 import com.WorkOrder.notification.model.Notifications;
+import com.WorkOrder.notification.mapper.AlertRecordMapper;
+import com.WorkOrder.notification.model.AlertRecords;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-/** 将工单升级事件转换为管理员站内通知。 */
+/** 将工单升级事件转换为接收人站内通知，并为自动升级创建告警记录。 */
 @Component
 public class TicketEscalatedNotificationHandler {
     /** 站内通知持久化入口。 */
     private final NotificationMapper notificationMapper;
+    /** 自动升级告警记录，与站内通知同事务写入。 */
+    private final AlertRecordMapper alertRecordMapper;
 
     /** 创建升级事件通知处理器。 */
-    public TicketEscalatedNotificationHandler(NotificationMapper notificationMapper) {
+    public TicketEscalatedNotificationHandler(NotificationMapper notificationMapper, AlertRecordMapper alertRecordMapper) {
         this.notificationMapper = notificationMapper;
+        this.alertRecordMapper = alertRecordMapper;
     }
 
     /**
-     * 按事件中的管理员快照写入站内通知；调用方将通知和消费日志置于同一本地事务。
+     * 按事件中的接收人快照写入站内通知和自动升级告警；调用方与消费日志共用本地事务。
      *
      * @param event 已通过统一信封校验的升级事件
      */
@@ -42,6 +47,22 @@ public class TicketEscalatedNotificationHandler {
             notification.setSentAt(sentAt);
             if (notificationMapper.insert(notification) != 1) {
                 throw new IllegalStateException("工单升级站内通知写入失败");
+            }
+            if (payload.isAutomatic()) {
+                AlertRecords alert = new AlertRecords();
+                alert.setTicketId(payload.getTicketId());
+                alert.setAlertType("ESCALATION");
+                alert.setLevel(payload.getEscalationLevel());
+                // 告警列限长500；完整内容保留于通知和升级操作日志。
+                alert.setMessage(content.length() > 500 ? content.substring(0, 500) : content);
+                alert.setTargetUserId(receiverId);
+                alert.setNotificationChannel("INTERNAL");
+                alert.setStatus("SENT");
+                alert.setSentAt(sentAt);
+                alert.setCreatedAt(sentAt);
+                if (alertRecordMapper.insert(alert) != 1) {
+                    throw new IllegalStateException("自动升级告警写入失败");
+                }
             }
         }
     }

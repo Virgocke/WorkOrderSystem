@@ -28,6 +28,10 @@ work-order:
     enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
     ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
+    producer-group: ${ROCKETMQ_SLA_PRODUCER_GROUP:sla-monitor-producer}
+    outbox:
+      enabled: true
+      source-service: sla-monitor
     sla-ticket-events:
       consumer-group: ${ROCKETMQ_SLA_TICKET_EVENT_CONSUMER_GROUP:sla-ticket-event-v1}
     consumer:

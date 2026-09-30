@@ -55,21 +55,36 @@ public class TicketEscalatedEventPublisher {
      * @param reason 升级原因
      * @param escalatedAt 升级发生时间
      * @param escalationLog 已持久化的升级日志
-     * @param receiverIds 事件发生时的管理员接收人快照
+     * @param receiverIds 事件发生时的接收人快照
      */
     public void publish(Tickets ticket, int fromLevel, String reason,
                         LocalDateTime escalatedAt, TicketOperationLog escalationLog,
                         Collection<Long> receiverIds) {
+        publishEvent(ticket, fromLevel, reason, escalatedAt, escalationLog, receiverIds, false);
+    }
+
+    /** 发布系统升级，允许跳到最高满足级别；系统操作人为空，接收人可包含当前处理人。 */
+    public void publishSystem(Tickets ticket, int fromLevel, String reason,
+                              LocalDateTime escalatedAt, TicketOperationLog escalationLog,
+                              Collection<Long> receiverIds) {
+        publishEvent(ticket, fromLevel, reason, escalatedAt, escalationLog, receiverIds, true);
+    }
+
+    /** 人工与自动升级共用事件组装和事务性 Outbox 写入。 */
+    private void publishEvent(Tickets ticket, int fromLevel, String reason,
+                              LocalDateTime escalatedAt, TicketOperationLog escalationLog,
+                              Collection<Long> receiverIds, boolean automatic) {
         DomainEventPublisher publisher = domainEventPublisher.orElse(null);
         if (publisher == null) {
-            if (messagingEnabled) {
+            if (messagingEnabled || automatic) {
                 throw new IllegalStateException("消息底座已启用，但 DomainEventPublisher 未创建");
             }
             return;
         }
 
-        ZonedDateTime occurredAt = escalatedAt.atZone(ZoneId.systemDefault());
+        ZonedDateTime occurredAt = escalatedAt.atZone(automatic ? ZoneId.of("Asia/Shanghai") : ZoneId.systemDefault());
         ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("escalationSource", automatic ? "AUTO" : "MANUAL");
         payload.put("ticketId", ticket.getId());
         payload.put("ticketNo", ticket.getTicketNo());
         payload.put("ticketTitle", ticket.getTitle());
@@ -90,8 +105,11 @@ public class TicketEscalatedEventPublisher {
         putDateTime(payload, "resolutionDeadline", ticket.getResolutionDeadline());
 
         WorkOrderEvent event = WorkOrderEvent.of(
-                EventType.TICKET_ESCALATED, "TICKET", String.valueOf(ticket.getId()), payload)
-                .withActorId(String.valueOf(escalationLog.getOperatorId()));
+                EventType.TICKET_ESCALATED,
+                        "TICKET",
+                        String.valueOf(ticket.getId()),
+                        payload)
+                .withActorId(automatic ? "SYSTEM" : String.valueOf(escalationLog.getOperatorId()));
         event.setOccurredAt(occurredAt.toOffsetDateTime());
         TicketEscalatedPayload.from(event);
         publisher.publish(event, topic, TAG);

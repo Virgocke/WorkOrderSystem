@@ -67,6 +67,7 @@ mysql -u root -p WorkOrderSystem < sql/work_order_system_seed.sql
 | `sql/work_order_system_rbac.sql` | RBAC 角色与权限数据 |
 | `sql/work_order_system_add_messaging.sql` | RocketMQ Outbox、消费幂等日志与通知来源事件唯一约束 |
 | `sql/work_order_system_add_ticket_numbering.sql` | 工单编号事务计数器 |
+| `sql/work_order_system_add_sla_defaults.sql` | 分类 SLA 可空并继承系统默认值，保留现有时限 |
 
 ### 3. 配置本地环境
 
@@ -149,8 +150,12 @@ Authorization: Bearer <access_token>
 ## 已实现的业务说明
 
 - 工单包含分类、优先级、处理人、状态、SLA 时限、操作记录、评分与附件元数据；每张工单最多催办 3 次，`remindCount` 与升级级别独立。
+- 分类的响应和解决 SLA 可分别设为 `null` 以使用 `slaDefaults`；创建工单时读取系统默认值（配置不存在时为 30/240 分钟），生成并固定截止时间。配置与分类更新只影响新工单，已有分类数值在迁移时保留。
 - 创建工单时按 `ticketNoRule` 生成编号；同一前缀和日期范围使用 MySQL 事务计数器连续取号，序号达到配置位数上限时返回冲突错误，不截断或自动扩位。
 - 处理人逐级升级待响应或处理中工单时，升级事实进入事务性 Outbox；通知服务为启用管理员生成站内通知，SLA 服务在独立消费组内同步升级级别。
+- `escalationRules` 已接通自动升级：SLA 服务默认每 60 秒扫描一页（最多 200 单），工单服务锁定源记录并重新读取当前规则，升至最高匹配级别。响应/解决超时分钟数从对应截止时间起算，已响应不再检查响应超时，已解决/关闭/撤销不升级；空规则关闭自动升级，调整规则不回退已有级别。系统操作以 `SYSTEM` 留痕，通知与升级告警由同一个幂等消费事务创建。
+- 升级通知的 `MANAGER` 表示当前处理人的部门负责人，未派单时为提交人部门负责人；不可用时回退到启用管理员，`ADMIN` 表示全部启用管理员。完全没有接收人时升级回滚并重试。自动升级沿用既有表，无新增数据库迁移。
+- 自动升级需要 SLA、工单和通知服务开启 `WORK_ORDER_MESSAGING_ENABLED=true` 并运行 RocketMQ；SLA 已配置 `sla-monitor` Outbox 生产端。首次部署需一起更新 Ticket-Service、Sla-Monitor、Notification-Service 的公共事件契约。扫描周期可通过 `work-order.sla.escalation.scan-interval-ms` 调整，规则保存后由后续扫描读取，无需重启。
 - 工单创建时发布 `TICKET_CREATED`；SLA 服务幂等初始化记录，派单引擎按分类技能、实时在办负载和历史表现生成 `ASSIGNMENT_PROPOSED`，工单服务在仍待分配且处理人未满额时条件确认并发送处理人通知。
 - 智能派单基于技能、当前负载、SLA 与评分进行候选人推荐。`GET /api/configurations` 可读取权重配置，管理员通过 `PUT /api/configurations` 以版本号进行并发安全更新；权重保存后无需重启即可生效。
 - 部署新版评分逻辑前，先执行 `sql/work_order_system_add_assignment_scoring.sql`。分类可配置所需技能，子分类无配置时继承最近上级；在办负载实时从工单状态计算。工单解决和评价分别保存归属处理人快照，转派后的业绩归最终提交解决的接手人；SLA 与评价按快照按需聚合，无定时重算。手动派单及转派复用引擎评分。
@@ -159,6 +164,6 @@ Authorization: Bearer <access_token>
 
 ## 当前限制与后续工作
 
-- 部分通知投递、全部标记已读、催办日志、SLA 升级规则消费与配置审计查询仍待接入。
+- 部分通知投递、全部标记已读、催办日志与配置审计查询仍待接入。
 - OAuth2 Password Grant 只应作为本地兼容联调方案；面向浏览器或第三方客户端时应采用 Authorization Code + PKCE。
 - 部署到生产前，请将配置中的本地连接信息、邮件凭据、MinIO 密钥和 JWT 签名密钥迁移到受控的外部配置系统。
