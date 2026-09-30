@@ -13,6 +13,7 @@ import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.assignment.AssignCandidate;
 import com.WorkOrder.model.assignment.AssignmentWeightsSnapshot;
 import com.WorkOrder.model.handler.HandlerProfile;
+import com.WorkOrder.model.handler.HandlerSkillItem;
 import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.model.user.UserProfile;
@@ -29,8 +30,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -61,7 +64,7 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         if (!"ADMIN".equals(operatorRole)) {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
-        return recommendCandidates(ticketId);
+        return recommendCandidates(ticketId, null, 0);
     }
 
     /**
@@ -72,10 +75,29 @@ public class AssignEngineServiceImpl implements AssignEngineService {
      */
     @Override
     public AssignCandidate recommendForSystem(Long ticketId) {
-        return recommendCandidates(ticketId).stream()
+        return recommendCandidates(ticketId, null, 0).stream()
                 .filter(candidate -> candidate.getHandler().getCurrentLoad()
                         < candidate.getHandler().getMaxCapacity())
                 .findFirst().orElse(null);
+    }
+
+    /** 按同一评分规则生成手动派单快照；批量派单可传入本事务内已分配的数量。 */
+    @Override
+    public AssignCandidate scoreForHandler(Long ticketId, Long handlerId,
+                                           int additionalLoad, String operatorRole) {
+
+        if (!("ADMIN".equals(operatorRole) || "HANDLER".equals(operatorRole))) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+        if (handlerId == null || handlerId <= 0 || additionalLoad < 0 || additionalLoad > 1000) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+
+        return recommendCandidates(ticketId, handlerId, additionalLoad)
+                .stream()
+                .filter(candidate -> handlerId.equals(candidate.getHandler().getUserId()))
+                .findFirst()
+                .orElseThrow(() -> new SystemException(SystemExceptionEnum.USER_NOT_FOUND));
     }
 
     /**
@@ -84,13 +106,15 @@ public class AssignEngineServiceImpl implements AssignEngineService {
      * @param ticketId 工单 ID
      * @return 按综合得分降序排列的候选人
      */
-    private List<AssignCandidate> recommendCandidates(Long ticketId) {
+    private List<AssignCandidate> recommendCandidates(Long ticketId, Long adjustedHandlerId, int additionalLoad) {
         if (ticketId == null || ticketId <= 0) {
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
-        if (assignEngineMapper.selectTicketId(ticketId) == null) {
+        Long categoryId = assignEngineMapper.selectTicketCategoryId(ticketId);
+        if (categoryId == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
         }
+        List<Long> requiredSkillIds = requiredSkillIds(categoryId);
 
         List<HandlerProfile> handlers = assignEngineMapper.selectEnabledHandlers();
         if (handlers == null || handlers.isEmpty()) {
@@ -98,8 +122,16 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         }
         // 获取当前的权重配置
         AssignmentWeightsSnapshot weights = configurationService.getCurrentWeights();
-        return handlers.stream()
-                .map(handler -> buildCandidate(handler, weights))
+        return handlers
+                .stream()
+                .map(handler -> {
+                    // 调整处理人负载
+                    if (handler.getUserId().equals(adjustedHandlerId)) {
+                        handler.setCurrentLoad(handler.getCurrentLoad() + additionalLoad);
+                    }
+                    // 计算候选人评分
+                    return buildCandidate(handler, requiredSkillIds, weights);
+                })
                 .sorted(Comparator.comparing(AssignCandidate::getTotalScore).reversed()
                         .thenComparing(candidate -> candidate.getHandler().getUserId()))
                 .collect(Collectors.toList());
@@ -181,14 +213,13 @@ public class AssignEngineServiceImpl implements AssignEngineService {
     /**
      * 构建候选人得分与推荐原因，分项及综合分均保留一位小数。
      */
-    private AssignCandidate buildCandidate(HandlerProfile handler, AssignmentWeightsSnapshot weights) {
-        //todo 接入工单分类与所需技能的关联规则，结合处理人技能及熟练度计算技能匹配分，暂计0分。
-        BigDecimal skillMatchScore = BigDecimal.ZERO;
-        //todo 接入 Redis 实时负载及用户服务的负载维护，目前使用 handler_profiles.current_load。
+    private AssignCandidate buildCandidate(HandlerProfile handler, List<Long> requiredSkillIds,
+                                           AssignmentWeightsSnapshot weights) {
+        BigDecimal skillMatchScore = calculateSkillScore(handler, requiredSkillIds);
+        // 由 tickets 当前在办状态实时计数，不使用档案中的冗余 current_load。
         BigDecimal loadScore = calculateLoadScore(handler);
-        //todo 接入 SLA-Monitor 绩效聚合，目前使用处理人档案中已有的 SLA 达成率。
+        // SLA 和评价均由解决人、评价归属快照的事实记录按需聚合。
         BigDecimal slaScore = normalizeScore(handler.getSlaComplianceRate());
-        //todo 接入评价模块的历史评分聚合，目前使用处理人档案中已有的平均评分。
         BigDecimal ratingScore = normalizeScore(handler.getRatingScore() == null
                 ? BigDecimal.ZERO : handler.getRatingScore().multiply(TWENTY));
 
@@ -211,11 +242,44 @@ public class AssignEngineServiceImpl implements AssignEngineService {
                 .ratingScore(roundScore(ratingScore))
                 .weights(weights)
                 .reasons(Arrays.asList(
-                        "技能匹配规则待接入，暂计0分",
+                        requiredSkillIds.isEmpty() ?
+                                "分类未配置所需技能，按中性50分" :
+                                "所需技能 " + requiredSkillIds.size() + " 项，匹配得分 " + roundScore(skillMatchScore),
                         "当前负载 " + handler.getCurrentLoad() + "/" + handler.getMaxCapacity(),
                         "SLA达成率得分 " + roundScore(slaScore),
                         "历史评分折算得分 " + roundScore(ratingScore)))
                 .build();
+    }
+
+    /** 沿分类树向上寻找最近一层配置的技能要求，避免子分类重复配置。 */
+    private List<Long> requiredSkillIds(Long categoryId) {
+        Set<Long> visited = new HashSet<>();
+        Long current = categoryId;
+        while (current != null && visited.add(current)) {
+            List<Long> skillIds = assignEngineMapper.selectCategorySkillIds(current);
+            if (skillIds != null && !skillIds.isEmpty()) {
+                return skillIds;
+            }
+            current = assignEngineMapper.selectCategoryParentId(current);
+        }
+        return Collections.emptyList();
+    }
+
+    /** 各项要求等权；单项熟练度 1 至 5 对应 20 至 100 分，缺项计 0 分。 */
+    private BigDecimal calculateSkillScore(HandlerProfile handler, List<Long> requiredSkillIds) {
+        if (requiredSkillIds.isEmpty()) {
+            return new BigDecimal("50");
+        }
+        int proficiencySum = 0;
+        for (Long requiredSkillId : requiredSkillIds) {
+            int proficiency = handler.getSkills().stream()
+                    .filter(skill -> requiredSkillId.equals(skill.getSkillId()))
+                    .mapToInt(HandlerSkillItem::getProficiency)
+                    .max().orElse(0);
+            proficiencySum += Math.max(0, Math.min(5, proficiency));
+        }
+        return BigDecimal.valueOf(proficiencySum).multiply(TWENTY)
+                .divide(BigDecimal.valueOf(requiredSkillIds.size()), 1, RoundingMode.HALF_UP);
     }
 
     /** 剩余容量比例越高，负载得分越高；无有效容量时计0分。 */

@@ -40,7 +40,7 @@ public class TicketRatingServiceImpl implements TicketRatingService {
      * @param userId 用户id
      * @return 工单评价响应对象
      */
-    @Transactional
+    @Transactional(readOnly = true)
     @Override
     public TicketRatingResponse getTicketRating(Long ticketId, Long userId) {
         // 查询工单评价
@@ -65,11 +65,11 @@ public class TicketRatingServiceImpl implements TicketRatingService {
         ticketRatingResponse.setTicketNo(ticket.getTicketNo());
 
         // 设置用户ID和用户名
-        ticketRatingResponse.setUserId(userId);
-        Result<UserProfile> userProfile = userFeignClient.getById(userId);
+        ticketRatingResponse.setUserId(ticketRating.getUserId());
+        Result<UserProfile> userProfile = userFeignClient.getById(ticketRating.getUserId());
         ticketRatingResponse.setUserName(userProfile.getData().getUsername());
 
-        Result<UserProfile> result = userFeignClient.getById(ticket.getHandlerId());
+        Result<UserProfile> result = userFeignClient.getById(ticketRating.getHandlerId());
         String handlerName = result.getData().getRealName();
         ticketRatingResponse.setHandlerName(handlerName);
 
@@ -83,6 +83,7 @@ public class TicketRatingServiceImpl implements TicketRatingService {
      * @return 是否成功
      */
     @Override
+    @Transactional
     public Boolean ticketRatingSubmit(Long ticketId, Long userId, TicketRatingDto ticketRatingDto) {
         // 根据工单编号查询工单，如果不存在则抛出异常，表示工单不存在
         Tickets ticket = ticketMapper.selectOne(
@@ -91,6 +92,9 @@ public class TicketRatingServiceImpl implements TicketRatingService {
         );
         if (ticket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_NOT_FOUND);
+        }
+        if (!userId.equals(ticket.getCreatorId())) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
         // 如果工单状态不是已解决或已关闭则抛出异常，表示工单不能评价
         if (
@@ -115,6 +119,10 @@ public class TicketRatingServiceImpl implements TicketRatingService {
         BeanUtils.copyProperties(ticketRatingDto, ticketRating);
         ticketRating.setTicketId(ticketId);
         ticketRating.setUserId(userId);
+        if (ticket.getResolvedByHandlerId() == null) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        ticketRating.setHandlerId(ticket.getResolvedByHandlerId());
         // 插入数据库
         int insert = ticketRatingMapper.insert(ticketRating);
         if (insert < 1){

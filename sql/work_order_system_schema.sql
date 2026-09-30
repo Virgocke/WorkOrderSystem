@@ -186,6 +186,16 @@ CREATE TABLE `ticket_categories` (
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '工单分类表';
 
+-- 分类所需技能；子分类未配置时沿用最近祖先分类的配置。
+CREATE TABLE `ticket_category_skills` (
+    `category_id`  BIGINT NOT NULL COMMENT '工单分类 ID',
+    `skill_tag_id` BIGINT NOT NULL COMMENT '所需技能标签 ID',
+    PRIMARY KEY (`category_id`, `skill_tag_id`),
+    KEY `idx_category_skills_tag` (`skill_tag_id`),
+    CONSTRAINT `fk_category_skills_category` FOREIGN KEY (`category_id`) REFERENCES `ticket_categories` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_category_skills_tag` FOREIGN KEY (`skill_tag_id`) REFERENCES `skill_tags` (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '分类所需技能';
+
 -- 2.2 工单主表
 CREATE TABLE `tickets` (
     `id`                BIGINT       NOT NULL AUTO_INCREMENT COMMENT '工单主键',
@@ -197,6 +207,7 @@ CREATE TABLE `tickets` (
     `status`            VARCHAR(30)  NOT NULL DEFAULT 'PENDING_ASSIGN' COMMENT '当前状态（状态机定义）',
     `creator_id`        BIGINT       NOT NULL                COMMENT '创建人（用户）',
     `handler_id`        BIGINT       NULL                    COMMENT '当前处理人（可能为空）',
+    `resolved_by_handler_id` BIGINT NULL                    COMMENT '提交解决时的处理人快照，转派后归最终解决人',
     `created_at`        DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `assigned_at`       DATETIME     NULL                    COMMENT '分配时间',
     `response_deadline` DATETIME     NOT NULL                COMMENT '响应截止时间（创建时计算）',
@@ -213,9 +224,19 @@ CREATE TABLE `tickets` (
     UNIQUE KEY `uk_tickets_ticket_no` (`ticket_no`),
     KEY `idx_status` (`status`),
     KEY `idx_handler_status` (`handler_id`, `status`),
+    KEY `idx_tickets_resolved_handler` (`resolved_by_handler_id`, `resolved_at`),
     KEY `idx_creator` (`creator_id`),
     KEY `idx_created_at` (`created_at`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '工单主表';
+
+-- 工单编号计数器；与工单创建在同一事务内更新，按前缀和格式化日期独立计数。
+CREATE TABLE `ticket_number_counters` (
+    `scope_key`  VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '编号前缀及日期部分',
+    `last_value` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '本范围已分配的最大序号',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`scope_key`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '工单编号计数器';
 
 -- =============================================================
 -- 3. 状态机与操作记录
@@ -306,12 +327,14 @@ CREATE TABLE `ticket_ratings` (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     `ticket_id`  BIGINT       NOT NULL                COMMENT '工单 ID',
     `user_id`    BIGINT       NOT NULL                COMMENT '评价用户',
+    `handler_id` BIGINT       NULL                    COMMENT '评价归属的解决处理人快照',
     `rating`     TINYINT      NOT NULL                COMMENT '评分（1-5）',
     `comment`    VARCHAR(500) NULL                    COMMENT '评价内容',
     `created_at` DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '评价时间',
     `updated_at` DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_ticket_rating` (`ticket_id`)
+    UNIQUE KEY `uk_ticket_rating` (`ticket_id`),
+    KEY `idx_ratings_handler` (`handler_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户评价表';
 
 -- =============================================================
@@ -438,7 +461,8 @@ ALTER TABLE `ticket_categories`
 ALTER TABLE `tickets`
     ADD CONSTRAINT `fk_tickets_category` FOREIGN KEY (`category_id`) REFERENCES `ticket_categories` (`id`),
     ADD CONSTRAINT `fk_tickets_creator` FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`),
-    ADD CONSTRAINT `fk_tickets_handler` FOREIGN KEY (`handler_id`) REFERENCES `users` (`id`);
+    ADD CONSTRAINT `fk_tickets_handler` FOREIGN KEY (`handler_id`) REFERENCES `users` (`id`),
+    ADD CONSTRAINT `fk_tickets_resolved_handler` FOREIGN KEY (`resolved_by_handler_id`) REFERENCES `users` (`id`);
 
 ALTER TABLE `ticket_status_history`
     ADD CONSTRAINT `fk_status_history_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets` (`id`),
@@ -459,7 +483,8 @@ ALTER TABLE `assignment_records`
 
 ALTER TABLE `ticket_ratings`
     ADD CONSTRAINT `fk_ratings_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets` (`id`),
-    ADD CONSTRAINT `fk_ratings_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
+    ADD CONSTRAINT `fk_ratings_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+    ADD CONSTRAINT `fk_ratings_handler` FOREIGN KEY (`handler_id`) REFERENCES `users` (`id`);
 
 ALTER TABLE `sla_records`
     ADD CONSTRAINT `fk_sla_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets` (`id`);

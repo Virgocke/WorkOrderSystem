@@ -51,6 +51,7 @@ public class TicketCategoryController {
      * @return 更新的工单类别
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('category:manage')")
     public Result<TicketCategory> updateTicketCategory(@PathVariable Long id, @Valid @RequestBody TicketCategoryDto ticketCategoryDto){
         return Result.success(ticketCategoryService.updateTicketCategory(id, ticketCategoryDto));
     }
@@ -61,6 +62,7 @@ public class TicketCategoryController {
      * @return 删除结果
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('category:manage')")
     public Result<Boolean> deleteTicketCategory(@PathVariable Long id){
         return Result.success(ticketCategoryService.deleteTicketCategory(id));
     }

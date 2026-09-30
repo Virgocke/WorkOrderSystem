@@ -14,6 +14,8 @@ public class TicketRating {
     private Long id;
     private Long ticketId;
     private Long userId;
+    /** 评价归属的解决处理人用户 ID，不随之后的工单变更而变化。 */
+    private Long handlerId;
     private int rating;
     private String comment;
     private String createdAt;

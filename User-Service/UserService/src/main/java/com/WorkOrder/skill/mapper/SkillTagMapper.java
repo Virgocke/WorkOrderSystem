@@ -62,7 +62,7 @@ public interface SkillTagMapper extends BaseMapper<SkillTagRecord> {
                        @Param("updateDescription") boolean updateDescription);
 
     /**
-     * 仅在技能未被处理人使用时删除。
+     * 仅在技能未被处理人或工单分类使用时删除。
      *
      * @param id 技能 ID
      * @return 受影响行数

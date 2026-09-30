@@ -288,16 +288,15 @@
                         hp.avg_response_minutes, 0)          AS avgResponseMinutes,
                COALESCE(ticket_stats.avg_resolution_minutes,
                         hp.avg_resolution_minutes, 0)        AS avgResolutionMinutes,
-               COALESCE(ticket_stats.sla_compliance_rate,
-                        hp.sla_compliance_rate, 100.0)       AS slaComplianceRate,
+               COALESCE(ticket_stats.sla_compliance_rate, 50.0) AS slaComplianceRate,
                COALESCE(rating_stats.rating_score,
-                        hp.rating_score, 5.0)                AS ratingScore
+                        3.0)                                  AS ratingScore
         FROM handler_profiles hp
                  INNER JOIN users u ON u.id = hp.user_id
                  LEFT JOIN departments d ON d.id = u.department_id
-                 LEFT JOIN (SELECT t.handler_id,
+                 LEFT JOIN (SELECT COALESCE(t.resolved_by_handler_id, t.handler_id) AS handler_id,
                                    COUNT(*)                                AS assigned_count,
-                                   SUM(t.status IN ('RESOLVED', 'CLOSED')) AS resolved_count,
+                                   SUM(t.resolved_at IS NOT NULL)         AS resolved_count,
                                    ROUND(AVG(
                                                  CASE
                                                      WHEN t.first_response_at &gt;= t.created_at
@@ -313,27 +312,25 @@
                                                      END
                                          ), 1)                             AS avg_resolution_minutes,
                                    CASE
-                                       WHEN SUM(t.status IN ('RESOLVED', 'CLOSED')) = 0 THEN NULL
+                                       WHEN SUM(t.resolved_at IS NOT NULL) = 0 THEN NULL
                                        ELSE ROUND(
                                                SUM(
-                                                       t.status IN ('RESOLVED', 'CLOSED')
-                                                           AND t.resolved_at IS NOT NULL
+                                                       t.resolved_at IS NOT NULL
                                                            AND t.resolution_deadline IS NOT NULL
                                                            AND t.resolved_at &lt;= t.resolution_deadline
                                                ) * 100.0
-                                                   / SUM(t.status IN ('RESOLVED', 'CLOSED')),
+                                                   / SUM(t.resolved_at IS NOT NULL),
                                                1
                                             )
                                        END                                 AS sla_compliance_rate
                             FROM tickets t
                             WHERE t.handler_id IS NOT NULL
-                            GROUP BY t.handler_id) ticket_stats ON ticket_stats.handler_id = u.id
-                 LEFT JOIN (SELECT t.handler_id,
+                            GROUP BY COALESCE(t.resolved_by_handler_id, t.handler_id)) ticket_stats ON ticket_stats.handler_id = u.id
+                 LEFT JOIN (SELECT tr.handler_id,
                                    ROUND(AVG(tr.rating), 1) AS rating_score
-                            FROM tickets t
-                                     INNER JOIN ticket_ratings tr ON tr.ticket_id = t.id
-                            WHERE t.handler_id IS NOT NULL
-                            GROUP BY t.handler_id) rating_stats ON rating_stats.handler_id = u.id
+                            FROM ticket_ratings tr
+                            WHERE tr.handler_id IS NOT NULL
+                            GROUP BY tr.handler_id) rating_stats ON rating_stats.handler_id = u.id
         WHERE u.role = 1
           AND u.status = 1
         ORDER BY u.id
@@ -381,7 +378,7 @@
                t.title AS ticketTitle,
                tr.user_id AS userId,
                COALESCE(NULLIF(rater.real_name, ''), rater.username) AS userName,
-               t.handler_id AS handlerId,
+               tr.handler_id AS handlerId,
                COALESCE(NULLIF(handler.real_name, ''), handler.username) AS handlerName,
                tr.rating,
                tr.comment,
@@ -389,10 +386,10 @@
         FROM ticket_ratings tr
         INNER JOIN tickets t ON t.id = tr.ticket_id
         LEFT JOIN users rater ON rater.id = tr.user_id
-        LEFT JOIN users handler ON handler.id = t.handler_id
+        LEFT JOIN users handler ON handler.id = tr.handler_id
         <where>
             <if test="handlerId != null">
-                t.handler_id = #{handlerId}
+                tr.handler_id = #{handlerId}
             </if>
         </where>
         ORDER BY tr.created_at DESC, tr.id DESC

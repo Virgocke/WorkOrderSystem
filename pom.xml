@@ -37,7 +37,7 @@
 
         <spring-cloud-alibaba.version>2.2.6.RELEASE</spring-cloud-alibaba.version>
 
-        <org.projectlombok.version>1.18.8</org.projectlombok.version>
+        <org.projectlombok.version>1.18.32</org.projectlombok.version>
 
         <javax.servlet-api.version>4.0.1</javax.servlet-api.version>
 

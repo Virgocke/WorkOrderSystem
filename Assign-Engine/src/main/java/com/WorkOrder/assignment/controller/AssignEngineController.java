@@ -38,4 +38,17 @@ public class AssignEngineController {
         String operatorRole = currentUserRoleProvider.get(authentication);
         return Result.success(assignEngineService.recommend(ticketId, operatorRole));
     }
+
+    /** 手动派单和转派读取与系统推荐一致的分项分数。 */
+    @PreAuthorize("hasAnyRole('ADMIN', 'HANDLER')")
+    @GetMapping("/score")
+    public Result<AssignCandidate> score(
+            @RequestParam("ticketId") Long ticketId,
+            @RequestParam("handlerId") Long handlerId,
+            @RequestParam(value = "additionalLoad", defaultValue = "0") int additionalLoad,
+            Authentication authentication) {
+        String operatorRole = currentUserRoleProvider.get(authentication);
+        return Result.success(assignEngineService
+                .scoreForHandler(ticketId, handlerId, additionalLoad, operatorRole));
+    }
 }

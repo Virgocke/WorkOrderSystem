@@ -86,14 +86,14 @@ public class SkillTagServiceImpl implements SkillTagService {
         requireValidId(id);
         SkillTag current = getRequiredSkillTag(id);
         if (current.getUsedCount() != null && current.getUsedCount() > 0) {
-            throw new SystemException("该技能已分配给处理人，无法删除");
+            throw new SystemException("该技能已被处理人或工单分类使用，无法删除");
         }
         if (skillTagMapper.deleteSkillTagIfUnused(id) != 1) {
             SkillTag latest = skillTagMapper.selectSkillTagById(id);
             if (latest == null) {
                 throw new NoSuchElementException("技能不存在");
             }
-            throw new SystemException("该技能已分配给处理人，无法删除");
+            throw new SystemException("该技能已被处理人或工单分类使用，无法删除");
         }
         return true;
     }

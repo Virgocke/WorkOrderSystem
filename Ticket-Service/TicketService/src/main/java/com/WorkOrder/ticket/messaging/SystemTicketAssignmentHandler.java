@@ -52,6 +52,7 @@ public class SystemTicketAssignmentHandler {
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public boolean confirm(AssignmentProposedPayload proposal) {
         LocalDateTime assignedAt = LocalDateTime.now();
+        ticketMapper.lockHandlerProfile(proposal.getHandlerId());
         // 更新工单状态为 PENDING_RESPONSE
         if (ticketMapper.assignIfPending(proposal.getTicketId(), proposal.getHandlerId(),
                 assignedAt) != 1) {

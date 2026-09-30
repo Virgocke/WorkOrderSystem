@@ -22,20 +22,28 @@ import java.util.List;
 @Mapper
 public interface TicketMapper extends BaseMapper<Tickets> {
 
+    /** 在当前事务锁住目标处理人的档案行，串行化该处理人的并发派单与负载检查。 */
+    @Select("SELECT id FROM handler_profiles WHERE user_id = #{handlerId} FOR UPDATE")
+    Long lockHandlerProfile(@Param("handlerId") Long handlerId);
+
     /**
-     * 只有待分配、没有处理人且目标处理人的档案负载低于容量时才确认系统派单。
+     * 只有待分配、没有处理人且目标处理人的实时在办工单数低于容量时才确认系统派单。
      *
      * @param ticketId 工单 ID
      * @param handlerId 候选处理人用户 ID
      * @param assignedAt 实际确认派单时间
      * @return 成功确认时为 1；已人工分配或状态变化时为 0
      */
-    @Update("UPDATE tickets SET handler_id = #{handlerId}, assigned_at = #{assignedAt}, "
-            + "status = 'PENDING_RESPONSE' WHERE id = #{ticketId} "
-            + "AND status = 'PENDING_ASSIGN' AND handler_id IS NULL "
-            + "AND EXISTS (SELECT 1 FROM users u JOIN handler_profiles hp "
-            + "ON hp.user_id = u.id WHERE u.id = #{handlerId} AND u.role = 1 "
-            + "AND u.status = 1 AND hp.current_load < hp.max_capacity)")
+    @Update("UPDATE /*+ NO_MERGE(active_load) */ tickets target "
+            + "JOIN users u ON u.id = #{handlerId} AND u.role = 1 AND u.status = 1 "
+            + "JOIN handler_profiles hp ON hp.user_id = u.id "
+            + "LEFT JOIN (SELECT handler_id, COUNT(*) AS active_count FROM tickets "
+            + "WHERE status IN ('PENDING_RESPONSE', 'PROCESSING') GROUP BY handler_id) active_load "
+            + "ON active_load.handler_id = u.id "
+            + "SET target.handler_id = #{handlerId}, target.assigned_at = #{assignedAt}, "
+            + "target.status = 'PENDING_RESPONSE' WHERE target.id = #{ticketId} "
+            + "AND target.status = 'PENDING_ASSIGN' AND target.handler_id IS NULL "
+            + "AND COALESCE(active_load.active_count, 0) < hp.max_capacity")
     int assignIfPending(@Param("ticketId") long ticketId,
                         @Param("handlerId") long handlerId,
                         @Param("assignedAt") LocalDateTime assignedAt);

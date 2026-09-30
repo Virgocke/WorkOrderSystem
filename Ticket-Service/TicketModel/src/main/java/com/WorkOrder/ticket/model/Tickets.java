@@ -23,6 +23,8 @@ public class Tickets {
     private Long creatorId;
     // 处理人ID
     private Long handlerId;
+    /** 提交解决时负责该工单的处理人用户 ID，转派后记入接手人。 */
+    private Long resolvedByHandlerId;
 
     private LocalDateTime createdAt;
     // 分配时间

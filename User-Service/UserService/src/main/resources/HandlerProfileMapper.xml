@@ -40,11 +40,17 @@
         d.name AS department_name,
         u.status,
         hp.max_capacity,
-        hp.current_load,
+        (SELECT COUNT(*) FROM tickets active_ticket
+         WHERE active_ticket.handler_id = u.id
+           AND active_ticket.status IN ('PENDING_RESPONSE', 'PROCESSING')) AS current_load,
         hp.avg_response_minutes,
         hp.avg_resolution_minutes,
-        hp.sla_compliance_rate,
-        hp.rating_score
+        COALESCE((SELECT ROUND(AVG(CASE WHEN done.resolved_at &lt;= done.resolution_deadline
+                                         THEN 100.0 ELSE 0 END), 2)
+                  FROM tickets done
+                  WHERE done.resolved_by_handler_id = u.id AND done.resolved_at IS NOT NULL), 50.00) AS sla_compliance_rate,
+        COALESCE((SELECT ROUND(AVG(r.rating), 2) FROM ticket_ratings r
+                  WHERE r.handler_id = u.id), 3.00) AS rating_score
     </sql>
 
     <select id="selectEnabledHandlerOptions" resultMap="handlerProfile">

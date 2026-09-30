@@ -25,6 +25,7 @@ import com.WorkOrder.ticket.messaging.TicketTransferredEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketEscalatedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketResolvedEventPublisher;
 import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
+import com.WorkOrder.ticket.service.AssignmentScoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -32,7 +33,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -77,6 +77,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
     private final TicketEscalatedEventPublisher ticketEscalatedEventPublisher;
     /** 解决事实的事务性事件发布器。 */
     private final TicketResolvedEventPublisher ticketResolvedEventPublisher;
+    private final AssignmentScoreService assignmentScoreService;
 
     /**
      * 获取处理人工单列表
@@ -231,6 +232,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         // 设置新的工单状态
         ticket.setStatus(TicketStatusEnum.RESOLVED.name());
         ticket.setResolvedAt(LocalDateTime.now());
+        // 解决业绩固定归当时负责的处理人；若曾转派，当前处理人即接手人。
+        ticket.setResolvedByHandlerId(ticket.getHandlerId());
 
         // 仅允许从处理中变更状态，避免并发解决产生重复日志与事件。
         int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
@@ -238,7 +241,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 .eq(Tickets::getStatus, oldStatus)
                 .eq(!isAdmin, Tickets::getHandlerId, operatorId)
                 .set(Tickets::getStatus, ticket.getStatus())
-                .set(Tickets::getResolvedAt, ticket.getResolvedAt()));
+                .set(Tickets::getResolvedAt, ticket.getResolvedAt())
+                .set(Tickets::getResolvedByHandlerId, ticket.getResolvedByHandlerId()));
 
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
@@ -319,6 +323,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.ACCOUNT_DISABLED);
         }
 
+        ticketMapper.lockHandlerProfile(transferTicketDto.getToHandlerId());
+
         LocalDateTime transferredAt = LocalDateTime.now();
 
         // 设置新的处理人ID，转派不改变工单状态和既有 SLA 截止时间。
@@ -368,12 +374,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         assignmentRecord.setHandlerId(transferTicketDto.getToHandlerId());
 
 
-        //todo 分数计算模块还没完成，先手动设置为0
-        assignmentRecord.setScore(BigDecimal.ZERO);
-        assignmentRecord.setSkillMatchScore(BigDecimal.ZERO);
-        assignmentRecord.setLoadScore(BigDecimal.ZERO);
-        assignmentRecord.setSlaScore(BigDecimal.ZERO);
-        assignmentRecord.setRatingScore(BigDecimal.ZERO);
+        assignmentScoreService.fill(ticketId, transferTicketDto.getToHandlerId(), 0, assignmentRecord);
 
 
         assignmentRecord.setAssignedBy("MANUAL");

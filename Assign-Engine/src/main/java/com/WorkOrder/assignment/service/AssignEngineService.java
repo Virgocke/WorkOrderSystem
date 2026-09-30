@@ -27,6 +27,9 @@ public interface AssignEngineService {
      */
     AssignCandidate recommendForSystem(Long ticketId);
 
+    /** 用推荐同一算法计算指定工单和处理人的派单分数。 */
+    AssignCandidate scoreForHandler(Long ticketId, Long handlerId, int additionalLoad, String operatorRole);
+
     /**
      * 获取工单分配记录。
      * @param page 页码

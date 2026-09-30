@@ -1,9 +1,11 @@
 package com.WorkOrder.ticket.model;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * @author Virgor
@@ -20,6 +22,9 @@ public class TicketCategory {
     private int defaultResponseSla;
     private int defaultResolutionSla;
     private String description;
+    /** 非数据库列，用于分类写入接口返回当前分类配置的技能。 */
+    @TableField(exist = false)
+    private List<Long> requiredSkillIds;
     // 创建时间，数据库自动生成，不用填写
     private LocalDateTime createdAt;
 }

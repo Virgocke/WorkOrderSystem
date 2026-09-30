@@ -20,6 +20,8 @@ public class TicketCategoryTreeDto {
     private int defaultResponseSla;
     private int defaultResolutionSla;
     private String description;
+    /** 当前分类直接配置的技能标签 ID；空列表表示继承最近祖先分类。 */
+    private List<Long> requiredSkillIds = new ArrayList<>();
     private List<TicketCategoryTreeDto> children = new ArrayList<>();
 
     public static TicketCategoryTreeDto from(TicketCategory entity) {

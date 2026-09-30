@@ -9,6 +9,7 @@ import com.WorkOrder.assignment.service.ConfigurationService;
 import com.WorkOrder.enums.SystemExceptionEnum;
 import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.assignment.AssignmentWeightsSnapshot;
+import com.WorkOrder.model.ticket.TicketNumberRule;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,6 +59,8 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
                 if (WEIGHTS_KEY.equals(row.getConfigKey())) {
                     storedWeights(value, row.getVersion());
+                } else if ("ticketNoRule".equals(row.getConfigKey())) {
+                    storedTicketNumberRule(value);
                 }
 
                 items.put(row.getConfigKey(),
@@ -108,6 +111,8 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             // 校验权重值结构
             if (WEIGHTS_KEY.equals(item.getConfigKey())) {
                 weightsSnapshot(item.getValue(), item.getVersion());
+            } else if ("ticketNoRule".equals(item.getConfigKey())) {
+                TicketNumberRule.fromJson(item.getValue());
             } else if ("escalationRules".equals(item.getConfigKey())
                     ? !item.getValue().isArray() : !item.getValue().isObject()) {
                 throw new IllegalArgumentException("配置值结构不合法");
@@ -151,7 +156,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
             }
         }
-        //todo 接入编号规则、SLA默认值、通知渠道和升级规则的业务消费，目前仅分配权重实时生效。
+        //todo 接入SLA默认值、通知渠道和升级规则的业务消费；编号规则由工单服务在创建时读取。
         //todo 将configuration_change_logs接入审计查询页面，目前已持久化修改记录。
         return true;
     }
@@ -177,6 +182,15 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         }
     }
 
+    /** 数据库中的非法编号规则不静默降级为默认值。 */
+    private TicketNumberRule storedTicketNumberRule(JsonNode value) {
+        try {
+            return TicketNumberRule.fromJson(value);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("数据库中的工单编号规则不合法", exception);
+        }
+    }
+
     /**
      * 配置项持久化时使用，数据库中的非法存量数据不会被静默降级。
      * @return 默认权重快照
@@ -191,7 +205,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         Map<String, ConfigurationItem> items = new LinkedHashMap<>();
         // 工单编号规则配置
         items.put("ticketNoRule", defaultItem("ticketNoRule",
-                parse("{\"prefix\":\"WO\",\"dateFormat\":\"YYYYMMDD\",\"seqLength\":4}"), "工单编号规则"));
+                parse(TicketNumberRule.DEFAULT_JSON), "工单编号规则"));
         // SLA默认值配置
         items.put("slaDefaults", defaultItem("slaDefaults",
                 parse("{\"responseMin\":30,\"resolutionMin\":240}"), "SLA默认值"));

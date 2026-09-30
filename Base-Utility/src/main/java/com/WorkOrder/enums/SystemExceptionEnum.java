@@ -44,6 +44,7 @@ public enum SystemExceptionEnum {
     ALERT_HANDLE_FAILED(1051, "告警处理失败，请刷新后重试"),
     ATTACHMENT_TIME_EXPIRED(1052, "临时附件保存时间已过，请重新上传"),
     ATTACHMENT_NOT_FOUND(1053, "附件不存在"),
+    TICKET_NO_EXHAUSTED(1054, "当前工单编号序号已达上限"),
 
     // === 附件与文件相关 (1060~1069) ===
     UNSUPPORTED_ATTACHMENT_TYPE(1060, "仅支持上传图片类型文件"),

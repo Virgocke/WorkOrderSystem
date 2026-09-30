@@ -47,6 +47,7 @@ public abstract class BaseExceptionHandler {
         HttpStatus status;
         switch (error) {
             case CONFIGURATION_VERSION_CONFLICT:
+            case TICKET_NO_EXHAUSTED:
                 status = HttpStatus.CONFLICT;
                 break;
             case TICKET_NOT_FOUND:

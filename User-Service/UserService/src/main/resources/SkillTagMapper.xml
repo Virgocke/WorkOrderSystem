@@ -71,6 +71,11 @@
               FROM handler_skills
               WHERE skill_tag_id = #{id}
           )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM ticket_category_skills
+              WHERE skill_tag_id = #{id}
+          )
     </delete>
 
 </mapper>

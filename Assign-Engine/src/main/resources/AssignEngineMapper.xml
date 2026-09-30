@@ -26,12 +26,32 @@
         SELECT id FROM tickets WHERE id = #{ticketId}
     </select>
 
+    <select id="selectTicketCategoryId" resultType="java.lang.Long">
+        SELECT category_id FROM tickets WHERE id = #{ticketId}
+    </select>
+
+    <select id="selectCategorySkillIds" resultType="java.lang.Long">
+        SELECT skill_tag_id FROM ticket_category_skills WHERE category_id = #{categoryId} ORDER BY skill_tag_id
+    </select>
+
+    <select id="selectCategoryParentId" resultType="java.lang.Long">
+        SELECT parent_id FROM ticket_categories WHERE id = #{categoryId}
+    </select>
+
     <select id="selectEnabledHandlers" resultMap="handlerProfile">
         SELECT u.id AS user_id, u.real_name, u.username, u.department_id,
                d.name AS department_name, u.status,
-               hp.max_capacity, hp.current_load,
+               hp.max_capacity,
+               (SELECT COUNT(*) FROM tickets active_ticket
+                WHERE active_ticket.handler_id = u.id
+                  AND active_ticket.status IN ('PENDING_RESPONSE', 'PROCESSING')) AS current_load,
                hp.avg_response_minutes, hp.avg_resolution_minutes,
-               hp.sla_compliance_rate, hp.rating_score,
+               COALESCE((SELECT ROUND(AVG(CASE WHEN done.resolved_at &lt;= done.resolution_deadline
+                                                THEN 100.0 ELSE 0 END), 2)
+                         FROM tickets done
+                         WHERE done.resolved_by_handler_id = u.id AND done.resolved_at IS NOT NULL), 50.00) AS sla_compliance_rate,
+               COALESCE((SELECT ROUND(AVG(r.rating), 2) FROM ticket_ratings r
+                         WHERE r.handler_id = u.id), 3.00) AS rating_score,
                st.id AS skill_id, st.name AS skill_name, hs.proficiency
         FROM handler_profiles hp
         INNER JOIN users u ON u.id = hp.user_id

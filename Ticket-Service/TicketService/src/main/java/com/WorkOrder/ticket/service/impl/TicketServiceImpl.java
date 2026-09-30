@@ -20,6 +20,7 @@ import com.WorkOrder.ticket.messaging.TicketRepliedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketTerminalEventPublisher;
 import com.WorkOrder.ticket.model.*;
 import com.WorkOrder.ticket.service.TicketService;
+import com.WorkOrder.ticket.service.TicketNumberService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -69,6 +71,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
                     + "ELSE resolution_deadline END ASC, id ASC";
 
     private final TicketMapper ticketMapper;
+    private final TicketNumberService ticketNumberService;
     private final TicketCategoryMapper categoryMapper;
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
     private final TicketOperationLogMapper ticketOperationLogMapper;
@@ -94,7 +97,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     public TicketResponse createTicket(Long creatorId, String creatorName, CreateTicketDto createTicketDto) {
         TicketResponse ticketResponse = new TicketResponse(); // 创建工单响应对象
         TicketCategory ticketCategory = categoryMapper.selectById(createTicketDto.getCategoryId()); // 根据类别ID获取类别信息
-        LocalDateTime now = LocalDateTime.now(); // 获取当前时间
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai")); // 编号日期与工单创建时间共用同一时刻
 
         if (createTicketDto.getPriority() < 1 || createTicketDto.getPriority() > 4) {
             int defaultPriority = ticketCategory.getDefaultPriority();
@@ -105,9 +108,10 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         BeanUtils.copyProperties(createTicketDto, ticket);
         ticket.setCreatorId(creatorId); // 设置创建者ID
 
-        //todo 生成工单编号，现在暂时使用随机数模拟
-        String ticketNo = String.valueOf((int) (Math.random() * 10000000));
+        // 生成工单编号
+        String ticketNo = ticketNumberService.nextNumber(now);
         ticket.setTicketNo(ticketNo); // 设置工单编号
+        ticket.setCreatedAt(now);
 
         ticketResponse.setCategoryName(ticketCategory.getName()); // 设置工单类别名称
         String creatorDisplayName = ticketMapper.selectDisplayNameByUserId(creatorId);

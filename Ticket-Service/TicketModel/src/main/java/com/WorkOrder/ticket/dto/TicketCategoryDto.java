@@ -4,6 +4,7 @@ package com.WorkOrder.ticket.dto;
 import lombok.Data;
 
 import javax.validation.constraints.*;
+import java.util.List;
 
 /**
  * @author Virgor
@@ -30,4 +31,7 @@ public class TicketCategoryDto {
     private int defaultResolutionSla;
 
     private String description;
+
+    /** 当前分类要求的技能标签 ID；省略时保留原配置，空数组表示清空。 */
+    private List<Long> requiredSkillIds;
 }

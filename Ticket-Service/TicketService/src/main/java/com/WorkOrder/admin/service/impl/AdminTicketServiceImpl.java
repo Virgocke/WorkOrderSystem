@@ -22,6 +22,7 @@ import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
 import com.WorkOrder.ticket.messaging.TicketAssignedEventPublisher;
 import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
+import com.WorkOrder.ticket.service.AssignmentScoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -29,7 +30,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,6 +53,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
     private final TicketOperationLogMapper ticketOperationLogMapper;
     private final TicketResponseAttachmentEnricher ticketResponseAttachmentEnricher;
     private final TicketAssignedEventPublisher ticketAssignedEventPublisher;
+    private final AssignmentScoreService assignmentScoreService;
     
     @Override
     @Transactional
@@ -168,7 +169,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
             reason = "管理员手动分配";
         }
 
-        saveTicketAssignment(ticket, handlerId, reason, operatorId, operatorRole, clientIp, LocalDateTime.now());
+        saveTicketAssignment(ticket, handlerId, reason, operatorId, operatorRole, clientIp, LocalDateTime.now(), 0);
 
         // updated_at 由数据库自动维护，重新查询以返回数据库中的最新字段值。
         Tickets assignedTicket = ticketMapper.selectById(ticketId);
@@ -232,9 +233,10 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         }
 
         LocalDateTime assignedAt = LocalDateTime.now();
+        int additionalLoad = 0;
         for (Long ticketId : assignedTicketIds) {
             saveTicketAssignment(ticketsById.get(ticketId), handlerId, "管理员批量分配",
-                    operatorId, operatorRole, clientIp, assignedAt);
+                    operatorId, operatorRole, clientIp, assignedAt, additionalLoad++);
         }
         return assignedTicketIds;
     }
@@ -265,7 +267,15 @@ public class AdminTicketServiceImpl implements AdminTicketService {
     }
 
     /**
-     * 保存分配结果及审计记录，由单个分配或批量分配的外层事务统一提交。
+     * 保存工单分配信息
+     * @param ticket 工单信息
+     * @param handlerId 处理人ID
+     * @param reason 分配原因
+     * @param operatorId 操作人ID
+     * @param operatorRole 操作人角色
+     * @param clientIp 客户端IP
+     * @param assignedAt 分配时间
+     * @param additionalLoad 额外负载
      */
     private void saveTicketAssignment(
             Tickets ticket,
@@ -274,9 +284,11 @@ public class AdminTicketServiceImpl implements AdminTicketService {
             Long operatorId,
             String operatorRole,
             String clientIp,
-            LocalDateTime assignedAt) {
+            LocalDateTime assignedAt,
+            int additionalLoad) {
 
         Long ticketId = ticket.getId();
+        ticketMapper.lockHandlerProfile(handlerId);
         String oldStatus = ticket.getStatus();
         Long oldHandlerId = ticket.getHandlerId();
         boolean isPendingAssign = TicketStatusEnum.PENDING_ASSIGN.name().equals(oldStatus);
@@ -305,12 +317,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         assignmentRecord.setTicketId(ticketId);
         assignmentRecord.setHandlerId(handlerId);
         assignmentRecord.setAssignedBy("MANUAL");
-        //todo 接入 Assign-Engine，按工单和目标处理人重新计算综合分及各项得分，替换占位值。
-        assignmentRecord.setScore(BigDecimal.ZERO);
-        assignmentRecord.setSkillMatchScore(BigDecimal.ZERO);
-        assignmentRecord.setLoadScore(BigDecimal.ZERO);
-        assignmentRecord.setSlaScore(BigDecimal.ZERO);
-        assignmentRecord.setRatingScore(BigDecimal.ZERO);
+        assignmentScoreService.fill(ticketId, handlerId, additionalLoad, assignmentRecord);
         assignmentRecord.setCreatedAt(assignedAt);
         if (assignmentRecordMapper.insert(assignmentRecord) != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);

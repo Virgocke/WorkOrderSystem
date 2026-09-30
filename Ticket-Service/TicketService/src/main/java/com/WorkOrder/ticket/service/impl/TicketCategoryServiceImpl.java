@@ -5,6 +5,7 @@ import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.ticket.dto.TicketCategoryDto;
 import com.WorkOrder.ticket.dto.TicketCategoryTreeDto;
 import com.WorkOrder.ticket.mapper.TicketCategoryMapper;
+import com.WorkOrder.ticket.model.TicketCategorySkillRelation;
 import com.WorkOrder.ticket.model.TicketCategory;
 import com.WorkOrder.ticket.service.TicketCategoryService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -14,8 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -44,6 +47,12 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
                         TicketCategory::getId,
                         TicketCategoryTreeDto::from
                 ));
+        for (TicketCategorySkillRelation relation : ticketCategoryMapper.selectAllSkillRelations()) {
+            TicketCategoryTreeDto node = nodeMap.get(relation.getCategoryId());
+            if (node != null) {
+                node.getRequiredSkillIds().add(relation.getSkillTagId());
+            }
+        }
         // 构建树结构
         List<TicketCategoryTreeDto> roots = new ArrayList<>();
         // 遍历所有节点，构建树结构
@@ -73,6 +82,7 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
     @Transactional
     @Override
     public TicketCategory createTicketCategory(TicketCategoryDto ticketCategoryDto) {
+        validateSkills(ticketCategoryDto.getRequiredSkillIds());
         // 检查工单类别名称是否已存在
         TicketCategory ticketCategory = ticketCategoryMapper.selectOne(
                 new LambdaQueryWrapper<TicketCategory>()
@@ -97,6 +107,8 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
                             .eq(TicketCategory::getParentId, ticketCategoryDto.getParentId())
             );
         }
+        replaceSkills(ticketCategory.getId(), ticketCategoryDto.getRequiredSkillIds());
+        ticketCategory.setRequiredSkillIds(ticketCategoryMapper.selectSkillIds(ticketCategory.getId()));
         return ticketCategory;
     }
 
@@ -107,7 +119,9 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
      * @return 更新的工单类别
      */
     @Override
+    @Transactional
     public TicketCategory updateTicketCategory(Long id, TicketCategoryDto ticketCategoryDto) {
+        validateSkills(ticketCategoryDto.getRequiredSkillIds());
         // 根据ID查询工单类别
         TicketCategory ticketCategory = ticketCategoryMapper.selectById(id);
         if (ticketCategory == null) {
@@ -119,6 +133,8 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
         if (result != 1){
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
+        replaceSkills(id, ticketCategoryDto.getRequiredSkillIds());
+        ticketCategory.setRequiredSkillIds(ticketCategoryMapper.selectSkillIds(id));
         return ticketCategory;
     }
 
@@ -140,5 +156,31 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
         }
         return true;
+    }
+
+    /** 验证技能 ID 均为已存在且不重复的标签。 */
+    private void validateSkills(List<Long> skillIds) {
+        if (skillIds == null) {
+            return;
+        }
+        Set<Long> unique = new HashSet<>(skillIds);
+        if (unique.size() != skillIds.size()
+                || skillIds.stream().anyMatch(id -> id == null || id <= 0)
+                || (!skillIds.isEmpty() && ticketCategoryMapper.countSkillTags(skillIds) != skillIds.size())) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+    }
+
+    /** 仅在请求显式给出 requiredSkillIds 时覆盖分类技能配置。 */
+    private void replaceSkills(Long categoryId, List<Long> skillIds) {
+        if (skillIds == null) {
+            return;
+        }
+        ticketCategoryMapper.deleteSkillIds(categoryId);
+        for (Long skillId : skillIds) {
+            if (ticketCategoryMapper.insertSkillId(categoryId, skillId) != 1) {
+                throw new SystemException(SystemExceptionEnum.CREATE_FAILED);
+            }
+        }
     }
 }
