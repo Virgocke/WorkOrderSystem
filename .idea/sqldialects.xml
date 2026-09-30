@@ -4,6 +4,7 @@
     <file url="file://$PROJECT_DIR$/Assign-Engine/src/main/resources/AssignEngineMapper.xml" dialect="Cockroach" />
     <file url="file://$PROJECT_DIR$/Messaging-Common/src/main/java/com/WorkOrder/messaging/consumer/ConsumeLogMapper.java" dialect="MySQL" />
     <file url="file://$PROJECT_DIR$/Messaging-Common/src/main/java/com/WorkOrder/messaging/outbox/OutboxMapper.java" dialect="MySQL" />
+    <file url="file://$PROJECT_DIR$/Notification-Service/src/main/java/com/WorkOrder/notification/mapper/EmailDeliveryMapper.java" dialect="MySQL" />
     <file url="file://$PROJECT_DIR$/Ticket-Service/TicketService/src/main/java/com/WorkOrder/ticket/mapper/TicketMapper.java" dialect="MySQL" />
     <file url="file://$PROJECT_DIR$/User-Service/UserService/src/main/java/com/WorkOrder/handler/mapper/HandlerProfileMapper.java" dialect="MySQL" />
     <file url="file://$PROJECT_DIR$/User-Service/UserService/src/main/resources/UsersMapper.xml" dialect="MySQL" />

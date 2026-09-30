@@ -2,7 +2,7 @@ package com.WorkOrder.notification.messaging;
 
 import com.WorkOrder.ticket.contract.TicketEscalatedPayload;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
-import com.WorkOrder.notification.mapper.NotificationMapper;
+import com.WorkOrder.notification.service.NotificationDeliveryService;
 import com.WorkOrder.notification.model.Notifications;
 import com.WorkOrder.notification.mapper.AlertRecordMapper;
 import com.WorkOrder.notification.model.AlertRecords;
@@ -13,14 +13,14 @@ import java.time.LocalDateTime;
 /** 将工单升级事件转换为接收人站内通知，并为自动升级创建告警记录。 */
 @Component
 public class TicketEscalatedNotificationHandler {
-    /** 站内通知持久化入口。 */
-    private final NotificationMapper notificationMapper;
+    /** 统一通知渠道分发入口。 */
+    private final NotificationDeliveryService deliveryService;
     /** 自动升级告警记录，与站内通知同事务写入。 */
     private final AlertRecordMapper alertRecordMapper;
 
     /** 创建升级事件通知处理器。 */
-    public TicketEscalatedNotificationHandler(NotificationMapper notificationMapper, AlertRecordMapper alertRecordMapper) {
-        this.notificationMapper = notificationMapper;
+    public TicketEscalatedNotificationHandler(NotificationDeliveryService deliveryService, AlertRecordMapper alertRecordMapper) {
+        this.deliveryService = deliveryService;
         this.alertRecordMapper = alertRecordMapper;
     }
 
@@ -45,9 +45,7 @@ public class TicketEscalatedNotificationHandler {
             notification.setContent(content);
             notification.setStatus("SENT");
             notification.setSentAt(sentAt);
-            if (notificationMapper.insert(notification) != 1) {
-                throw new IllegalStateException("工单升级站内通知写入失败");
-            }
+            deliveryService.deliver(notification);
             if (payload.isAutomatic()) {
                 AlertRecords alert = new AlertRecords();
                 alert.setTicketId(payload.getTicketId());

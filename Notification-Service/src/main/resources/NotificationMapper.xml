@@ -22,7 +22,7 @@
                n.channel, n.content, n.status, n.created_at
         FROM notification_records n
         LEFT JOIN tickets t ON t.id = n.ticket_id
-        WHERE n.receiver_id = #{receiverId}
+        WHERE n.receiver_id = #{receiverId} AND n.channel = 'INTERNAL'
         <if test="status != null and status != ''">
             <!-- 将数据库投递状态映射为文档约定的阅读状态后筛选。 -->
             AND <include refid="readingStatus"/> = #{status}
@@ -33,7 +33,7 @@
     <select id="countUnreadNotifications" resultType="java.lang.Long">
         SELECT COUNT(*)
         FROM notification_records n
-        WHERE n.receiver_id = #{receiverId}
+        WHERE n.receiver_id = #{receiverId} AND n.channel = 'INTERNAL'
           AND <include refid="readingStatus"/> = 'UNREAD'
     </select>
 </mapper>

@@ -167,3 +167,32 @@ Authorization: Bearer <access_token>
 - 部分通知投递、全部标记已读、催办日志与配置审计查询仍待接入。
 - OAuth2 Password Grant 只应作为本地兼容联调方案；面向浏览器或第三方客户端时应采用 Authorization Code + PKCE。
 - 部署到生产前，请将配置中的本地连接信息、邮件凭据、MinIO 密钥和 JWT 签名密钥迁移到受控的外部配置系统。
+
+
+### 工单通知渠道与邮件部署
+
+`notificationChannels` 已接入派单、回复、催办、转派、升级、解决、关闭、撤销通知。配置为 `{"internal":true,"email":true}`：站内信始终开启，邮件可关闭，不提供短信。旧配置中的布尔 `sms` 字段读取时忽略，新保存只接受 `internal/email` 两项。认证服务的验证码邮件保持独立。
+
+1. 先运行 `sql/work_order_system_add_notification_email.sql`，创建邮件投递队列；全量建库脚本也已包含该表。已有 `notification_records` 和消息幂等表继续复用。
+2. 更新 Assign-Engine、Notification-Service 及前端，工单事件需开启 `WORK_ORDER_MESSAGING_ENABLED=true` 并接通 RocketMQ。
+3. 当前本机已从 Authentication 提取相同 SMTP 账号至通知服务的 `application-mail-local.yaml`，由 `mail-local` profile 自动加载；文件已加入 Git 忽略。它是本机快照，认证服务邮箱配置变更后需同步更新。新环境可配置下表中的环境变量；这些变量也可以覆盖本地快照。默认配置位于 `Notification-Service/src/main/resources/application.yaml`。
+
+本机已于 2026-09-30 执行邮件队列迁移并验证重复执行成功；没有发送真实邮件或重启业务服务。
+
+| 环境变量 | 用途及默认值 |
+| --- | --- |
+| `NOTIFICATION_MAIL_HOST` | SMTP 服务器，需填写 |
+| `NOTIFICATION_MAIL_PORT` | 默认 587 |
+| `NOTIFICATION_MAIL_USERNAME` | SMTP 登录账号，需填写 |
+| `NOTIFICATION_MAIL_PASSWORD` | SMTP 密码或服务商授权码，需填写 |
+| `NOTIFICATION_MAIL_FROM` | 发件地址，默认使用登录账号 |
+| `NOTIFICATION_MAIL_AUTH` | 默认 true |
+| `NOTIFICATION_MAIL_STARTTLS` | 默认 true，启用且要求 STARTTLS |
+| `NOTIFICATION_MAIL_SSL` | 默认 false；465 端口通常设 true，同时关闭 STARTTLS |
+| `NOTIFICATION_MAIL_WORKER_ENABLED` | 默认 true；false 暂停工作者，已生成任务保留 |
+
+邮件开关从后续通知消费起生效，已生成任务继续处理，不为历史已消费事件补发邮件。通知、邮件任务、消费日志在同一事务落库；工作者在事务外发送 SMTP，每 10 秒最多 20 封，租约 5 分钟，失败按 30/60/120/240 秒退避，最多尝试 5 次。`notification_email_deliveries` 保存邮箱/内容快照、重试状态及脱敏错误，关联的 EMAIL 通知同步 PENDING/SENT/FAILED。缺失或非法邮箱直接失败，站内信仍创建。SMTP 未配置或认证失败也记录失败并有限重试，不会假记成功；修正配置后，已达 FAILED 的任务不会自动重发，当前没有管理员重发入口。
+
+站内信列表、未读数量及已读操作仅包含 INTERNAL。自动升级告警仍记录站内信的送达状态，邮件的投递结果查看独立队列，不用邮件失败覆盖已经成功的站内告警。
+
+邮件投递采用可恢复任务队列：普通 SMTP 不支持端到端幂等键，服务器接受邮件后、成功状态提交前退出，恢复时可能重复发送。SENT 表示 SMTP 接受，不保证最终送达或阅读。本地临时 SMTP 测试只验证发送协议和内容，不等于真实邮箱验收。

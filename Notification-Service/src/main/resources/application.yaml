@@ -1,0 +1,26 @@
+# 通知邮件配置；凭据从环境变量或受控配置中心注入。
+# 常见 STARTTLS 使用 587，隐式 TLS 使用 465 并关闭 STARTTLS、开启 SSL。
+spring:
+  profiles:
+    include: mail-local
+  mail:
+    host: ${NOTIFICATION_MAIL_HOST:}
+    port: ${NOTIFICATION_MAIL_PORT:587}
+    username: ${NOTIFICATION_MAIL_USERNAME:}
+    password: ${NOTIFICATION_MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail.smtp.auth: ${NOTIFICATION_MAIL_AUTH:true}
+      mail.smtp.starttls.enable: ${NOTIFICATION_MAIL_STARTTLS:true}
+      mail.smtp.starttls.required: ${NOTIFICATION_MAIL_STARTTLS:true}
+      mail.smtp.ssl.enable: ${NOTIFICATION_MAIL_SSL:false}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+
+work-order:
+  notification:
+    email:
+      from: ${NOTIFICATION_MAIL_FROM:${NOTIFICATION_MAIL_USERNAME:}}
+      worker-enabled: ${NOTIFICATION_MAIL_WORKER_ENABLED:true}
+      poll-interval-ms: 10000

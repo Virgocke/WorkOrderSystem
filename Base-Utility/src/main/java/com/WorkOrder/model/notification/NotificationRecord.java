@@ -26,7 +26,7 @@ public class NotificationRecord {
     /** 接收人用户 ID。 */
     private Long receiverId;
 
-    /** 通知渠道，例如 INTERNAL、EMAIL、SMS、PUSH。 */
+    /** 通知渠道，例如 INTERNAL、EMAIL。 */
     private String channel;
 
     /** 通知内容。 */

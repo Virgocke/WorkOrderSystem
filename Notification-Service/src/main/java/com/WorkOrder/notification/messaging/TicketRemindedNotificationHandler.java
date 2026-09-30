@@ -1,7 +1,7 @@
 package com.WorkOrder.notification.messaging;
 
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
-import com.WorkOrder.notification.mapper.NotificationMapper;
+import com.WorkOrder.notification.service.NotificationDeliveryService;
 import com.WorkOrder.notification.model.Notifications;
 import com.WorkOrder.ticket.contract.TicketRemindedPayload;
 import org.springframework.stereotype.Component;
@@ -11,12 +11,12 @@ import java.time.LocalDateTime;
 /** 将催办事件中的接收人快照转换为站内通知。 */
 @Component
 public class TicketRemindedNotificationHandler {
-    /** 站内通知持久化入口。 */
-    private final NotificationMapper notificationMapper;
+    /** 统一通知渠道分发入口。 */
+    private final NotificationDeliveryService deliveryService;
 
-    /** 注入站内通知持久化入口。 */
-    public TicketRemindedNotificationHandler(NotificationMapper notificationMapper) {
-        this.notificationMapper = notificationMapper;
+    /** 注入统一通知渠道分发入口。 */
+    public TicketRemindedNotificationHandler(NotificationDeliveryService deliveryService) {
+        this.deliveryService = deliveryService;
     }
 
     /** 调用方保证全部通知与消费日志在同一本地事务中写入。 */
@@ -36,9 +36,7 @@ public class TicketRemindedNotificationHandler {
             notification.setContent(content);
             notification.setStatus("SENT");
             notification.setSentAt(sentAt);
-            if (notificationMapper.insert(notification) != 1) {
-                throw new IllegalStateException("工单催办站内通知写入失败");
-            }
+            deliveryService.deliver(notification);
         }
     }
 }

@@ -103,6 +103,7 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
             LambdaUpdateWrapper<Notifications> queryWrapper = new LambdaUpdateWrapper<Notifications>();
             queryWrapper.eq(Notifications::getId, id);
             queryWrapper.eq(Notifications::getReceiverId, receiverId);
+            queryWrapper.eq(Notifications::getChannel, "INTERNAL");
             queryWrapper.set(Notifications::getStatus, "READ");
             queryWrapper.set(Notifications::getReadAt, LocalDateTime.now());
             int update = notificationMapper.update(null, queryWrapper);
@@ -123,6 +124,7 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
     public long markAllAsRead(Long receiverId) {
         int update = notificationMapper.update(null, new LambdaUpdateWrapper<Notifications>()
                 .eq(Notifications::getReceiverId, receiverId)
+                .eq(Notifications::getChannel, "INTERNAL")
                 .set(Notifications::getStatus, "READ")
                 .set(Notifications::getReadAt, LocalDateTime.now()));
         return update;

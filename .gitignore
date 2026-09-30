@@ -58,3 +58,6 @@ build/
 /deploy/
 /CONTEXT.md
 /Base-Utility/src/test/
+
+# 本机复用的 SMTP 配置，含授权码，不进入 Git
+/Notification-Service/src/main/resources/application-mail-local.yaml

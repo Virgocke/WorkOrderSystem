@@ -11,6 +11,7 @@ import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.model.assignment.AssignmentWeightsSnapshot;
 import com.WorkOrder.model.ticket.TicketNumberRule;
 import com.WorkOrder.model.ticket.SlaDefaults;
+import com.WorkOrder.model.notification.NotificationChannels;
 import com.WorkOrder.model.ticket.EscalationRule;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -65,6 +66,9 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                     storedTicketNumberRule(value);
                 } else if ("slaDefaults".equals(row.getConfigKey())) {
                     storedSlaDefaults(value);
+                } else if ("notificationChannels".equals(row.getConfigKey())) {
+                    NotificationChannels channels = NotificationChannels.fromStoredJson(value);
+                    value = objectMapper.createObjectNode().put("internal", true).put("email", channels.isEmail());
                 } else if ("escalationRules".equals(row.getConfigKey())) {
                     EscalationRule.fromJson(value);
                 }
@@ -121,6 +125,8 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 TicketNumberRule.fromJson(item.getValue());
             } else if ("slaDefaults".equals(item.getConfigKey())) {
                 SlaDefaults.fromJson(item.getValue());
+            } else if ("notificationChannels".equals(item.getConfigKey())) {
+                NotificationChannels.fromJson(item.getValue());
             } else if ("escalationRules".equals(item.getConfigKey())) {
                 EscalationRule.fromJson(item.getValue());
             } else if (!item.getValue().isObject()) {
@@ -165,7 +171,6 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
             }
         }
-        //todo 接入通知渠道的业务消费；升级规则由SLA监控和工单执行服务读取。
         //todo 将configuration_change_logs接入审计查询页面，目前已持久化修改记录。
         return true;
     }
@@ -235,12 +240,13 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 .put("load", weights.getLoad())
                 .put("sla", weights.getSla())
                 .put("rating", weights.getRating());
-        // 通知渠道开关配置
+        // 智能分配权重配置
         items.put(WEIGHTS_KEY, defaultItem(WEIGHTS_KEY, value, "智能分配评分权重"));
-        // 升级规则配置
+        // 通知渠道开关配置
         items.put("notificationChannels", defaultItem("notificationChannels",
-                parse("{\"internal\":true,\"email\":true,\"sms\":false}"), "通知渠道开关"));
+                parse(NotificationChannels.DEFAULT_JSON), "通知渠道开关"));
 
+        // 升级规则配置
         items.put("escalationRules", defaultItem("escalationRules", objectMapper.createArrayNode(), "升级规则配置"));
         return items;
     }
