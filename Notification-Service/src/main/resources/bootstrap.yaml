@@ -30,6 +30,8 @@ work-order:
   messaging:
     enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+    skill-topic: ${WORK_ORDER_SKILL_EVENT_TOPIC:wo-skill-event}
+    skill-consumer-group: ${ROCKETMQ_SKILL_CONSUMER_GROUP:notification-skill-review-v1}
     ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
     ticket-events:
       consumer-group: ${ROCKETMQ_TICKET_EVENT_CONSUMER_GROUP:notification-ticket-event-v1}

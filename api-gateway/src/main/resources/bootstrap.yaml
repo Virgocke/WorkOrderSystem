@@ -69,7 +69,7 @@ spring:
         - id: Search
           uri: lb://Search
           predicates:
-            - Path=/api/dashboard/**,/api/handler/**,/api/reports/**,/api/ratings/**
+            - Path=/api/dashboard/**,/api/handler/**,/api/reports/**,/api/ratings/**,/api/audit-logs,/api/audit-logs/**
           filters:
             - StripPrefix=1
 

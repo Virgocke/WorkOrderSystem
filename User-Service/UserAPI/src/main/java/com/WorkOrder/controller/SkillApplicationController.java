@@ -36,6 +36,12 @@ public class SkillApplicationController {
     private final CurrentUserRoleProvider currentUserRoleProvider;
     private final SkillApplicationService skillApplicationService;
 
+    /**
+     * 处理人申请技能
+     * @param skillApplicationDto 申请数据
+     * @param authentication 当前用户认证信息
+     * @return 处理结果
+     */
     @PreAuthorize("hasRole('HANDLER')")
     @PostMapping
     public Result<SkillApplication> handlerSkillApplication(
@@ -46,7 +52,14 @@ public class SkillApplicationController {
         return skillApplicationService.handlerSkillApplication(skillApplicationDto, handlerId);
     }
 
-    /** 按接口文档 16.4 分页查询申请；处理人只能看到本人数据。 */
+    /**
+     * 按接口文档 16.4 分页查询申请；处理人只能看到本人数据。
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param status 状态
+     * @param authentication 当前用户认证信息
+     * @return 分页查询结果
+     */
     @PreAuthorize("hasAnyRole('ADMIN', 'HANDLER')")
     @GetMapping
     public Result<PageResult<SkillApplication>> listApplications(
@@ -58,6 +71,14 @@ public class SkillApplicationController {
         String currentUserRole = currentUserRoleProvider.get(authentication);
         return Result.success(skillApplicationService.listApplications(
                 page, pageSize, status, currentUserId, currentUserRole));
+    }
+
+    /** 详情权限由服务再次限定为本人或管理员。 */
+    @PreAuthorize("hasAnyRole('ADMIN', 'HANDLER')")
+    @GetMapping("/{id}")
+    public Result<SkillApplication> getApplication(@PathVariable Long id, Authentication authentication) {
+        return Result.success(skillApplicationService.getApplication(id,
+                currentUserIdProvider.get(authentication), currentUserRoleProvider.get(authentication)));
     }
 
     /** 按接口文档 16.5 审核申请。 */

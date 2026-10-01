@@ -45,6 +45,7 @@ public class NotificationDeliveryService {
         Notifications email = new Notifications();
         email.setSourceEventId(internal.getSourceEventId());
         email.setTicketId(internal.getTicketId());
+        email.setSkillApplicationId(internal.getSkillApplicationId());
         email.setReceiverId(internal.getReceiverId());
         email.setChannel("EMAIL");
         email.setContent(internal.getContent());
@@ -56,7 +57,7 @@ public class NotificationDeliveryService {
         EmailDelivery task = new EmailDelivery();
         task.setNotificationId(email.getId());
         task.setRecipient(valid ? recipient : null);
-        task.setSubject("【智能工单系统】工单通知");
+        task.setSubject(internal.getSkillApplicationId() == null ? "【智能工单系统】工单通知" : "【智能工单系统】技能申请审核结果");
         task.setContent(email.getContent());
         task.setStatus(valid ? "PENDING" : "FAILED");
         task.setAttempts(0);

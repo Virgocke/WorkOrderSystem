@@ -19,6 +19,8 @@ public class NotificationRecord {
 
     /** 关联工单 ID；系统通知可为 null。 */
     private Long ticketId;
+    /** 技能审核通知关联的申请 ID，工单通知为空。 */
+    private Long skillApplicationId;
 
     /** 工单编号，列表查询时冗余返回；系统通知可为 null。 */
     private String ticketNo;

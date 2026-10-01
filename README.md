@@ -196,3 +196,13 @@ Authorization: Bearer <access_token>
 站内信列表、未读数量及已读操作仅包含 INTERNAL。自动升级告警仍记录站内信的送达状态，邮件的投递结果查看独立队列，不用邮件失败覆盖已经成功的站内告警。
 
 邮件投递采用可恢复任务队列：普通 SMTP 不支持端到端幂等键，服务器接受邮件后、成功状态提交前退出，恢复时可能重复发送。SENT 表示 SMTP 接受，不保证最终送达或阅读。本地临时 SMTP 测试只验证发送协议和内容，不等于真实邮箱验收。
+
+
+### 技能审核通知与管理员审计（2026-10-01）
+
+- 技能申请批准/拒绝后，通过审核事务内的 Outbox 发布 `SKILL_APPLICATION_REVIEWED`；新增 `Skill-Event-Contract` 共享契约，通知服务幂等生成站内信，并按 `notificationChannels.email` 创建邮件任务。原申请理由、审核意见、审核时间分别返回，通知可查看对应申请详情。
+- `GET /api/skill-applications/{id}` 仅允许原申请人或管理员。历史审核不补通知，历史申请仍可查。
+- 管理员审计由 Search-Service 提供：`GET /api/audit-logs` 合并工单操作与状态变更，`GET /api/audit-logs/configurations` 查询配置前后值；网关已配置路由。分页和时间/关键字过滤直接查询 MySQL，不需要 Elasticsearch。操作人采用当前姓名，账号缺失时显示 ID。
+- **升级顺序**：先运行 `sql/work_order_system_add_skill_review_audit.sql`，再更新 UserAPI、Notification-Service、Search-Service、api-gateway 及前端。此本机脚本已在 2026-10-01 执行并验证重复运行；新增通知 `skill_application_id` 字段和审计索引，不修改历史审核结果。
+- UserAPI 和 Notification-Service 均开启 `WORK_ORDER_MESSAGING_ENABLED=true`，共同使用 `WORK_ORDER_SKILL_EVENT_TOPIC`（默认 `wo-skill-event`）。UserAPI 的 Outbox 来源为 `user-service`，保持 `WORK_ORDER_OUTBOX_ENABLED=true`；通知组默认 `notification-skill-review-v1`。生产环境需预建 Topic 并授予对应生产/消费权限。消息底座关闭时不发布事件。
+- 已验证审核/事件事务回滚、消费去重、邮件开关、申请访问控制、审计管理员权限及真实 SQL 分页筛选；前端类型、构建和本机演示页面通过。业务服务未重启，真实 RocketMQ 与 SMTP 端到端投递尚未验收。

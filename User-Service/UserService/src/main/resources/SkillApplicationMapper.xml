@@ -15,6 +15,9 @@
         <result column="reason" property="reason"/>
         <result column="status" property="status"/>
         <result column="created_at" property="createdAt"/>
+        <result column="review_reason" property="reviewComment"/>
+        <result column="reviewer_id" property="reviewerId"/>
+        <result column="reviewed_at" property="reviewedAt"/>
     </resultMap>
 
     <sql id="applicationViewColumns">
@@ -27,7 +30,9 @@
         sa.type,
         sa.reason,
         sa.status,
-        sa.created_at
+        sa.created_at,
+        sa.review_reason, sa.reviewer_id,
+        sa.reviewed_at
     </sql>
 
     <select id="selectApplicationPage" resultMap="skillApplicationView">

@@ -4,6 +4,7 @@
     <resultMap id="notification" type="com.WorkOrder.notification.model.Notifications">
         <id property="id" column="id"/>
         <result property="ticketId" column="ticket_id"/>
+        <result property="skillApplicationId" column="skill_application_id"/>
         <result property="ticketNo" column="ticket_no"/>
         <result property="receiverId" column="receiver_id"/>
         <result property="channel" column="channel"/>
@@ -18,7 +19,7 @@
     </sql>
 
     <select id="selectMyNotifications" resultMap="notification">
-        SELECT n.id, n.ticket_id, t.ticket_no, n.receiver_id,
+        SELECT n.id, n.skill_application_id, n.ticket_id, t.ticket_no, n.receiver_id,
                n.channel, n.content, n.status, n.created_at
         FROM notification_records n
         LEFT JOIN tickets t ON t.id = n.ticket_id

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.dashboard.mapper.AuditMapper">
+    <sql id="operatorName">
+        CASE WHEN a.operator_id IS NULL OR a.operator_id = 0 THEN '系统'
+             ELSE COALESCE(NULLIF(u.real_name, ''), CONCAT('用户 #', a.operator_id)) END
+    </sql>
+    <!-- 将时间限制下推到 UNION 分支，让 MySQL 8.0.11 也可使用日志时间索引。 -->
+    <sql id="sourceTimeFilters">
+        <if test="q.startAt != null">AND created_at &gt;= #{q.startAt}</if>
+        <if test="q.endBefore != null">AND created_at &lt; #{q.endBefore}</if>
+    </sql>
+    <sql id="ticketSource">
+        (SELECT 'OPERATION' AS source, id AS source_id, ticket_id, action, operator_id,
+                operator_role, content, created_at FROM ticket_operation_logs WHERE 1 = 1
+         <include refid="sourceTimeFilters"/>
+         UNION ALL
+         SELECT 'STATUS' AS source, id AS source_id, ticket_id, CONCAT('STATUS_', event) AS action,
+                operator_id, NULL AS operator_role,
+                CONCAT('状态变更：', COALESCE(from_status, '无'), ' → ', to_status,
+                       CASE WHEN remark IS NULL OR remark = '' THEN '' ELSE CONCAT('（', remark, '）') END) AS content,
+                created_at FROM ticket_status_history WHERE from_status IS NOT NULL
+         <include refid="sourceTimeFilters"/>) a
+        LEFT JOIN tickets t ON t.id = a.ticket_id
+        LEFT JOIN users u ON u.id = a.operator_id
+    </sql>
+    <sql id="commonFilters">
+        <if test="q.operator != null">AND <include refid="operatorName"/> LIKE CONCAT('%', #{q.operator}, '%') ESCAPE '!'</if>
+        <if test="q.startAt != null">AND a.created_at &gt;= #{q.startAt}</if>
+        <if test="q.endBefore != null">AND a.created_at &lt; #{q.endBefore}</if>
+    </sql>
+    <sql id="ticketFilters">
+        <where>
+            <include refid="commonFilters"/>
+            <if test="q.ticketNo != null">AND t.ticket_no LIKE CONCAT('%', #{q.ticketNo}, '%') ESCAPE '!'</if>
+            <if test="q.keyword != null">
+                AND (a.action LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!'
+                     OR a.content LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!')
+            </if>
+        </where>
+    </sql>
+    <select id="selectTickets" resultType="com.WorkOrder.dashboard.dto.TicketAuditItem">
+        SELECT CONCAT(a.source, ':', a.source_id) AS id, a.source, a.source_id, a.ticket_id,
+               COALESCE(t.ticket_no, '-') AS ticket_no, a.action, a.operator_id,
+               <include refid="operatorName"/> AS operator_name,
+               COALESCE(a.operator_role, CASE WHEN a.operator_id IS NULL OR a.operator_id = 0 THEN 'SYSTEM'
+                    WHEN u.role = 2 THEN 'ADMIN' WHEN u.role = 1 THEN 'HANDLER'
+                    WHEN u.role = 0 THEN 'USER' ELSE 'UNKNOWN' END) AS operator_role,
+               a.content, a.created_at
+        FROM <include refid="ticketSource"/>
+        <include refid="ticketFilters"/>
+        ORDER BY a.created_at DESC, a.source DESC, a.source_id DESC
+        LIMIT #{q.pageSize} OFFSET #{q.offset}
+    </select>
+    <select id="countTickets" resultType="long">
+        SELECT COUNT(*) FROM <include refid="ticketSource"/><include refid="ticketFilters"/>
+    </select>
+    <sql id="configurationFilters">
+        <where>
+            <include refid="commonFilters"/>
+            <if test="q.configKey != null and q.configKey != ''">AND a.config_key = #{q.configKey}</if>
+            <if test="q.keyword != null">
+                AND (a.config_key LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!'
+                    OR a.before_value LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!'
+                    OR a.after_value LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!')
+            </if>
+        </where>
+    </sql>
+    <select id="selectConfigurations" resultType="com.WorkOrder.dashboard.dto.ConfigurationAuditItem">
+        SELECT a.id, a.config_key, a.before_value, a.after_value, a.version, a.operator_id,
+               <include refid="operatorName"/> AS operator_name, a.created_at
+        FROM configuration_change_logs a LEFT JOIN users u ON u.id = a.operator_id
+        <include refid="configurationFilters"/>
+        ORDER BY a.created_at DESC, a.id DESC LIMIT #{q.pageSize} OFFSET #{q.offset}
+    </select>
+    <select id="countConfigurations" resultType="long">
+        SELECT COUNT(*) FROM configuration_change_logs a LEFT JOIN users u ON u.id = a.operator_id
+        <include refid="configurationFilters"/>
+    </select>
+</mapper>

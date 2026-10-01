@@ -254,6 +254,8 @@ CREATE TABLE `ticket_status_history` (
     `created_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '变更时间',
     `updated_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
+    KEY `idx_audit_created` (`created_at`, `id`),
+    KEY `idx_audit_operator_created` (`operator_id`, `created_at`, `id`),
     KEY `idx_ticket_id` (`ticket_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '工单状态历史表';
 
@@ -269,6 +271,8 @@ CREATE TABLE `ticket_operation_logs` (
     `created_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
     `updated_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
+    KEY `idx_audit_created` (`created_at`, `id`),
+    KEY `idx_audit_operator_created` (`operator_id`, `created_at`, `id`),
     KEY `idx_ticket_id` (`ticket_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '工单操作日志表';
 
@@ -387,6 +391,7 @@ CREATE TABLE `alert_records` (
 CREATE TABLE `notification_records` (
     `id`              BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     `ticket_id`       BIGINT       NULL                    COMMENT '关联工单（可能为空，如系统通知）',
+    `skill_application_id` BIGINT NULL COMMENT '关联技能申请',
     `receiver_id`     BIGINT       NOT NULL                COMMENT '接收人',
     `source_event_id` CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL COMMENT '来源领域事件ID',
     `channel`         VARCHAR(20)  NOT NULL                COMMENT '渠道（INTERNAL/EMAIL）',
@@ -449,7 +454,10 @@ CREATE TABLE `configuration_change_logs` (
     `version`      BIGINT       NOT NULL COMMENT '保存后的配置版本',
     `operator_id`  BIGINT       NOT NULL COMMENT '修改人用户ID',
     `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
+    KEY `idx_audit_config_created` (`config_key`, `created_at`, `id`),
     PRIMARY KEY (`id`),
+    KEY `idx_audit_created` (`created_at`, `id`),
+    KEY `idx_audit_operator_created` (`operator_id`, `created_at`, `id`),
     UNIQUE KEY `uk_config_change_version` (`config_key`, `version`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '系统配置修改记录表';
 

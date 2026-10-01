@@ -16,6 +16,8 @@ public class Notifications {
     @TableField("source_event_id")
     private String sourceEventId;
     private Long ticketId;
+    /** 技能审核通知关联的申请 ID，工单通知为空。 */
+    private Long skillApplicationId;
     private Long receiverId;
     private String channel;
     private String content;

@@ -139,6 +139,7 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
         return NotificationRecord.builder()
                 .id(notification.getId())
                 .ticketId(notification.getTicketId())
+                .skillApplicationId(notification.getSkillApplicationId())
                 .ticketNo(notification.getTicketNo())
                 .receiverId(notification.getReceiverId())
                 .channel(notification.getChannel())

@@ -22,6 +22,7 @@
         <module>Security-Common</module>
         <module>Messaging-Common</module>
         <module>Ticket-Event-Contract</module>
+        <module>Skill-Event-Contract</module>
     </modules>
 
     <properties>

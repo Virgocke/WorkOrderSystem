@@ -10,6 +10,7 @@ import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.skill.dto.ReviewSkillApplicationDto;
 import com.WorkOrder.skill.dto.SkillApplicationDto;
 import com.WorkOrder.skill.mapper.SkillApplicationMapper;
+import com.WorkOrder.skill.messaging.SkillApplicationReviewedPublisher;
 import com.WorkOrder.skill.mapper.SkillTagMapper;
 import com.WorkOrder.skill.model.SkillApplicationRecord;
 import com.WorkOrder.skill.service.SkillApplicationService;
@@ -40,6 +41,9 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
 
     private static final Set<String> APPLICATION_STATUSES = new HashSet<>(
             Arrays.asList("PENDING", "APPROVED", "REJECTED"));
+
+    /** 审核成功后在同一事务写入结果事件。 */
+    private final SkillApplicationReviewedPublisher reviewedPublisher;
 
     private final SkillApplicationMapper skillApplicationMapper;
     private final SkillTagMapper skillTagMapper;
@@ -135,13 +139,31 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
             applyApprovedApplication(record);
         }
 
-        //todo 通知服务尚未提供内部通知写入接口，接入后通知申请人审核结果。
+
 
         SkillApplication reviewed = skillApplicationMapper.selectApplicationById(id);
         if (reviewed == null) {
             throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
         }
+        reviewedPublisher.publish(reviewed);
         return reviewed;
+    }
+
+    /** 查询申请详情；隐藏其他处理人的申请是否存在。 */
+    @Override
+    @Transactional(readOnly = true)
+    public SkillApplication getApplication(Long id, Long userId, String role) {
+        if (id == null || id <= 0 || userId == null || userId <= 0) {
+            throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+        }
+        if (!"ADMIN".equals(role) && !"HANDLER".equals(role)) {
+            throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
+        }
+        SkillApplication application = skillApplicationMapper.selectApplicationById(id);
+        if (application == null || (!"ADMIN".equals(role) && !userId.equals(application.getHandlerId()))) {
+            throw new NoSuchElementException("申请不存在");
+        }
+        return application;
     }
 
     /** 校验并规范提交申请所需字段，避免非 Web 调用绕过 Bean Validation。 */

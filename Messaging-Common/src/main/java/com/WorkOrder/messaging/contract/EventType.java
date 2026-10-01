@@ -33,5 +33,7 @@ public enum EventType {
     /** SLA breaches事件 */
     SLA_BREACHED,
     /** SLA恢复事件 */
-    SLA_RECOVERED
+    SLA_RECOVERED,
+    /** 技能申请审核完成。 */
+    SKILL_APPLICATION_REVIEWED
 }

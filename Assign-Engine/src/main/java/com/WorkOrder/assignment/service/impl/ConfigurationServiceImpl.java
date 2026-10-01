@@ -171,7 +171,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
             }
         }
-        //todo 将configuration_change_logs接入审计查询页面，目前已持久化修改记录。
+        // 修改记录由 Search-Service 的管理员配置审计接口查询。
         return true;
     }
 

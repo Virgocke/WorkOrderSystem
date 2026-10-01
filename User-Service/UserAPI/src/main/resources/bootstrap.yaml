@@ -28,3 +28,13 @@ security:
     jwt:
       # 本地联调必须与认证服务保持一致；生产环境请使用环境变量注入公钥或验签密钥。
       signing-key: ${OAUTH_JWT_SIGNING_KEY:local-development-signing-key-change-before-production}
+
+work-order:
+  messaging:
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
+    name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+    producer-group: ${ROCKETMQ_USER_PRODUCER_GROUP:user-service-producer}
+    skill-topic: ${WORK_ORDER_SKILL_EVENT_TOPIC:wo-skill-event}
+    outbox:
+      enabled: ${WORK_ORDER_OUTBOX_ENABLED:true}
+      source-service: user-service

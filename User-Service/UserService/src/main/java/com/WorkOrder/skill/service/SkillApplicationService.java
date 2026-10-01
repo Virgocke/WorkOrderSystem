@@ -31,6 +31,9 @@ public interface SkillApplicationService {
                                                   Long currentUserId,
                                                   String currentUserRole);
 
+    /** 管理员或原申请人查看申请详情。 */
+    SkillApplication getApplication(Long id, Long userId, String role);
+
     /** 管理员审核申请；审核通过时同步更新处理人技能。 */
     SkillApplication reviewApplication(Long id,
                                        ReviewSkillApplicationDto request,
