@@ -1,0 +1,19 @@
+{
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "ticketId": { "type": "keyword" },
+      "ticketNo": { "type": "keyword" },
+      "title": { "type": "text", "analyzer": "standard" },
+      "description": { "type": "text", "analyzer": "standard" },
+      "categoryId": { "type": "keyword" },
+      "priority": { "type": "integer" },
+      "status": { "type": "keyword" },
+      "creatorId": { "type": "keyword" },
+      "handlerId": { "type": "keyword" },
+      "slaStatus": { "type": "keyword" },
+      "createdAt": { "type": "date", "format": "strict_date_optional_time" },
+      "updatedAt": { "type": "date", "format": "strict_date_optional_time" }
+    }
+  }
+}

@@ -160,6 +160,12 @@
 
             </dependency>
 
+            <dependency>
+                <groupId>org.elasticsearch.client</groupId>
+                <artifactId>elasticsearch-rest-client</artifactId>
+                <version>${elasticsearch.version}</version>
+            </dependency>
+
             <!-- fastjson ，json解析工具 -->
             <dependency>
                 <groupId>com.alibaba</groupId>

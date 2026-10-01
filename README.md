@@ -29,6 +29,8 @@
 
 > 业务请求建议统一通过网关 `http://localhost:63010` 访问，不直接依赖各服务端口。
 
+Search-Service 提供可选的 Elasticsearch 基础组件，默认关闭，包含索引初始化、搜索投影读写与内部分页查询。启用配置和调用边界见 [Search-Service 说明](Search-Service/README.md)，现有业务搜索暂未接入。
+
 ## 快速开始
 
 ### 1. 准备运行环境

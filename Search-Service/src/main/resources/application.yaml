@@ -1,0 +1,33 @@
+spring:
+  autoconfigure:
+    # 由下面的自定义配置类统一创建客户端。
+    # 避免关闭功能后，Boot 又自动创建默认客户端。
+    exclude:
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+
+work-order:
+  elasticsearch:
+    enabled: ${WORK_ORDER_ES_ENABLED:false}
+
+    # 支持配置多个节点，使用逗号分隔。
+    uris: ${WORK_ORDER_ES_URIS:http://localhost:9200}
+
+    username: ${WORK_ORDER_ES_USERNAME:}
+    password: ${WORK_ORDER_ES_PASSWORD:}
+
+    connect-timeout-ms: 3000
+    socket-timeout-ms: 10000
+    connection-request-timeout-ms: 1000
+
+    max-connections: 50
+    max-connections-per-route: 25
+
+    # 查询和写入使用别名，方便重建后切换索引。
+    ticket-index-alias: ${WORK_ORDER_ES_TICKET_INDEX_ALIAS:wo-ticket}
+    ticket-index-name: ${WORK_ORDER_ES_TICKET_INDEX_NAME:wo-ticket-v1}
+
+    # 仅首次部署或本地调试开启；不会导入任何工单数据。
+    initialize-on-startup: ${WORK_ORDER_ES_INITIALIZE_ON_STARTUP:false}
+    number-of-shards: 1
+    number-of-replicas: 0
+    max-bulk-size: 1000
