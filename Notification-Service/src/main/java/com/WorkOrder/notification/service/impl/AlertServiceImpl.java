@@ -6,10 +6,8 @@ import com.WorkOrder.model.Result;
 
 import com.WorkOrder.model.notification.AlertRecord;
 import com.WorkOrder.model.page.PageResult;
-import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.model.user.UserProfile;
 import com.WorkOrder.notification.dto.AlertDto;
-import com.WorkOrder.notification.feignclient.TicketFeignClient;
 import com.WorkOrder.notification.feignclient.UserFeignClient;
 import com.WorkOrder.notification.mapper.AlertRecordMapper;
 import com.WorkOrder.notification.model.AlertRecords;
@@ -40,12 +38,14 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class AlertServiceImpl implements AlertService {
 
+    /** 告警接口统一使用的日期时间格式。 */
     private static final DateTimeFormatter DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /** 告警记录与工单摘要快照的数据访问组件。 */
     private final AlertRecordMapper alertRecordMapper;
+    /** 操作人状态校验和告警接收人姓名查询。 */
     private final UserFeignClient userFeignClient;
-    private final TicketFeignClient ticketFeignClient;
 
 
     /**
@@ -81,12 +81,11 @@ public class AlertServiceImpl implements AlertService {
         Page<AlertRecords> page = alertRecordMapper.selectPage(alertRecordPage, queryWrapper);
         List<AlertRecords> records = page.getRecords();
 
-        Map<Long, TicketResponse> ticketMap = new HashMap<>();
         Map<Long, UserProfile> userMap = new HashMap<>();
 
         List<AlertRecord> alertRecords = new ArrayList<>(records.size());
         for (AlertRecords record : records){
-            alertRecords.add(toResponse(record, ticketMap, userMap));
+            alertRecords.add(toResponse(record, userMap));
         }
 
         return new PageResult<>(alertRecords, page.getTotal(), alertDto.getPage(), alertDto.getPageSize());
@@ -123,7 +122,8 @@ public class AlertServiceImpl implements AlertService {
             if (update != 1) {
                 // 使用当前读确认并发处理结果，避免事务快照读到旧状态。
                 record = alertRecordMapper.selectOne(new LambdaQueryWrapper<AlertRecords>()
-                        .eq(AlertRecords::getId, alertId).last("FOR UPDATE"));
+                        .eq(AlertRecords::getId, alertId)
+                        .last("FOR UPDATE"));
                 validateAlertAccess(record, operatorId, operatorRole);
                 if (!"HANDLED".equals(record.getStatus())) {
                     throw new SystemException(SystemExceptionEnum.ALERT_HANDLE_FAILED);
@@ -131,11 +131,10 @@ public class AlertServiceImpl implements AlertService {
             } else {
                 record.setStatus("HANDLED");
                 record.setUpdatedAt(updatedAt);
-                //todo 记录告警处理审计日志，待统一审计功能接入。
             }
         }
 
-        return toResponse(record, new HashMap<>(), new HashMap<>());
+        return toResponse(record, new HashMap<>());
     }
 
     /** 校验操作人的登录状态、角色及账号状态。 */
@@ -187,9 +186,15 @@ public class AlertServiceImpl implements AlertService {
         }
     }
 
-    /** 告警列表及处理结果使用相同的关联信息、渠道字段和时间格式。 */
-    private AlertRecord toResponse(AlertRecords record, Map<Long, TicketResponse> ticketMap,
-                                   Map<Long, UserProfile> userMap) {
+    /**
+     * 将告警记录转换为接口响应，工单摘要直接读取持久化快照。
+     * 工单转派或改名不影响历史摘要；快照缺失时按接口契约返回空值。
+     *
+     * @param record 已通过查询范围或访问权限校验的告警记录
+     * @param userMap 本次请求内的接收人信息缓存
+     * @return 包含工单摘要、接收人姓名和格式化时间的告警响应
+     */
+    private AlertRecord toResponse(AlertRecords record, Map<Long, UserProfile> userMap) {
         AlertRecord alertRecord = new AlertRecord();
         BeanUtils.copyProperties(record, alertRecord);
         alertRecord.setChannel(record.getNotificationChannel());
@@ -198,42 +203,14 @@ public class AlertServiceImpl implements AlertService {
         alertRecord.setCreatedAt(record.getCreatedAt() == null ? null
                 : record.getCreatedAt().format(DATE_TIME_FORMATTER));
 
-        TicketResponse ticketResponse = ticketMap.computeIfAbsent(record.getTicketId(), this::getTicketInfo);
-        if (ticketResponse != null) {
-            alertRecord.setTicketNo(ticketResponse.getTicketNo());
-            alertRecord.setTicketTitle(ticketResponse.getTitle());
-        }
+        alertRecord.setTicketNo(record.getTicketNoSnapshot());
+        alertRecord.setTicketTitle(record.getTicketTitleSnapshot());
 
         UserProfile userProfile = userMap.computeIfAbsent(record.getTargetUserId(), this::getTargetProfile);
         if (userProfile != null) {
             alertRecord.setTargetName(userProfile.getRealName());
         }
         return alertRecord;
-    }
-
-    /** 工单已转派或删除时，保留历史告警，工单冗余信息允许为空。 */
-    private TicketResponse getTicketInfo(Long ticketId) {
-        try {
-            Result<TicketResponse> result = ticketFeignClient.getTicketInfo(ticketId);
-            if (result == null) {
-                throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
-            }
-            if (result.getCode() == SystemExceptionEnum.ACCESS_DENIED.getCode()
-                    || result.getCode() == SystemExceptionEnum.TICKET_NOT_FOUND.getCode()
-                    || result.getCode() == SystemExceptionEnum.RESOURCE_NOT_FOUND.getCode()) {
-                return null;
-            }
-            if (result.getCode() != SystemExceptionEnum.SUCCESS.getCode()) {
-                throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);
-            }
-            return result.getData();
-        } catch (FeignException exception) {
-            if (exception.status() == 403 || exception.status() == 404) {
-                //todo 接入受控的内部工单概要查询，补齐历史告警的工单冗余信息。
-                return null;
-            }
-            throw exception;
-        }
     }
 
     /** 目标用户已删除时，历史告警的目标姓名保留为空。 */

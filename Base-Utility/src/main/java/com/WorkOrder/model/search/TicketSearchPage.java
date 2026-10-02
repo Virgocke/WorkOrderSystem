@@ -1,13 +1,14 @@
-package com.WorkOrder.search.dto;
+package com.WorkOrder.model.search;
 
-import com.WorkOrder.search.document.TicketSearchDocument;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** 搜索内部结果，后续业务层负责授权复核和转换接口响应。 */
+/** 搜索分页共享结果，业务层负责授权复核和转换接口响应。 */
 @Getter
 public class TicketSearchPage {
 
@@ -31,7 +32,11 @@ public class TicketSearchPage {
      * @param page 已通过仓库校验的页码，从 1 开始
      * @param pageSize 已通过仓库校验的每页数量
      */
-    public TicketSearchPage(List<TicketSearchDocument> records, long total, int page, int pageSize) {
+    @JsonCreator
+    public TicketSearchPage(@JsonProperty("records") List<TicketSearchDocument> records,
+                            @JsonProperty("total") long total,
+                            @JsonProperty("page") int page,
+                            @JsonProperty("pageSize") int pageSize) {
         this.records = Collections.unmodifiableList(new ArrayList<>(records));
         this.total = total;
         this.page = page;

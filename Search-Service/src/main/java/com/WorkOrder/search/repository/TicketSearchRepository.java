@@ -1,9 +1,9 @@
 package com.WorkOrder.search.repository;
 
 import com.WorkOrder.search.config.ElasticsearchProperties;
-import com.WorkOrder.search.document.TicketSearchDocument;
-import com.WorkOrder.search.dto.TicketSearchPage;
-import com.WorkOrder.search.dto.TicketSearchQuery;
+import com.WorkOrder.model.search.TicketSearchDocument;
+import com.WorkOrder.model.search.TicketSearchPage;
+import com.WorkOrder.model.search.TicketSearchQuery;
 import com.WorkOrder.search.exception.TicketSearchBulkException;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -28,6 +28,7 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
@@ -172,8 +173,9 @@ public class TicketSearchRepository {
     }
 
     /**
-     * 按关键字及精确过滤条件查询搜索投影，按创建时间和字符串工单 ID 倒序分页。
+     * 按关键字、精确过滤和创建时间范围查询搜索投影，按创建时间和字符串工单 ID 倒序分页。
      * 关键字精确匹配编号或分词匹配标题、描述；无关键字时仍应用其他过滤条件。
+     * 创建时间支持单边或双边范围且包含边界，所有筛选均在分页前执行。
      * 不负责业务授权，调用方需生成可信权限条件；超时或分片失败不返回部分结果。
      *
      * @param query 查询条件，页码从 1 开始，每页 1 至 100 条，分页窗口不超过 10000
@@ -190,6 +192,9 @@ public class TicketSearchRepository {
         Assert.isTrue(window <= MAX_RESULT_WINDOW, "基础分页仅支持前 10000 条，请缩小筛选范围");
         Assert.isTrue(query.getKeyword() == null || query.getKeyword().length() <= 500,
                 "搜索关键字不能超过 500 个字符");
+        Assert.isTrue(query.getStart() == null || query.getEnd() == null
+                        || !query.getStart().isAfter(query.getEnd()),
+                "创建时间下限不能晚于上限");
 
         // 构建查询条件
         BoolQueryBuilder bool = QueryBuilders.boolQuery();
@@ -211,6 +216,16 @@ public class TicketSearchRepository {
         addFilter(bool, "slaStatus", query.getSlaStatus());
         if (query.getPriority() != null) {
             bool.filter(QueryBuilders.termQuery("priority", query.getPriority()));
+        }
+        if (query.getStart() != null || query.getEnd() != null) {
+            RangeQueryBuilder createdAt = QueryBuilders.rangeQuery("createdAt");
+            if (query.getStart() != null) {
+                createdAt.gte(query.getStart().toString());
+            }
+            if (query.getEnd() != null) {
+                createdAt.lte(query.getEnd().toString());
+            }
+            bool.filter(createdAt);
         }
 
         // 构建搜索源

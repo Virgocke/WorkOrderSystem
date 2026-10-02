@@ -3,6 +3,7 @@ package com.WorkOrder.admin.service;
 import com.WorkOrder.admin.dto.AdminTicketListDto;
 import com.WorkOrder.admin.dto.CloseTicketDto;
 import com.WorkOrder.handler.dto.AssignTicketDto;
+import com.WorkOrder.model.page.PageResult;
 import com.WorkOrder.model.ticket.TicketResponse;
 
 import javax.validation.Valid;
@@ -14,7 +15,8 @@ import java.util.List;
  * @description 管理员工单服务
  */
 public interface AdminTicketService {
-    List<TicketResponse> getTicketListForAdmin(Long adminId, @Valid AdminTicketListDto adminTicketListDto);
+
+    PageResult<TicketResponse> getTicketListForAdmin(Long adminId, @Valid AdminTicketListDto adminTicketListDto);
 
     /**
      * 手动分配无处理人或待分配的工单。

@@ -1,4 +1,4 @@
-package com.WorkOrder.search.document;
+package com.WorkOrder.model.search;
 
 import lombok.Getter;
 import lombok.Setter;

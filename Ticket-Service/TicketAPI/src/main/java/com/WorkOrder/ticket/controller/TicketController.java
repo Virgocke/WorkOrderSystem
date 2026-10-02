@@ -469,12 +469,7 @@ public class TicketController {
             Authentication authentication
     ){
         Long adminId = currentUserIdProvider.get(authentication);
-        return Result.success(new PageResult<>(
-                adminTicketService.getTicketListForAdmin(adminId, adminTicketListDto),
-                adminTicketService.getTicketListForAdmin(adminId, adminTicketListDto).size(),
-                adminTicketListDto.getPage(),
-                adminTicketListDto.getPageSize()
-        ));
+        return Result.success(adminTicketService.getTicketListForAdmin(adminId, adminTicketListDto));
     }
 
     /**

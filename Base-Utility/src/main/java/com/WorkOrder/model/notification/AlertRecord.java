@@ -20,10 +20,10 @@ public class AlertRecord {
     /** 关联工单 ID。 */
     private Long ticketId;
 
-    /** 工单编号，列表查询时冗余返回。 */
+    /** 告警发生时的工单编号快照；旧告警可由迁移补录，缺失时为空。 */
     private String ticketNo;
 
-    /** 工单标题，列表查询时冗余返回。 */
+    /** 告警发生时的工单标题快照；旧告警补录的是迁移时标题，缺失时为空。 */
     private String ticketTitle;
 
     /** 告警类型：RESPONSE_TIMEOUT、RESOLUTION_TIMEOUT、ESCALATION。 */
@@ -44,7 +44,7 @@ public class AlertRecord {
     /** 通知渠道，例如 INTERNAL、EMAIL、SMS。 */
     private String channel;
 
-    /** 告警状态：PENDING、SENT、HANDLED。 */
+    /** 告警状态：PENDING、SENT、FAILED、HANDLED。 */
     private String status;
 
     /** 发送时间；尚未发送时为 null。 */

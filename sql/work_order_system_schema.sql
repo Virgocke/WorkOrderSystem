@@ -370,6 +370,8 @@ CREATE TABLE `sla_records` (
 CREATE TABLE `alert_records` (
     `id`                   BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     `ticket_id`            BIGINT       NOT NULL                COMMENT '工单 ID',
+    `ticket_no_snapshot`   VARCHAR(30)  NULL                    COMMENT '告警发生时的工单编号',
+    `ticket_title_snapshot` VARCHAR(200) NULL                   COMMENT '告警发生时的工单标题',
     `alert_type`           VARCHAR(20)  NOT NULL                COMMENT '告警类型（RESPONSE_TIMEOUT/RESOLUTION_TIMEOUT/ESCALATION）',
     `level`                TINYINT      NOT NULL                COMMENT '告警级别（1=提醒，2=警告，3=严重）',
     `message`              VARCHAR(500) NOT NULL                COMMENT '告警内容',

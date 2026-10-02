@@ -128,6 +128,7 @@ public class TicketSearchIndexService {
         // 获取字段映射
         Object fields = mapping == null ? null : mapping.sourceAsMap().get("properties");
         for (String field : new String[]{"title", "description"}) {
+            // 获取字段定义
             Object definition = fields instanceof Map ? ((Map<?, ?>) fields).get(field) : null;
             if (!(definition instanceof Map)) {
                 throw new IOException("Elasticsearch 搜索索引缺少全文字段 " + field + "，请使用 V2 IK 映射重建索引");

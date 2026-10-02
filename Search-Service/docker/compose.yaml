@@ -42,7 +42,7 @@ services:
     # 将命名数据卷挂载到 ES 数据目录，容器重建后仍可读取已有索引。
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
-      -
+
     # 容器总内存上限为 1 GB，除 JVM 堆外还需容纳原生内存及文件缓存。
     mem_limit: 1g
 
@@ -77,6 +77,31 @@ services:
         max-size: "10m"
         # 最多保留 3 个日志文件，包含当前文件；与 max-size 配合限制日志占用。
         max-file: "3"
+
+  kibana:
+    # 与现有 Elasticsearch 保持相同版本。
+    image: docker.elastic.co/kibana/kibana:7.12.1
+    container_name: workorder-kibana
+    restart: unless-stopped
+
+    # 等待 Elasticsearch 健康检查通过后启动。
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+    # 浏览器访问端口，仅向本机开放。
+    ports:
+      - "127.0.0.1:5601:5601"
+
+    environment:
+      # 使用 Compose 服务名访问 ES。
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      # 监听容器内所有网卡，供宿主机映射端口访问。
+      SERVER_HOST: "0.0.0.0"
+      # 中文界面。
+      I18N_LOCALE: "zh-CN"
+      # 配合当前 ES 未开启认证的本机开发配置。
+      XPACK_SECURITY_ENABLED: "false"
 
 # 声明供上述服务挂载的 Docker 命名数据卷。
 volumes:

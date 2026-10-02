@@ -46,6 +46,7 @@ public final class TicketConverter {
 
     /**
      * 填充已有响应对象，保留分类名称、创建人名称等实体中没有的属性。
+     * 创建和更新时间等 LocalDateTime 字段统一转换为接口约定的时间字符串。
      */
     public static TicketResponse toResponse(Tickets ticket, TicketResponse response) {
         Objects.requireNonNull(ticket, "工单不能为空");
@@ -55,6 +56,7 @@ public final class TicketConverter {
                 ticket,
                 response,
                 "createdAt",
+                "updatedAt",
                 "assignedAt",
                 "responseDeadline",
                 "resolutionDeadline",
@@ -64,6 +66,7 @@ public final class TicketConverter {
         );
 
         response.setCreatedAt(formatTime(ticket.getCreatedAt()));
+        response.setUpdatedAt(formatTime(ticket.getUpdatedAt()));
         response.setAssignedAt(formatTime(ticket.getAssignedAt()));
         response.setResponseDeadline(formatTime(ticket.getResponseDeadline()));
         response.setResolutionDeadline(formatTime(ticket.getResolutionDeadline()));

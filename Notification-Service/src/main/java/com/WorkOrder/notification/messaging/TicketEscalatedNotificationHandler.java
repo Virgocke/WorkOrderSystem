@@ -25,7 +25,7 @@ public class TicketEscalatedNotificationHandler {
     }
 
     /**
-     * 按事件中的接收人快照写入站内通知和自动升级告警；调用方与消费日志共用本地事务。
+     * 按事件中的接收人和工单摘要快照写入站内通知、自动升级告警；与消费日志共用本地事务。
      *
      * @param event 已通过统一信封校验的升级事件
      */
@@ -49,6 +49,9 @@ public class TicketEscalatedNotificationHandler {
             if (payload.isAutomatic()) {
                 AlertRecords alert = new AlertRecords();
                 alert.setTicketId(payload.getTicketId());
+                // 保存事件中的工单摘要，历史告警不再依赖工单当前的标题和访问权限。
+                alert.setTicketNoSnapshot(payload.getTicketNo());
+                alert.setTicketTitleSnapshot(payload.getTicketTitle());
                 alert.setAlertType("ESCALATION");
                 alert.setLevel(payload.getEscalationLevel());
                 // 告警列限长500；完整内容保留于通知和升级操作日志。

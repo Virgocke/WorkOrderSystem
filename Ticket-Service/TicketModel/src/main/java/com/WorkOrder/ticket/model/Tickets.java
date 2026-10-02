@@ -1,7 +1,10 @@
 package com.WorkOrder.ticket.model;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Builder;
 import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -11,6 +14,9 @@ import java.time.LocalDateTime;
  * @description 工单实体类数据库表
  */
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @TableName("tickets")
 public class Tickets {
     private Long id;
@@ -48,5 +54,5 @@ public class Tickets {
     // 来源
     private String source;
 
-    private String updatedAt;
+    private LocalDateTime updatedAt;
 }

@@ -7,7 +7,7 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/** 仅由分配记录的两个 Feign 客户端加载，向内部服务透传当前请求的 Bearer 令牌。 */
+/** 由通知模块的用户服务 Feign 客户端加载，透传当前请求的 Bearer 令牌。 */
 public class NotificationFeignConfiguration {
 
     /**

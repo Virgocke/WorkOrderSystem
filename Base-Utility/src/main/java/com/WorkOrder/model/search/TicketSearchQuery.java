@@ -1,11 +1,13 @@
-package com.WorkOrder.search.dto;
+package com.WorkOrder.model.search;
 
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.OffsetDateTime;
+
 /**
- * 内部查询条件，不作为公开接口的请求模型。
- * 后续接入业务时，创建人及处理人等权限过滤必须由服务端生成。
+ * 搜索查询共享条件，可作为服务间调用的请求模型。
+ * 业务入口负责权限校验，创建人及处理人等权限过滤必须由服务端生成。
  */
 @Getter
 @Setter
@@ -31,6 +33,12 @@ public class TicketSearchQuery {
 
     /** SLA 状态编码精确过滤条件，空值或空白表示不限制 SLA 状态。 */
     private String slaStatus;
+
+    /** 创建时间下限，包含边界；业务入口应明确时区后转换为带偏移量的时间。 */
+    private OffsetDateTime start;
+
+    /** 创建时间上限，包含边界；可以单独提供，但不能早于下限。 */
+    private OffsetDateTime end;
 
     /** 从 1 开始的页码，默认 1；与每页数量的乘积不能超过基础查询窗口 10000。 */
     private int page = 1;
