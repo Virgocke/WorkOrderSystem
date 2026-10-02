@@ -19,10 +19,10 @@ public class TicketSearchDocument {
     /** 工单业务编号，按 keyword 存储并支持精确匹配，保存时必须非空。 */
     private String ticketNo;
 
-    /** 工单标题，使用 standard 分词器建立全文索引，保存时必须非空。 */
+    /** 工单标题，使用 ik_max_word 建索引、ik_smart 查询，保存时必须非空。 */
     private String title;
 
-    /** 工单描述，使用 standard 分词器建立全文索引，可不提供。 */
+    /** 工单描述，使用 ik_max_word 建索引、ik_smart 查询，可不提供。 */
     private String description;
 
     /** 工单分类 ID，以字符串保存，供分类精确过滤使用。 */

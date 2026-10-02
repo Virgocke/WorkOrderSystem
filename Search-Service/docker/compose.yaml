@@ -1,0 +1,86 @@
+# 本机开发环境：数据持久化，9200 仅监听本机，未开启认证。
+# Compose 项目名，用于在 Docker Desktop 中归组服务，并作为默认网络名称的前缀。
+name: workorder-search
+
+# 本文件管理的容器服务列表。
+services:
+  # Elasticsearch 服务名，供 compose 的启动、停止和日志命令指定服务。
+  elasticsearch:
+    # 使用本目录的 Dockerfile 构建包含 Elasticsearch 和 IK 插件的镜像。
+    build:
+      # 构建上下文相对于本 compose.yaml 所在目录，.dockerignore 控制传入的文件。
+      context: .
+      # 构建文件相对于 context，负责安装与 ES 版本匹配的 IK 插件。
+      dockerfile: Dockerfile
+
+    # 构建后的本地镜像名和标签，明确 ES 版本及已包含 IK 插件。
+    image: workorder-elasticsearch:7.12.1-ik
+
+    # 固定容器名，方便使用 docker logs、inspect 等命令定位；同名容器不能重复创建。
+    container_name: workorder-elasticsearch
+
+    # 容器退出后自动重启；手动停止后保持停止，Docker 重启也不会恢复手动停止的容器。
+    restart: unless-stopped
+
+    # 传入容器的环境变量，由 Elasticsearch 启动脚本读取。
+    environment:
+      # 集群名称，用于标识当前项目的搜索集群。
+      cluster.name: work-order-search
+      # 当前节点名称，用于日志、节点列表和故障定位。
+      node.name: work-order-search-1
+      # 单节点发现模式，适用于本机开发，不需要配置其他集群节点。
+      discovery.type: single-node
+      # 本机开发关闭用户名、密码等安全功能；与下方仅绑定本机的端口配置配套使用。
+      xpack.security.enabled: "false"
+      # JVM 初始堆和最大堆均为 512 MB；堆内存只是容器总内存的一部分。
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+
+    # 宿主机地址:宿主机端口:容器端口；HTTP 接口只向本机开放，不映射 9300 传输端口。
+    ports:
+      - "127.0.0.1:9200:9200"
+
+    # 将命名数据卷挂载到 ES 数据目录，容器重建后仍可读取已有索引。
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      -
+    # 容器总内存上限为 1 GB，除 JVM 堆外还需容纳原生内存及文件缓存。
+    mem_limit: 1g
+
+    # 设置容器内进程的资源限制。
+    ulimits:
+      # 进程可同时打开的文件描述符数量上限，ES 索引读写需要足够的文件句柄。
+      nofile:
+        # 进程启动时采用的软限制。
+        soft: 65535
+        # 软限制可提升到的硬上限。
+        hard: 65535
+
+    # 检查 ES HTTP 接口是否可访问；标记 unhealthy 不会自行触发上述重启策略。
+    healthcheck:
+      # 在容器内执行 curl；HTTP 错误或连接失败返回非零退出码，表示本次检查失败。
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/ >/dev/null || exit 1"]
+      # 正常运行期间每隔 10 秒检查一次。
+      interval: 10s
+      # 单次检查超过 5 秒按失败处理。
+      timeout: 5s
+      # 连续失败 12 次后，将容器标记为 unhealthy。
+      retries: 12
+      # 启动宽限期为 40 秒；首次检查成功前，宽限期内的失败不计入重试次数。
+      start_period: 40s
+
+    # Docker 收集容器标准输出和标准错误，并按大小轮转日志。
+    logging:
+      # 使用 Docker 的 JSON 文件日志驱动。
+      driver: json-file
+      options:
+        # 单个日志文件达到此大小后进行轮转。
+        max-size: "10m"
+        # 最多保留 3 个日志文件，包含当前文件；与 max-size 配合限制日志占用。
+        max-file: "3"
+
+# 声明供上述服务挂载的 Docker 命名数据卷。
+volumes:
+  # Compose 内部引用的卷名，与服务 volumes 中冒号左侧的名称一致。
+  elasticsearch-data:
+    # Docker 中的实际卷名；stop 或 down 保留数据，down -v 会删除该卷及索引数据。
+    name: workorder-elasticsearch-data

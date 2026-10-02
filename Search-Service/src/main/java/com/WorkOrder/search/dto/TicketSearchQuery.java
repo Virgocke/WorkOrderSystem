@@ -11,7 +11,7 @@ import lombok.Setter;
 @Setter
 public class TicketSearchQuery {
 
-    /** 最多 500 个字符；去除首尾空白后匹配编号或分词匹配标题、描述，空白时不限制关键字。 */
+    /** 最多 500 个字符；去除首尾空白后精确匹配编号或用 ik_smart 查询标题、描述，空白时不限制。 */
     private String keyword;
 
     /** 分类 ID 精确过滤条件，空值或空白表示不限制分类。 */

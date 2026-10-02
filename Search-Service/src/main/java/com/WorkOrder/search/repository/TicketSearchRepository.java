@@ -195,8 +195,9 @@ public class TicketSearchRepository {
         BoolQueryBuilder bool = QueryBuilders.boolQuery();
         if (StringUtils.hasText(query.getKeyword())) {
             String keyword = query.getKeyword().trim();
+            // 全文查询沿用 V2 映射的 ik_smart；编号仍精确匹配，不参与分词。
             bool.should(QueryBuilders.termQuery("ticketNo", keyword))
-                    .should(QueryBuilders.multiMatchQuery(keyword, "title^2", "description"))
+                    .should(QueryBuilders.multiMatchQuery(keyword).field("title", 2.0f).field("description"))
                     .minimumShouldMatch(1);
         } else {
             bool.must(QueryBuilders.matchAllQuery());

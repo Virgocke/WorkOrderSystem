@@ -10,6 +10,8 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.client.indices.GetMappingsRequest;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -26,8 +28,8 @@ import java.util.Set;
 /** 索引首次初始化及连通性检查，不删除索引、不切换已有别名。 */
 public class TicketSearchIndexService {
 
-    /** 首次建索引时加载的类路径资源，定义 V1 工单搜索投影的严格字段映射。 */
-    private static final String INDEX_RESOURCE = "elasticsearch/ticket-index-v1.json";
+    /** 首次建索引时加载的类路径资源，定义 V2 工单搜索投影及 IK 分词映射。 */
+    private static final String INDEX_RESOURCE = "elasticsearch/ticket-index-v2.json";
 
     /** Spring 容器管理的共享客户端，本服务不单独关闭它。 */
     private final RestHighLevelClient client;
@@ -59,29 +61,36 @@ public class TicketSearchIndexService {
     /**
      * 创建缺失的索引及写别名，返回别名实际指向的物理索引。
      * 已有物理索引却缺少别名时拒绝绑定，避免接管未知结构的索引。
-     * 已有合法别名时直接复用，不修改其指向和映射；并发创建时重新检查别名。
+     * 已有合法别名时校验标题和描述的 IK 映射后复用，不修改其指向和映射。
+     * 旧 standard 映射必须重建索引后切换别名；并发创建时重新检查别名和映射。
      *
      * @return 搜索别名当前指向的唯一物理索引名，可能是已部署的其他版本
-     * @throws IOException 资源读取或网络请求失败、别名不符合约束、索引缺少别名或创建未确认
+     * @throws IOException 资源读取或网络请求失败、别名不符合约束、IK 映射不兼容或创建未确认
      * @throws ElasticsearchStatusException 服务端拒绝索引请求且无法通过已存在的合法别名恢复
      */
     public String initializeIndex() throws IOException {
+        // 查找别名指向的索引
         String existing = findSingleIndex();
         if (existing != null) {
+            validateIkMapping(existing);
             return existing;
         }
         String indexName = properties.getTicketIndexName();
         if (client.indices().exists(new GetIndexRequest(indexName), RequestOptions.DEFAULT)) {
             throw new IOException("Elasticsearch 物理索引已存在但缺少搜索别名，请核对映射后手动配置别名");
         }
+        // 创建索引请求
         CreateIndexRequest request = new CreateIndexRequest(indexName);
+        // 从类路径加载索引映射定义
         try (InputStream input = new ClassPathResource(INDEX_RESOURCE).getInputStream()) {
             request.source(StreamUtils.copyToString(input, StandardCharsets.UTF_8), XContentType.JSON);
         }
         request.settings(Settings.builder()
                 .put("index.number_of_shards", properties.getNumberOfShards())
                 .put("index.number_of_replicas", properties.getNumberOfReplicas()));
+        // 添加搜索别名并设置为主写别名
         request.alias(new Alias(properties.getTicketIndexAlias()).writeIndex(true));
+        // 创建索引并等待确认
         try {
             CreateIndexResponse response = client.indices().create(request, RequestOptions.DEFAULT);
             if (!response.isAcknowledged() || !response.isShardsAcknowledged()) {
@@ -97,7 +106,40 @@ public class TicketSearchIndexService {
         if (initialized == null) {
             throw new IOException("Elasticsearch 索引创建后仍未找到搜索别名");
         }
+        validateIkMapping(initialized);
         return initialized;
+    }
+
+    /**
+     * 校验别名实际指向索引的标题和描述采用约定的 IK 建索引及查询分词器。
+     * 只读取映射，不修改旧索引；拒绝缺失字段及旧 standard 映射，避免静默沿用旧分词。
+     *
+     * @param indexName 已通过别名约束校验的物理索引名
+     * @throws IOException 请求失败或标题、描述的字段类型及 IK 分词配置不符合约定
+     */
+    private void validateIkMapping(String indexName) throws IOException {
+        // 获取索引映射
+        MappingMetadata mapping = client.indices()
+                .getMapping(new GetMappingsRequest().indices(indexName),
+                        RequestOptions.DEFAULT)
+                .mappings()
+                .get(indexName);
+
+        // 获取字段映射
+        Object fields = mapping == null ? null : mapping.sourceAsMap().get("properties");
+        for (String field : new String[]{"title", "description"}) {
+            Object definition = fields instanceof Map ? ((Map<?, ?>) fields).get(field) : null;
+            if (!(definition instanceof Map)) {
+                throw new IOException("Elasticsearch 搜索索引缺少全文字段 " + field + "，请使用 V2 IK 映射重建索引");
+            }
+            Map<?, ?> settings = (Map<?, ?>) definition;
+            if (!"text".equals(settings.get("type"))
+                    || !"ik_max_word".equals(settings.get("analyzer"))
+                    || !"ik_smart".equals(settings.get("search_analyzer"))) {
+                throw new IOException("Elasticsearch 搜索索引的 " + field
+                        + " 必须使用 ik_max_word 建索引、ik_smart 查询，请重建索引并切换搜索别名");
+            }
+        }
     }
 
     /**
@@ -109,18 +151,26 @@ public class TicketSearchIndexService {
      */
     private String findSingleIndex() throws IOException {
         String aliasName = properties.getTicketIndexAlias();
-        GetAliasesResponse response = client.indices().getAlias(
+        GetAliasesResponse response = client
+                .indices()
+                .getAlias(
                 new GetAliasesRequest(aliasName), RequestOptions.DEFAULT);
         if (response.status() == RestStatus.NOT_FOUND) {
             return null;
         }
+
+        // 解析响应
         Map<String, Set<AliasMetadata>> aliases = response.getAliases();
         if (response.status() != RestStatus.OK || aliases.size() != 1) {
             throw new IOException("Elasticsearch 搜索别名必须只指向一个物理索引");
         }
+        // 获取别名元数据
         Map.Entry<String, Set<AliasMetadata>> entry = aliases.entrySet().iterator().next();
-        AliasMetadata metadata = entry.getValue().stream()
-                .filter(alias -> aliasName.equals(alias.alias())).findFirst().orElse(null);
+        AliasMetadata metadata = entry
+                .getValue()
+                .stream()
+                .filter(alias -> aliasName.equals(alias.alias()))
+                .findFirst().orElse(null);
         if (metadata == null || Boolean.FALSE.equals(metadata.writeIndex())
                 || metadata.filter() != null || metadata.indexRouting() != null
                 || metadata.searchRouting() != null) {

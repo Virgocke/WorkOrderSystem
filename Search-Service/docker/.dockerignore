@@ -1,0 +1,3 @@
+# 镜像只通过 Dockerfile 下载、校验并安装插件，不传入本机文件。
+**
+!Dockerfile

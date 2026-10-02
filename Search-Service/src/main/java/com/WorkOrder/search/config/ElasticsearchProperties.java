@@ -58,11 +58,11 @@ public class ElasticsearchProperties {
     /** 是否在启动后初始化缺失的索引和别名，默认关闭，且仅在组件启用时生效。 */
     private boolean initializeOnStartup;
 
-    /** 首次创建的物理索引名，默认 wo-ticket-v1；已有别名指向其他版本时保留原指向。 */
+    /** 首次创建的物理索引名，默认 wo-ticket-v2，采用 IK 映射；已有别名只复用兼容的映射。 */
     @NotBlank
     @Size(max = 255)
     @Pattern(regexp = "[a-z0-9][a-z0-9._-]*")
-    private String ticketIndexName = "wo-ticket-v1";
+    private String ticketIndexName = "wo-ticket-v2";
 
     /** 仓库统一读写的索引别名，默认 wo-ticket；不能与物理索引名相同。 */
     @NotBlank
