@@ -26,10 +26,10 @@ public interface HandlerProfileMapper extends BaseMapper<HandlerProfiles> {
     List<HandlerProfile> selectEnabledHandlerOptions();
 
     /**
-     * 分页查询处理人档案。
+     * 按 ES 候选用户 ID 分页查询处理人档案；null 不限制 ID，空集合不返回记录。
      */
     Page<HandlerProfile> selectHandlerPage(Page<HandlerProfile> page,
-                                           @Param("keyword") String keyword,
+                                           @Param("matchedUserIds") List<Long> matchedUserIds,
                                            @Param("status") Integer status);
 
     /**

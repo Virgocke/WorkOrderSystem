@@ -71,18 +71,17 @@
         INNER JOIN users u ON u.id = hp.user_id
         LEFT JOIN departments d ON d.id = u.department_id
         WHERE u.role = 1
-        <if test="keyword != null">
-            AND (
-                LOWER(u.real_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
-                OR LOWER(u.username) LIKE CONCAT('%', LOWER(#{keyword}), '%')
-                OR EXISTS (
-                    SELECT 1
-                    FROM handler_skills hs
-                    INNER JOIN skill_tags st ON st.id = hs.skill_tag_id
-                    WHERE hs.handler_id = hp.id
-                      AND LOWER(st.name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
-                )
-            )
+        <!-- 候选值是 users.id，不能用 handler_profiles.id；技能搜索已由 ES 完成。 -->
+        <if test="matchedUserIds != null">
+            <choose>
+                <when test="matchedUserIds.size() > 0">
+                    AND u.id IN
+                    <foreach collection="matchedUserIds" item="userId" open="(" separator="," close=")">
+                        #{userId}
+                    </foreach>
+                </when>
+                <otherwise>AND 1 = 0</otherwise>
+            </choose>
         </if>
         <if test="status != null">
             AND u.status = #{status}

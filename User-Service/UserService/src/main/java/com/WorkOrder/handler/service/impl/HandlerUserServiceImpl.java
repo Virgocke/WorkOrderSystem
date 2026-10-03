@@ -11,6 +11,7 @@ import com.WorkOrder.handler.model.HandlerProfiles;
 import com.WorkOrder.handler.service.HandlerUserService;
 import com.WorkOrder.model.handler.HandlerProfile;
 import com.WorkOrder.model.page.PageResult;
+import com.WorkOrder.user.service.DirectoryKeywordSearch;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ import java.util.Set;
 public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, HandlerProfiles> implements HandlerUserService {
 
     private final HandlerProfileMapper handlerProfileMapper;
+    private final DirectoryKeywordSearch keywordSearch;
 
     /**
      * 查询启用处理人的真实用户资料、部门与档案信息。
@@ -43,7 +45,7 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
     }
 
     /**
-     * 分页查询处理人列表
+     * 分页查询处理人；ES 只筛选关键词，SQL 保留用户 ID 正序及实时负载、评分计算。
      * @param query 分页与筛选条件
      * @return 处理人列表
      */
@@ -59,9 +61,10 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
 
         String keyword = query.getKeyword() == null || query.getKeyword().trim().isEmpty()
                 ? null : query.getKeyword().trim();
-        // 执行分页查询
+        // 技能命中同一处理人多次仍只返回一个用户 ID，不提前对 ES 候选集合分页。
+        List<Long> matchedUserIds = keyword == null ? null : keywordSearch.findUserIds(keyword, true);
         Page<HandlerProfile> result = handlerProfileMapper.selectHandlerPage(
-                new Page<>(query.getPage(), query.getPageSize()), keyword, query.getStatus());
+                new Page<>(query.getPage(), query.getPageSize()), matchedUserIds, query.getStatus());
         List<HandlerProfile> records = result == null || result.getRecords() == null
                 ? Collections.emptyList() : result.getRecords();
         long total = result == null ? 0L : result.getTotal();

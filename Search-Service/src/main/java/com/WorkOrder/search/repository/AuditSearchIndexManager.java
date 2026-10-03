@@ -54,7 +54,9 @@ final class AuditSearchIndexManager {
             return existingIndex;
         }
 
+        // 尝试使用索引名称查找现有别名
         String indexName = auditProperties.getIndexName();
+
         if (client.indices().exists(new GetIndexRequest(indexName), RequestOptions.DEFAULT)) {
             // 另一实例可能在上次检查后，同时创建了物理索引和别名。
             String concurrentlyCreatedIndex = findIndexByAlias();
@@ -65,6 +67,7 @@ final class AuditSearchIndexManager {
             throw new IOException("审计物理索引已存在但缺少别名，请核对后手动配置别名");
         }
 
+        // 创建索引及别名
         createIndex();
         String initializedIndex = findIndexByAlias();
         if (initializedIndex == null) {
@@ -123,8 +126,12 @@ final class AuditSearchIndexManager {
 
     /** 校验严格映射、完整 _source 和各字段约定；不修改现有映射。 */
     private void validateMapping(String indexName) throws IOException {
-        MappingMetadata mapping = client.indices().getMapping(new GetMappingsRequest().indices(indexName),
-                RequestOptions.DEFAULT).mappings().get(indexName);
+        MappingMetadata mapping = client.indices()
+                .getMapping(new GetMappingsRequest()
+                                .indices(indexName),
+                                RequestOptions.DEFAULT)
+                .mappings()
+                .get(indexName);
         Map<String, Object> definition = mapping == null ? null : mapping.sourceAsMap();
         Object properties = definition == null ? null : definition.get("properties");
         if (definition == null || !"strict".equals(definition.get("dynamic")) || !(properties instanceof Map)) {

@@ -17,6 +17,7 @@ import com.WorkOrder.model.user.UserProfile;
 import com.WorkOrder.user.model.HandlerSkill;
 import com.WorkOrder.user.model.Users;
 import com.WorkOrder.user.service.UserDirectoryService;
+import com.WorkOrder.user.service.DirectoryKeywordSearch;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -55,9 +56,10 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
     private final Map<Long, UserProfile> users = new ConcurrentHashMap<>();
 
     private final PasswordEncoder passwordEncoder;
+    private final DirectoryKeywordSearch keywordSearch;
 
     /**
-     * 分页查询用户。
+     * 分页查询用户；非空关键词由 ES 生成候选 ID，数据库保留角色、状态及 ID 倒序分页。
      *
      * @param page 页码，从 1 开始
      * @param pageSize 每页条数
@@ -82,9 +84,12 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
         // 处理关键字
         String normalizedKeyword = keyword == null || keyword.trim().isEmpty()
                 ? null : keyword.trim();
-        // 执行分页查询
+        // null 表示无关键词；空集合表示 ES 未命中，SQL 必须返回空页。
+        List<Long> matchedUserIds = normalizedKeyword == null
+                ? null : keywordSearch.findUserIds(normalizedKeyword, false);
+        // 在当前数据库数据上过滤并分页，避免角色、状态变更或 ES 相关性改变原列表语义。
         Page<UserResponse> result = usersMapper.selectUserPage(
-                new Page<>(page, pageSize), normalizedKeyword, role, status);
+                new Page<>(page, pageSize), matchedUserIds, role, status);
         // 处理查询结果
         List<UserResponse> records = result == null || result.getRecords() == null
                 ? Collections.emptyList() : result.getRecords();

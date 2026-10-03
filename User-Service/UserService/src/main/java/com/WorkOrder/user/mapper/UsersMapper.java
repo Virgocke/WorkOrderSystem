@@ -21,13 +21,13 @@ public interface UsersMapper extends BaseMapper<Users> {
      * 分页查询管理员用户列表。返回对象不包含密码，并关联部门名称。
      *
      * @param page 分页参数
-     * @param keyword 账号、姓名、邮箱或手机号关键字
+     * @param matchedUserIds ES 候选用户 ID；null 不限制，空集合不返回记录
      * @param role 可选角色
      * @param status 可选状态
      * @return 用户分页数据
      */
     Page<UserResponse> selectUserPage(Page<UserResponse> page,
-                                      @Param("keyword") String keyword,
+                                      @Param("matchedUserIds") List<Long> matchedUserIds,
                                       @Param("role") Integer role,
                                       @Param("status") Integer status);
 

@@ -1,0 +1,11 @@
+{
+  "_meta": {"owner": "work-order-directory-v1"},
+  "dynamic": "strict",
+  "properties": {
+    "username": {"type": "wildcard"},
+    "realName": {"type": "wildcard"},
+    "email": {"type": "wildcard"},
+    "phone": {"type": "wildcard"},
+    "skillNames": {"type": "wildcard"}
+  }
+}

@@ -143,6 +143,7 @@ public class AuditSearchRepository {
      * @param query 已规范化的条件，关键字保留原始字面值
      * @param operatorIds 数据库按当前姓名筛出的操作人 ID；null 不限制，空集合不匹配
      * @param scopeIds 工单查询为工单 ID，配置查询为日志 ID；配置键比较以数据库排序规则为准
+     * @return 搜索结果仅包含来源标识和准确总数
      */
     public PageResult<AuditSearchDocument> search(boolean configurations, AuditQuery query,
                                                 List<Long> operatorIds, List<Long> scopeIds) throws IOException {

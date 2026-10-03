@@ -23,13 +23,17 @@
         FROM users u
         LEFT JOIN departments d ON d.id = u.department_id
         <where>
-            <if test="keyword != null">
-                AND (
-                    LOWER(u.username) LIKE CONCAT('%', LOWER(#{keyword}), '%')
-                    OR LOWER(u.real_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
-                    OR LOWER(u.email) LIKE CONCAT('%', LOWER(#{keyword}), '%')
-                    OR u.phone LIKE CONCAT('%', #{keyword}, '%')
-                )
+            <!-- 关键词已由 ES 匹配；空候选集合不能退化为查询全部用户。 -->
+            <if test="matchedUserIds != null">
+                <choose>
+                    <when test="matchedUserIds.size() > 0">
+                        AND u.id IN
+                        <foreach collection="matchedUserIds" item="userId" open="(" separator="," close=")">
+                            #{userId}
+                        </foreach>
+                    </when>
+                    <otherwise>AND 1 = 0</otherwise>
+                </choose>
             </if>
             <if test="role != null">
                 AND u.role = #{role}

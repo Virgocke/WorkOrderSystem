@@ -18,6 +18,12 @@
     </properties>
 
     <dependencies>
+        <!-- Feign 转发当前 HTTP 请求的 Bearer 令牌；运行时由 UserAPI 的 Web 容器提供。 -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>com.WordOrder</groupId>
             <artifactId>Skill-Event-Contract</artifactId>

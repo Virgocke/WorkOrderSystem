@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.search.mapper.DirectoryIndexSourceMapper">
+    <resultMap id="directoryDocument" type="com.WorkOrder.search.model.DirectorySearchDocument">
+        <id column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="real_name" property="realName"/>
+        <result column="email" property="email"/>
+        <result column="phone" property="phone"/>
+        <collection property="skillNames" ofType="java.lang.String" notNullColumn="skill_name">
+            <result column="skill_name"/>
+        </collection>
+    </resultMap>
+
+    <!-- 复用原查询语义：包含已停用用户和已绑定技能，角色、状态交给业务 SQL 实时过滤。 -->
+    <select id="selectBatch" resultMap="directoryDocument" resultOrdered="true">
+        SELECT u.id AS user_id, u.username, u.real_name, u.email, u.phone, st.name AS skill_name
+        FROM (
+            SELECT id, username, real_name, email, phone
+            FROM users
+            WHERE id &gt; #{afterId}
+            ORDER BY id
+            LIMIT #{limit}
+        ) u
+        LEFT JOIN handler_profiles hp ON hp.user_id = u.id
+        LEFT JOIN handler_skills hs ON hs.handler_id = hp.id
+        LEFT JOIN skill_tags st ON st.id = hs.skill_tag_id
+        ORDER BY u.id, hs.skill_tag_id
+    </select>
+</mapper>

@@ -27,6 +27,11 @@ work-order:
     ticket-index-alias: ${WORK_ORDER_ES_TICKET_INDEX_ALIAS:wo-ticket}
     ticket-index-name: ${WORK_ORDER_ES_TICKET_INDEX_NAME:wo-ticket-v2}
 
+    # 用户/处理人共用目录快照；仅内容变化时重建，完整写入后原子切换别名。
+    directory-index-alias: ${WORK_ORDER_ES_DIRECTORY_INDEX_ALIAS:wo-directory}
+    directory-index-prefix: ${WORK_ORDER_ES_DIRECTORY_INDEX_PREFIX:wo-directory-v1}
+    directory-sync-delay-ms: ${WORK_ORDER_ES_DIRECTORY_SYNC_DELAY_MS:30000}
+
     # 仅首次部署或本地调试开启；不会导入任何工单数据。
     initialize-on-startup: ${WORK_ORDER_ES_INITIALIZE_ON_STARTUP:false}
     number-of-shards: 1

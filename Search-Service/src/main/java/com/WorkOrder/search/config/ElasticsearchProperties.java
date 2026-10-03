@@ -70,6 +70,18 @@ public class ElasticsearchProperties {
     @Pattern(regexp = "[a-z0-9][a-z0-9._-]*")
     private String ticketIndexAlias = "wo-ticket";
 
+    /** 用户和处理人共用目录读别名；完整投影写入后原子切换，避免暴露半轮同步。 */
+    @NotBlank
+    @Size(max = 180)
+    @Pattern(regexp = "[a-z0-9][a-z0-9._-]*")
+    private String directoryIndexAlias = "wo-directory";
+
+    /** 目录物理索引前缀，每个变更快照使用独立 UUID 后缀。 */
+    @NotBlank
+    @Size(max = 180)
+    @Pattern(regexp = "[a-z0-9][a-z0-9._-]*")
+    private String directoryIndexPrefix = "wo-directory-v1";
+
     /** 首次建索引的主分片数，默认 1，必须大于零，不自动修改已有索引。 */
     @Min(1)
     private int numberOfShards = 1;
