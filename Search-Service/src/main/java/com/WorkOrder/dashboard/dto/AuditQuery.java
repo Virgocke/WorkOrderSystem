@@ -1,8 +1,10 @@
 package com.WorkOrder.dashboard.dto;
 
-import lombok.Data;
-import com.WorkOrder.exception.SystemException;
 import com.WorkOrder.enums.SystemExceptionEnum;
+import com.WorkOrder.exception.SystemException;
+import lombok.Data;
+
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
@@ -14,9 +16,9 @@ public class AuditQuery {
     private int page = 1;
     /** 每页条数，最多 100 条。 */
     private int pageSize = 15;
-    /** 动作或内容关键字，按字面子串匹配。 */
+    /** 工单动作、内容或配置键、前后值的关键字，按字面子串匹配。 */
     private String keyword;
-    /** 工单编号筛选或响应值。 */
+    /** 当前工单编号，按字面子串筛选。 */
     private String ticketNo;
     /** 当前操作人姓名筛选，按字面子串匹配。 */
     private String operator;
@@ -31,40 +33,116 @@ public class AuditQuery {
     /** 解析后的排除式结束时间。 */
     private LocalDateTime endBefore;
 
-    /** 校验页码、长度和时间范围，转义 LIKE 的通配符。 */
+    /** 校验页码、长度和时间范围，保留字面条件；可重复校验而不重复转义。 */
     public void validate() {
-        if (page < 1 || pageSize < 1 || pageSize > 100) { invalid(); }
-        keyword = literal(keyword);
-        ticketNo = literal(ticketNo);
-        operator = literal(operator);
-        if (configKey != null) { configKey = configKey.trim(); }
-        if (configKey != null && configKey.length() > 100) { invalid(); }
-        try {
-            startAt = parse(start);
-            LocalDateTime endAt = parse(end);
-            if (startAt != null && endAt != null && startAt.isAfter(endAt)) { invalid(); }
-            endBefore = endAt == null ? null : (end.trim().length() == 16 ? endAt.plusMinutes(1) : endAt.plusSeconds(1));
-        } catch (java.time.DateTimeException exception) { invalid(); }
+        validatePagination();
+        keyword = normalizeTextFilter(keyword);
+        ticketNo = normalizeTextFilter(ticketNo);
+        operator = normalizeTextFilter(operator);
+        if (configKey != null) {
+            configKey = configKey.trim();
+        }
+        if (configKey != null && configKey.length() > 100) {
+            rejectInvalidQuery();
+        }
+        validateAndParseTimeRange();
     }
 
     /** 使用 long 计算 SQL 偏移量，避免 int 乘法溢出。 */
-    public long getOffset() { return ((long) page - 1) * pageSize; }
-
-    /** 严格解析本地时间，拒绝不存在的日期；空值表示不限制。 */
-    private LocalDateTime parse(String value) {
-        if (value == null || value.trim().isEmpty()) { return null; }
-        String text = value.trim();
-        return LocalDateTime.parse(text, DateTimeFormatter.ofPattern(text.length() == 16
-                ? "uuuu-MM-dd HH:mm" : "uuuu-MM-dd HH:mm:ss").withResolverStyle(ResolverStyle.STRICT));
+    public long getOffset() {
+        return ((long) page - 1) * pageSize;
     }
 
-    /** 清理空白并转义 LIKE 特殊字符，以 ! 作为转义符。 */
-    private String literal(String value) {
-        if (value == null || value.trim().isEmpty()) { return null; }
-        if (value.length() > 200) { invalid(); }
-        return value.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_");
+    /** SQL 和 ES 查询共用页码与每页条数限制。 */
+    private void validatePagination() {
+        if (page < 1 || pageSize < 1 || pageSize > 100) {
+            rejectInvalidQuery();
+        }
+    }
+
+    /** 从客户端文本重新解析时间范围，结束边界转换为 SQL 和 ES 共用的排除式时间。 */
+    private void validateAndParseTimeRange() {
+        try {
+            startAt = parseClientTime(start);
+            LocalDateTime endAt = parseClientTime(end);
+            if (startAt != null && endAt != null && startAt.isAfter(endAt)) {
+                rejectInvalidQuery();
+            }
+            endBefore = toExclusiveEndTime(endAt);
+        } catch (DateTimeException exception) {
+            rejectInvalidQuery();
+        }
+    }
+
+    /** 包含式的结束分钟或秒向后推进一个单位，空结束条件不生成时间上限。 */
+    private LocalDateTime toExclusiveEndTime(LocalDateTime endAt) {
+        if (endAt == null) {
+            return null;
+        }
+        boolean minutePrecision = end.trim().length() == 16;
+        return minutePrecision ? endAt.plusMinutes(1) : endAt.plusSeconds(1);
+    }
+
+    /** 严格解析本地时间，拒绝不存在的日期；空值表示不限制。 */
+    private LocalDateTime parseClientTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        String text = value.trim();
+        String pattern = text.length() == 16 ? "uuuu-MM-dd HH:mm" : "uuuu-MM-dd HH:mm:ss";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern)
+                .withResolverStyle(ResolverStyle.STRICT);
+        return LocalDateTime.parse(text, formatter);
+    }
+
+    /** 复制客户端字段后重新校验，不复用客户端传入的解析时间，也不修改原条件。 */
+    public AuditQuery normalizedCopy() {
+        AuditQuery copy = new AuditQuery();
+        copy.setPage(page);
+        copy.setPageSize(pageSize);
+        copy.setKeyword(keyword);
+        copy.setTicketNo(ticketNo);
+        copy.setOperator(operator);
+        copy.setConfigKey(configKey);
+        copy.setStart(start);
+        copy.setEnd(end);
+        copy.validate();
+        return copy;
+    }
+
+    /** 获取仅供 Mapper 使用的字面工单编号，不改变原始查询条件。 */
+    public String getSqlTicketNo() {
+        return escapeSqlLikeLiteral(ticketNo);
+    }
+
+    /** 获取仅供 Mapper 使用的字面操作人姓名，不改变原始查询条件。 */
+    public String getSqlOperator() {
+        return escapeSqlLikeLiteral(operator);
+    }
+
+    /** 清理空白并限制输入长度，ES 关键词保持用户输入的字面内容。 */
+    private String normalizeTextFilter(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        if (value.length() > 200) {
+            rejectInvalidQuery();
+        }
+        return value.trim();
+    }
+
+    /** 在 SQL 参数边界转义 LIKE 通配符，以 ! 作为转义符。 */
+    private String escapeSqlLikeLiteral(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
     }
 
     /** 统一返回项目约定的参数错误。 */
-    private void invalid() { throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT); }
+    private void rejectInvalidQuery() {
+        throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
+    }
 }

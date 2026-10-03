@@ -1,0 +1,20 @@
+{
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "id": { "type": "keyword" },
+      "kind": { "type": "keyword" },
+      "source": { "type": "keyword" },
+      "sourceId": { "type": "long" },
+      "ticketId": { "type": "long" },
+      "operatorId": { "type": "long" },
+      "action": { "type": "wildcard" },
+      "content": { "type": "wildcard" },
+      "configKey": { "type": "wildcard" },
+      "configKeyExact": { "type": "keyword" },
+      "beforeValue": { "type": "wildcard" },
+      "afterValue": { "type": "wildcard" },
+      "createdAt": { "type": "date", "format": "epoch_millis" }
+    }
+  }
+}

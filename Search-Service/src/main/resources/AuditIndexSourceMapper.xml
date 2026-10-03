@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.search.mapper.AuditIndexSourceMapper">
+    <!-- 显式结果映射不依赖调用方是否开启下划线转驼峰。 -->
+    <resultMap id="auditDocument" type="com.WorkOrder.search.model.AuditSearchDocument">
+        <id property="id" column="document_id"/>
+        <result property="kind" column="kind"/>
+        <result property="source" column="source"/>
+        <result property="sourceId" column="source_id"/>
+        <result property="ticketId" column="ticket_id"/>
+        <result property="operatorId" column="operator_id"/>
+        <result property="action" column="action"/>
+        <result property="content" column="content"/>
+        <result property="configKey" column="config_key"/>
+        <result property="beforeValue" column="before_value"/>
+        <result property="afterValue" column="after_value"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 不拼接动态表名；三个来源使用独立主键游标，跨来源不会相互跳过记录。 -->
+    <select id="selectOperations" resultMap="auditDocument">
+        SELECT CONCAT('OPERATION:', id) AS document_id,
+               'TICKET' AS kind,
+               'OPERATION' AS source,
+               id AS source_id,
+               ticket_id,
+               operator_id,
+               action,
+               content,
+               created_at
+        FROM ticket_operation_logs
+        WHERE id &gt; #{afterId}
+        ORDER BY id ASC LIMIT #{limit}
+    </select>
+
+    <!-- 与 AuditMapper.ticketSource 一致，工单创建的初始状态不单独显示。 -->
+    <select id="selectStatuses" resultMap="auditDocument">
+        SELECT CONCAT('STATUS:', id) AS document_id,
+               'TICKET' AS kind,
+               'STATUS' AS source,
+               id AS source_id,
+               ticket_id,
+               operator_id,
+               CONCAT('STATUS_', event) AS action,
+               CONCAT('状态变更：', COALESCE(from_status, '无'), ' → ', to_status,
+                      CASE WHEN remark IS NULL OR remark = '' THEN ''
+                           ELSE CONCAT('（', remark, '）') END) AS content,
+               created_at
+        FROM ticket_status_history
+        WHERE id &gt; #{afterId} AND from_status IS NOT NULL
+        ORDER BY id ASC LIMIT #{limit}
+    </select>
+
+    <select id="selectConfigurations" resultMap="auditDocument">
+        SELECT CONCAT('CONFIGURATION:', id) AS document_id,
+               'CONFIGURATION' AS kind,
+               'CONFIGURATION' AS source,
+               id AS source_id,
+               operator_id,
+               config_key,
+               before_value,
+               after_value,
+               created_at
+        FROM configuration_change_logs
+        WHERE id &gt; #{afterId}
+        ORDER BY id ASC LIMIT #{limit}
+    </select>
+</mapper>

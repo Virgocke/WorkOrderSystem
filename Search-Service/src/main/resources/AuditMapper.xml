@@ -1,80 +1,216 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.WorkOrder.dashboard.mapper.AuditMapper">
+    <!-- 姓名取当前用户资料；系统操作和缺失账号分别使用固定名称、用户 ID 兜底。 -->
     <sql id="operatorName">
-        CASE WHEN a.operator_id IS NULL OR a.operator_id = 0 THEN '系统'
-             ELSE COALESCE(NULLIF(u.real_name, ''), CONCAT('用户 #', a.operator_id)) END
+        CASE
+            WHEN a.operator_id IS NULL OR a.operator_id = 0 THEN '系统'
+            ELSE COALESCE(NULLIF(u.real_name, ''), CONCAT('用户 #', a.operator_id))
+        END
     </sql>
+
     <!-- 将时间限制下推到 UNION 分支，让 MySQL 8.0.11 也可使用日志时间索引。 -->
     <sql id="sourceTimeFilters">
-        <if test="q.startAt != null">AND created_at &gt;= #{q.startAt}</if>
-        <if test="q.endBefore != null">AND created_at &lt; #{q.endBefore}</if>
+        <if test="q.startAt != null">
+            AND created_at &gt;= #{q.startAt}
+        </if>
+        <if test="q.endBefore != null">
+            AND created_at &lt; #{q.endBefore}
+        </if>
     </sql>
+
+    <!--
+        工单审计合并操作日志和具有原状态的历史记录。
+        普通查询不传来源 ID 条件；ES 回表显式传入当前页的两类 ID，空列表必须排除该来源。
+    -->
     <sql id="ticketSource">
-        (SELECT 'OPERATION' AS source, id AS source_id, ticket_id, action, operator_id,
-                operator_role, content, created_at FROM ticket_operation_logs WHERE 1 = 1
-         <include refid="sourceTimeFilters"/>
-         UNION ALL
-         SELECT 'STATUS' AS source, id AS source_id, ticket_id, CONCAT('STATUS_', event) AS action,
-                operator_id, NULL AS operator_role,
-                CONCAT('状态变更：', COALESCE(from_status, '无'), ' → ', to_status,
-                       CASE WHEN remark IS NULL OR remark = '' THEN '' ELSE CONCAT('（', remark, '）') END) AS content,
-                created_at FROM ticket_status_history WHERE from_status IS NOT NULL
-         <include refid="sourceTimeFilters"/>) a
+        (
+            SELECT 'OPERATION' AS source, id AS source_id, ticket_id, action, operator_id,
+                   operator_role, content, created_at
+            FROM ticket_operation_logs
+            WHERE 1 = 1
+            <include refid="sourceTimeFilters"/>
+            <if test="_parameter.containsKey('operationIds')">
+                <choose>
+                    <when test="operationIds != null and operationIds.size() > 0">
+                        AND id IN
+                        <foreach collection="operationIds" item="id" open="(" separator="," close=")">
+                            #{id}
+                        </foreach>
+                    </when>
+                    <otherwise>
+                        AND 1 = 0
+                    </otherwise>
+                </choose>
+            </if>
+
+            UNION ALL
+
+            SELECT 'STATUS' AS source, id AS source_id, ticket_id, CONCAT('STATUS_', event) AS action,
+                   operator_id, NULL AS operator_role,
+                   CONCAT('状态变更：', COALESCE(from_status, '无'), ' → ', to_status,
+                          CASE WHEN remark IS NULL OR remark = '' THEN '' ELSE CONCAT('（', remark, '）') END) AS content,
+                   created_at
+            FROM ticket_status_history
+            WHERE from_status IS NOT NULL
+            <include refid="sourceTimeFilters"/>
+            <if test="_parameter.containsKey('statusIds')">
+                <choose>
+                    <when test="statusIds != null and statusIds.size() > 0">
+                        AND id IN
+                        <foreach collection="statusIds" item="id" open="(" separator="," close=")">
+                            #{id}
+                        </foreach>
+                    </when>
+                    <otherwise>
+                        AND 1 = 0
+                    </otherwise>
+                </choose>
+            </if>
+        ) a
         LEFT JOIN tickets t ON t.id = a.ticket_id
         LEFT JOIN users u ON u.id = a.operator_id
     </sql>
+
     <sql id="commonFilters">
-        <if test="q.operator != null">AND <include refid="operatorName"/> LIKE CONCAT('%', #{q.operator}, '%') ESCAPE '!'</if>
-        <if test="q.startAt != null">AND a.created_at &gt;= #{q.startAt}</if>
-        <if test="q.endBefore != null">AND a.created_at &lt; #{q.endBefore}</if>
+        <if test="q.operator != null">
+            AND <include refid="operatorName"/> LIKE CONCAT('%', #{q.sqlOperator}, '%') ESCAPE '!'
+        </if>
+        <if test="q.startAt != null">
+            AND a.created_at &gt;= #{q.startAt}
+        </if>
+        <if test="q.endBefore != null">
+            AND a.created_at &lt; #{q.endBefore}
+        </if>
     </sql>
+
+    <!-- 动态姓名、编号和时间条件由数据库确认；关键词仅由 ES 检索。 -->
     <sql id="ticketFilters">
         <where>
             <include refid="commonFilters"/>
-            <if test="q.ticketNo != null">AND t.ticket_no LIKE CONCAT('%', #{q.ticketNo}, '%') ESCAPE '!'</if>
-            <if test="q.keyword != null">
-                AND (a.action LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!'
-                     OR a.content LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!')
+            <if test="q.ticketNo != null">
+                AND t.ticket_no LIKE CONCAT('%', #{q.sqlTicketNo}, '%') ESCAPE '!'
             </if>
         </where>
     </sql>
+
+    <sql id="ticketColumns">
+        CONCAT(a.source, ':', a.source_id) AS id, a.source, a.source_id, a.ticket_id,
+        COALESCE(t.ticket_no, '-') AS ticket_no, a.action, a.operator_id,
+        <include refid="operatorName"/> AS operator_name,
+        COALESCE(a.operator_role,
+                 CASE
+                     WHEN a.operator_id IS NULL OR a.operator_id = 0 THEN 'SYSTEM'
+                     WHEN u.role = 2 THEN 'ADMIN'
+                     WHEN u.role = 1 THEN 'HANDLER'
+                     WHEN u.role = 0 THEN 'USER'
+                     ELSE 'UNKNOWN'
+                 END) AS operator_role,
+        a.content, a.created_at
+    </sql>
+
+    <!-- 无关键词时，列表和总数复用完全相同的数据库来源与筛选条件。 -->
     <select id="selectTickets" resultType="com.WorkOrder.dashboard.dto.TicketAuditItem">
-        SELECT CONCAT(a.source, ':', a.source_id) AS id, a.source, a.source_id, a.ticket_id,
-               COALESCE(t.ticket_no, '-') AS ticket_no, a.action, a.operator_id,
-               <include refid="operatorName"/> AS operator_name,
-               COALESCE(a.operator_role, CASE WHEN a.operator_id IS NULL OR a.operator_id = 0 THEN 'SYSTEM'
-                    WHEN u.role = 2 THEN 'ADMIN' WHEN u.role = 1 THEN 'HANDLER'
-                    WHEN u.role = 0 THEN 'USER' ELSE 'UNKNOWN' END) AS operator_role,
-               a.content, a.created_at
+        SELECT <include refid="ticketColumns"/>
         FROM <include refid="ticketSource"/>
         <include refid="ticketFilters"/>
         ORDER BY a.created_at DESC, a.source DESC, a.source_id DESC
         LIMIT #{q.pageSize} OFFSET #{q.offset}
     </select>
+
     <select id="countTickets" resultType="long">
-        SELECT COUNT(*) FROM <include refid="ticketSource"/><include refid="ticketFilters"/>
+        SELECT COUNT(*)
+        FROM <include refid="ticketSource"/>
+        <include refid="ticketFilters"/>
     </select>
+
+    <sql id="configurationConditions">
+        <include refid="commonFilters"/>
+        <if test="q.configKey != null and q.configKey != ''">
+            AND a.config_key = #{q.configKey}
+        </if>
+    </sql>
+
     <sql id="configurationFilters">
         <where>
-            <include refid="commonFilters"/>
-            <if test="q.configKey != null and q.configKey != ''">AND a.config_key = #{q.configKey}</if>
-            <if test="q.keyword != null">
-                AND (a.config_key LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!'
-                    OR a.before_value LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!'
-                    OR a.after_value LIKE CONCAT('%', #{q.keyword}, '%') ESCAPE '!')
-            </if>
+            <include refid="configurationConditions"/>
         </where>
     </sql>
+
+    <sql id="configurationColumns">
+        a.id, a.config_key, a.before_value, a.after_value, a.version, a.operator_id,
+        <include refid="operatorName"/> AS operator_name, a.created_at
+    </sql>
+
     <select id="selectConfigurations" resultType="com.WorkOrder.dashboard.dto.ConfigurationAuditItem">
-        SELECT a.id, a.config_key, a.before_value, a.after_value, a.version, a.operator_id,
-               <include refid="operatorName"/> AS operator_name, a.created_at
-        FROM configuration_change_logs a LEFT JOIN users u ON u.id = a.operator_id
+        SELECT <include refid="configurationColumns"/>
+        FROM configuration_change_logs a
+        LEFT JOIN users u ON u.id = a.operator_id
         <include refid="configurationFilters"/>
-        ORDER BY a.created_at DESC, a.id DESC LIMIT #{q.pageSize} OFFSET #{q.offset}
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT #{q.pageSize} OFFSET #{q.offset}
     </select>
+
     <select id="countConfigurations" resultType="long">
-        SELECT COUNT(*) FROM configuration_change_logs a LEFT JOIN users u ON u.id = a.operator_id
+        SELECT COUNT(*)
+        FROM configuration_change_logs a
+        LEFT JOIN users u ON u.id = a.operator_id
         <include refid="configurationFilters"/>
+    </select>
+
+    <!-- 当前姓名和编号先转换成 ES 的 ID 过滤条件，避免索引中的旧姓名影响分页。 -->
+    <select id="selectTicketOperatorIds" resultType="long">
+        SELECT DISTINCT COALESCE(a.operator_id, 0)
+        FROM <include refid="ticketSource"/>
+        <include refid="ticketFilters"/>
+    </select>
+
+    <select id="selectConfigurationOperatorIds" resultType="long">
+        SELECT DISTINCT COALESCE(a.operator_id, 0)
+        FROM configuration_change_logs a
+        LEFT JOIN users u ON u.id = a.operator_id
+        <include refid="configurationFilters"/>
+    </select>
+
+    <select id="selectTicketIds" resultType="long">
+        SELECT id
+        FROM tickets
+        WHERE ticket_no LIKE CONCAT('%', #{q.sqlTicketNo}, '%') ESCAPE '!'
+    </select>
+
+    <select id="selectConfigurationIds" resultType="long">
+        SELECT a.id
+        FROM configuration_change_logs a
+        LEFT JOIN users u ON u.id = a.operator_id
+        <include refid="configurationFilters"/>
+    </select>
+
+    <!-- 来源主键条件下推到各分支；回表只读 ES 当前页，不再次 LIMIT/OFFSET。 -->
+    <select id="selectTicketsByIds" resultType="com.WorkOrder.dashboard.dto.TicketAuditItem">
+        SELECT <include refid="ticketColumns"/>
+        FROM <include refid="ticketSource"/>
+        <include refid="ticketFilters"/>
+        ORDER BY a.created_at DESC, a.source DESC, a.source_id DESC
+    </select>
+
+    <select id="selectConfigurationsByIds" resultType="com.WorkOrder.dashboard.dto.ConfigurationAuditItem">
+        SELECT <include refid="configurationColumns"/>
+        FROM configuration_change_logs a
+        LEFT JOIN users u ON u.id = a.operator_id
+        <where>
+            <include refid="configurationConditions"/>
+            <choose>
+                <when test="ids != null and ids.size() > 0">
+                    AND a.id IN
+                    <foreach collection="ids" item="id" open="(" separator="," close=")">
+                        #{id}
+                    </foreach>
+                </when>
+                <otherwise>
+                    AND 1 = 0
+                </otherwise>
+            </choose>
+        </where>
+        ORDER BY a.created_at DESC, a.id DESC
     </select>
 </mapper>

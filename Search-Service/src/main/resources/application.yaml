@@ -32,3 +32,13 @@ work-order:
     number-of-shards: 1
     number-of-replicas: 0
     max-bulk-size: 1000
+
+    # 审计索引与工单索引独立；启用 ES 后自动初始化、分批回填并周期对账。
+    # 首轮回填完成前关键词请求明确失败，无关键词查询仍使用 MySQL。
+    audit:
+      index-alias: ${WORK_ORDER_ES_AUDIT_INDEX_ALIAS:wo-audit}
+      index-name: ${WORK_ORDER_ES_AUDIT_INDEX_NAME:wo-audit-v1}
+      batch-size: 500
+      batches-per-run: 10
+      # 每轮扫到末尾会重新从头扫描，补齐较小 ID 的迟提交日志。
+      sync-delay-ms: ${WORK_ORDER_ES_AUDIT_SYNC_DELAY_MS:30000}
