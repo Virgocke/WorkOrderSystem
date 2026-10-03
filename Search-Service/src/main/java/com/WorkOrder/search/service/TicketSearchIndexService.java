@@ -11,6 +11,7 @@ import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.client.indices.GetMappingsRequest;
+import org.elasticsearch.client.indices.PutMappingRequest;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.common.settings.Settings;
@@ -25,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 
-/** 索引首次初始化及连通性检查，不删除索引、不切换已有别名。 */
+/** 索引首次初始化及连通性检查，兼容新增截止时间映射，不删除索引或切换已有别名。 */
 public class TicketSearchIndexService {
 
     /** 首次建索引时加载的类路径资源，定义 V2 工单搜索投影及 IK 分词映射。 */
@@ -61,18 +62,18 @@ public class TicketSearchIndexService {
     /**
      * 创建缺失的索引及写别名，返回别名实际指向的物理索引。
      * 已有物理索引却缺少别名时拒绝绑定，避免接管未知结构的索引。
-     * 已有合法别名时校验标题和描述的 IK 映射后复用，不修改其指向和映射。
+     * 已有合法别名时校验 IK 映射并幂等补充缺失的响应截止时间 date 字段，保留别名指向。
      * 旧 standard 映射必须重建索引后切换别名；并发创建时重新检查别名和映射。
      *
      * @return 搜索别名当前指向的唯一物理索引名，可能是已部署的其他版本
-     * @throws IOException 资源读取或网络请求失败、别名不符合约束、IK 映射不兼容或创建未确认
+     * @throws IOException 资源读取或网络请求失败、别名不符合约束、字段映射不兼容或创建未确认
      * @throws ElasticsearchStatusException 服务端拒绝索引请求且无法通过已存在的合法别名恢复
      */
     public String initializeIndex() throws IOException {
         // 查找别名指向的索引
         String existing = findSingleIndex();
         if (existing != null) {
-            validateIkMapping(existing);
+            validateAndCompleteMapping(existing);
             return existing;
         }
         String indexName = properties.getTicketIndexName();
@@ -106,18 +107,18 @@ public class TicketSearchIndexService {
         if (initialized == null) {
             throw new IOException("Elasticsearch 索引创建后仍未找到搜索别名");
         }
-        validateIkMapping(initialized);
+        validateAndCompleteMapping(initialized);
         return initialized;
     }
 
     /**
      * 校验别名实际指向索引的标题和描述采用约定的 IK 建索引及查询分词器。
-     * 只读取映射，不修改旧索引；拒绝缺失字段及旧 standard 映射，避免静默沿用旧分词。
+     * 拒绝缺失全文字段及旧 standard 映射；全文映射兼容后仅补充缺失的截止时间字段。
      *
      * @param indexName 已通过别名约束校验的物理索引名
-     * @throws IOException 请求失败或标题、描述的字段类型及 IK 分词配置不符合约定
+     * @throws IOException 请求失败、全文或截止时间映射不兼容，或补充映射未获确认
      */
-    private void validateIkMapping(String indexName) throws IOException {
+    private void validateAndCompleteMapping(String indexName) throws IOException {
         // 获取索引映射
         MappingMetadata mapping = client.indices()
                 .getMapping(new GetMappingsRequest().indices(indexName),
@@ -140,6 +141,28 @@ public class TicketSearchIndexService {
                 throw new IOException("Elasticsearch 搜索索引的 " + field
                         + " 必须使用 ik_max_word 建索引、ik_smart 查询，请重建索引并切换搜索别名");
             }
+        }
+        ensureResponseDeadlineMapping(indexName, (Map<?, ?>) fields);
+    }
+
+    /**
+     * 仅为缺失字段追加可排序的 date 映射，不改写现有字段或回填历史文档。
+     * 已有字段必须为 date 且未禁用 doc_values；并发追加相同映射保持幂等。
+     */
+    private void ensureResponseDeadlineMapping(String indexName, Map<?, ?> fields) throws IOException {
+        Object definition = fields.get("responseDeadline");
+        if (definition != null) {
+            if (!(definition instanceof Map) || !"date".equals(((Map<?, ?>) definition).get("type"))
+                    || Boolean.FALSE.equals(((Map<?, ?>) definition).get("doc_values"))) {
+                throw new IOException("Elasticsearch responseDeadline 必须为可排序的 date 字段，请重建索引并切换搜索别名");
+            }
+            return;
+        }
+        PutMappingRequest request = new PutMappingRequest(indexName)
+                .source("{\"properties\":{\"responseDeadline\":{\"type\":\"date\","
+                        + "\"format\":\"strict_date_optional_time\"}}}", XContentType.JSON);
+        if (!client.indices().putMapping(request, RequestOptions.DEFAULT).isAcknowledged()) {
+            throw new IOException("Elasticsearch 响应截止时间映射补充尚未确认，请检查集群后重试初始化");
         }
     }
 

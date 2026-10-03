@@ -31,6 +31,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -173,9 +174,9 @@ public class TicketSearchRepository {
     }
 
     /**
-     * 按关键字、精确过滤和创建时间范围查询搜索投影，按创建时间和字符串工单 ID 倒序分页。
+     * 按关键字、精确过滤和创建时间范围查询搜索投影，按约定字段及稳定次序分页。
      * 关键字精确匹配编号或分词匹配标题、描述；无关键字时仍应用其他过滤条件。
-     * 创建时间支持单边或双边范围且包含边界，所有筛选均在分页前执行。
+     * 创建时间支持单边或双边范围且包含边界，所有筛选和排序均在分页前执行。
      * 不负责业务授权，调用方需生成可信权限条件；超时或分片失败不返回部分结果。
      *
      * @param query 查询条件，页码从 1 开始，每页 1 至 100 条，分页窗口不超过 10000
@@ -196,13 +197,19 @@ public class TicketSearchRepository {
                         || !query.getStart().isAfter(query.getEnd()),
                 "创建时间下限不能晚于上限");
 
+        String sort = StringUtils.hasText(query.getSort()) ? query.getSort().trim() : "createdAt";
+        Assert.isTrue("deadline".equals(sort) || "priority".equals(sort) || "createdAt".equals(sort),
+                "排序方式仅支持 deadline、priority 或 createdAt");
+
         // 构建查询条件
         BoolQueryBuilder bool = QueryBuilders.boolQuery();
         if (StringUtils.hasText(query.getKeyword())) {
             String keyword = query.getKeyword().trim();
             // 全文查询沿用 V2 映射的 ik_smart；编号仍精确匹配，不参与分词。
             bool.should(QueryBuilders.termQuery("ticketNo", keyword))
-                    .should(QueryBuilders.multiMatchQuery(keyword).field("title", 2.0f).field("description"))
+                    .should(QueryBuilders.multiMatchQuery(keyword)
+                            .field("title", 2.0f)
+                            .field("description"))
                     .minimumShouldMatch(1);
         } else {
             bool.must(QueryBuilders.matchAllQuery());
@@ -233,9 +240,9 @@ public class TicketSearchRepository {
                 .query(bool)
                 .from((query.getPage() - 1) * query.getPageSize())
                 .size(query.getPageSize())
-                .trackTotalHits(true)
-                .sort("createdAt", SortOrder.DESC)
-                .sort("ticketId", SortOrder.DESC);
+                .trackTotalHits(true);
+        // 添加排序条件
+        addSort(source, sort);
 
         // 执行搜索查询
         SearchResponse response = client
@@ -255,6 +262,29 @@ public class TicketSearchRepository {
             records.add(readDocument(hit.getSourceAsString()));
         }
         return new TicketSearchPage(records, total.value, query.getPage(), query.getPageSize());
+    }
+
+    /**
+     * 在 ES 分页前添加业务排序及稳定次序；截止时间空值在前，与 MySQL 升序一致。
+     * 映射升级前的空字段采用 date 兜底，正常索引初始化会补齐截止时间映射。
+     *
+     * @param source 搜索源
+     * @param sort 排序字段
+     */
+    private void addSort(SearchSourceBuilder source, String sort) {
+        // 按截止时间升序排序，空值在前
+        if ("deadline".equals(sort)) {
+            source.sort(new FieldSortBuilder("responseDeadline")
+                    .order(SortOrder.ASC)
+                    .missing("_first")
+                    .unmappedType("date"));
+        } else if ("priority".equals(sort)) {
+            // 按优先级降序排序
+            source.sort("priority", SortOrder.DESC);
+        }
+        // 按创建时间降序排序，同时间创建的工单按 ID 降序
+        source.sort("createdAt", SortOrder.DESC)
+                .sort("ticketId", SortOrder.DESC);
     }
 
     /**

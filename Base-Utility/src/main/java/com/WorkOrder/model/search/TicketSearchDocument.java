@@ -46,6 +46,9 @@ public class TicketSearchDocument {
     /** 工单创建时间，保存时必须提供偏移量，以 ISO 8601 字符串写入并用于排序。 */
     private OffsetDateTime createdAt;
 
+    /** 首次响应截止时间，可为空；同步层应携带偏移量，供处理人工单 deadline 排序使用。 */
+    private OffsetDateTime responseDeadline;
+
     /** 源工单的更新时间，保存时必须提供偏移量；此字段不承担乱序写入的版本仲裁。 */
     private OffsetDateTime updatedAt;
 }

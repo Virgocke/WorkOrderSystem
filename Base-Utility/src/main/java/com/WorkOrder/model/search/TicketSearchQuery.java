@@ -40,6 +40,9 @@ public class TicketSearchQuery {
     /** 创建时间上限，包含边界；可以单独提供，但不能早于下限。 */
     private OffsetDateTime end;
 
+    /** 排序方式：deadline 为首次响应截止时间升序，priority 为优先级倒序，createdAt 或 null 为创建时间倒序。 */
+    private String sort;
+
     /** 从 1 开始的页码，默认 1；与每页数量的乘积不能超过基础查询窗口 10000。 */
     private int page = 1;
 

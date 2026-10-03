@@ -24,6 +24,10 @@
         "type": "date",
         "format": "strict_date_optional_time"
       },
+      "responseDeadline": {
+        "type": "date",
+        "format": "strict_date_optional_time"
+      },
       "updatedAt": {
         "type": "date",
         "format": "strict_date_optional_time"

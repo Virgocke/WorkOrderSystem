@@ -4,9 +4,9 @@ import com.WorkOrder.handler.dto.HandlerTicketPageDto;
 import com.WorkOrder.handler.dto.TicketNoteDto;
 import com.WorkOrder.handler.dto.TransferTicketDto;
 import com.WorkOrder.model.ticket.TicketResponse;
+import com.WorkOrder.model.page.PageResult;
 
 import javax.validation.Valid;
-import java.util.List;
 
 /**
  * @author Virgor
@@ -15,12 +15,12 @@ import java.util.List;
  */
 public interface HandlerTicketService {
     /**
-     * 根据处理人ID获取工单列表
+     * 根据当前认证处理人 ID 获取筛选后的工单分页，返回查询总数。
       * @param handlerId 处理人ID
      * @param handlerTicketPageDto 分页参数
-     * @return 工单列表
+     * @return 工单分页，空页保留查询总数
      */
-    List<TicketResponse> getHandlerTicket(Long handlerId, HandlerTicketPageDto handlerTicketPageDto);
+    PageResult<TicketResponse> getHandlerTicket(Long handlerId, HandlerTicketPageDto handlerTicketPageDto);
 
     /**
      * 处理人首次响应

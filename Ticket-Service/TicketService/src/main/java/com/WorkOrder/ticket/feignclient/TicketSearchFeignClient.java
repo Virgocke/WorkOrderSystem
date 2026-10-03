@@ -19,4 +19,8 @@ public interface TicketSearchFeignClient {
 
     @PostMapping("/tickets/admin")
     Result<TicketSearchPage> esSearch(@RequestBody TicketSearchQuery query) throws IOException;
+
+    /** 透传当前处理人的 Bearer Token，由 Search 服务重新生成处理人权限条件。 */
+    @PostMapping("/tickets/handler")
+    Result<TicketSearchPage> esSearchForHandler(@RequestBody TicketSearchQuery query) throws IOException;
 }

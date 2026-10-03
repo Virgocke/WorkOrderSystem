@@ -256,10 +256,10 @@ public class TicketController {
 
     /**=======================================================处理人端=======================================================*/
     /**
-     * 获取处理人工单列表
+     * 从认证信息取得处理人身份，返回带查询总数的工单分页。
      * @param authentication 当前用户认证信息
      * @param handlerTicketPageDto 处理人工单分页查询DTO
-     * @return 处理人工单列表
+     * @return 处理人工单分页，保留 MySQL 或 ES 的查询总数
      */
     @PreAuthorize("hasRole('HANDLER')")
     @GetMapping("/handler")
@@ -268,14 +268,7 @@ public class TicketController {
             @Valid HandlerTicketPageDto handlerTicketPageDto){
 
         Long handlerId = currentUserIdProvider.get(authentication);
-        List<TicketResponse> ticketList = handlerTicketService.getHandlerTicket(handlerId, handlerTicketPageDto);
-
-        return Result.success(new PageResult<>(
-                ticketList,
-                ticketList.size(),
-                handlerTicketPageDto.getPage(),
-                handlerTicketPageDto.getPageSize()
-                ));
+        return Result.success(handlerTicketService.getHandlerTicket(handlerId, handlerTicketPageDto));
     }
 
     /**

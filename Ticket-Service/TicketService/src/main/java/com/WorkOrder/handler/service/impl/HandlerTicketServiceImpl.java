@@ -10,11 +10,16 @@ import com.WorkOrder.handler.mapper.HandlerProfileMapper;
 import com.WorkOrder.handler.model.AssignmentRecord;
 import com.WorkOrder.handler.service.HandlerTicketService;
 import com.WorkOrder.model.Result;
+import com.WorkOrder.model.page.PageResult;
+import com.WorkOrder.model.search.TicketSearchDocument;
+import com.WorkOrder.model.search.TicketSearchPage;
+import com.WorkOrder.model.search.TicketSearchQuery;
 import com.WorkOrder.model.ticket.TicketResponse;
 import com.WorkOrder.model.user.UserProfile;
 import com.WorkOrder.ticket.converter.TicketConverter;
 import com.WorkOrder.ticket.enums.TicketStatusEnum;
 import com.WorkOrder.ticket.feignclient.UserFeignClient;
+import com.WorkOrder.ticket.feignclient.TicketSearchFeignClient;
 import com.WorkOrder.ticket.mapper.TicketMapper;
 import com.WorkOrder.ticket.mapper.TicketOperationLogMapper;
 import com.WorkOrder.ticket.mapper.TicketStatusHistoryMapper;
@@ -32,12 +37,16 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -78,45 +87,144 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
     /** 解决事实的事务性事件发布器。 */
     private final TicketResolvedEventPublisher ticketResolvedEventPublisher;
     private final AssignmentScoreService assignmentScoreService;
+    /** 按当前处理人权限查询 ES 候选工单。 */
+    private final TicketSearchFeignClient ticketSearchFeignClient;
 
     /**
-     * 获取处理人工单列表
-     * @param handlerId 处理人ID
-     * @param handlerTicketPageDto 分页参数
-     * @return 处理人工单列表
+     * 查询当前处理人工单：空关键词由 MySQL 分页，有关键词由 ES 排序分页后批量回表。
+     * 回表复核当前归属及状态，索引滞后时当前页可能不足，但保留 ES 命中总数。
+     * @param handlerId 从认证信息取得的当前处理人 ID
+     * @param handlerTicketPageDto 分页、关键词、状态和排序条件，不修改原始对象
+     * @return 带真实查询总数的工单分页响应
+     * @throws IllegalArgumentException 查询参数不合法
+     * @throws IllegalStateException 搜索调用失败或返回数据不合法
      */
     @Override
-    public List<TicketResponse> getHandlerTicket(Long handlerId, HandlerTicketPageDto handlerTicketPageDto) {
-        List<Tickets> ticketList = null;
-
-        Page<Tickets> page = new Page<>(handlerTicketPageDto.getPage(), handlerTicketPageDto.getPageSize());
-
-        LambdaQueryWrapper<Tickets> queryWrapper = new LambdaQueryWrapper<Tickets>();
-        queryWrapper.eq(Tickets::getHandlerId, handlerId);
-        // 如果传了状态参数，则添加查询条件
-        String status = handlerTicketPageDto.getStatus();
-        if (status != null && !status.trim().isEmpty() && !"all".equals(status)){
-            queryWrapper.eq(Tickets::getStatus, status);
+    public PageResult<TicketResponse> getHandlerTicket(Long handlerId, HandlerTicketPageDto handlerTicketPageDto) {
+        Assert.isTrue(handlerId != null && handlerId > 0, "处理人 ID 必须为正数");
+        validateHandlerListQuery(handlerTicketPageDto);
+        if (!StringUtils.hasText(handlerTicketPageDto.getKeyword())) {
+            return queryHandlerPageFromMysql(handlerId, handlerTicketPageDto);
         }
-        //todo keyword要用search模块查询，这里先不写
 
-        // 根据排序参数添加查询条件
-        String sort = handlerTicketPageDto.getSort();
-        if (sort == null || sort.trim().isEmpty() || "deadline".equals(sort)){
+        TicketSearchQuery query = new TicketSearchQuery();
+        query.setHandlerId(handlerId.toString());
+        query.setKeyword(handlerTicketPageDto.getKeyword().trim());
+        query.setStatus(normalizeHandlerStatus(handlerTicketPageDto.getStatus()));
+        query.setSort(normalizeHandlerSort(handlerTicketPageDto.getSort()));
+        query.setPage(Math.toIntExact(handlerTicketPageDto.getPage()));
+        query.setPageSize(Math.toIntExact(handlerTicketPageDto.getPageSize()));
+        try {
+            Result<TicketSearchPage> result = ticketSearchFeignClient.esSearchForHandler(query);
+            if (result == null || result.getCode() != SystemExceptionEnum.SUCCESS.getCode()
+                    || result.getData() == null) {
+                throw new IllegalStateException("搜索服务未返回成功的分页结果");
+            }
+            TicketSearchPage data = result.getData();
+            if (data.getPage() != query.getPage() || data.getPageSize() != query.getPageSize()
+                    || data.getTotal() < 0 || data.getRecords().size() > data.getPageSize()) {
+                throw new IllegalStateException("搜索服务返回的分页结果不合法");
+            }
+            List<TicketResponse> responses = loadHandlerSearchResponses(
+                    handlerId, handlerTicketPageDto, data.getRecords());
+            return new PageResult<>(ticketResponseAttachmentEnricher.enrichAll(responses), data.getTotal(),
+                    handlerTicketPageDto.getPage(), handlerTicketPageDto.getPageSize());
+        } catch (IOException exception) {
+            throw new IllegalStateException("处理人工单搜索失败", exception);
+        }
+    }
+
+    /** 空关键词使用 MySQL 排序分页，并保留数据库查询总数和空页语义。 */
+    private PageResult<TicketResponse> queryHandlerPageFromMysql(Long handlerId, HandlerTicketPageDto query) {
+        LambdaQueryWrapper<Tickets> queryWrapper = handlerTicketFilters(handlerId, query);
+        String sort = normalizeHandlerSort(query.getSort());
+        if ("deadline".equals(sort)) {
             queryWrapper.orderByAsc(Tickets::getResponseDeadline);
         } else if ("priority".equals(sort)) {
             queryWrapper.orderByDesc(Tickets::getPriority);
-        } else if ("createdAt".equals(sort)) {
-            queryWrapper.orderByDesc(Tickets::getCreatedAt);
         }
+        queryWrapper.orderByDesc(Tickets::getCreatedAt).orderByDesc(Tickets::getId);
+        Page<Tickets> page = ticketMapper.selectPage(new Page<>(query.getPage(), query.getPageSize()), queryWrapper);
+        List<TicketResponse> responses = page.getRecords() == null ? Collections.emptyList()
+                : page.getRecords().stream().map(TicketConverter::toResponse).collect(Collectors.toList());
+        return new PageResult<>(ticketResponseAttachmentEnricher.enrichAll(responses), page.getTotal(),
+                query.getPage(), query.getPageSize());
+    }
 
-        ticketList = ticketMapper.selectPage(page, queryWrapper).getRecords();
+    /** 只批量读取当前 ES 页的 ID，复核当前归属和状态，再按 ES 顺序转换响应。 */
+    private List<TicketResponse> loadHandlerSearchResponses(
+            Long handlerId, HandlerTicketPageDto query, List<TicketSearchDocument> records) {
+        if (records.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> ids = records.stream().map(this::handlerSearchTicketId).distinct().collect(Collectors.toList());
+        List<Tickets> currentTickets = ticketMapper.selectList(handlerTicketFilters(handlerId, query)
+                .in(Tickets::getId, ids));
+        Map<Long, Tickets> ticketsById = currentTickets.stream()
+                .collect(Collectors.toMap(Tickets::getId, ticket -> ticket));
+        return ids.stream().map(ticketsById::get).filter(Objects::nonNull)
+                .map(TicketConverter::toResponse).collect(Collectors.toList());
+    }
 
-        List<TicketResponse> ticketResponses = ticketList
-                .stream()
-                .map(TicketConverter::toResponse)
-                .collect(Collectors.toList());
-        return ticketResponseAttachmentEnricher.enrichAll(ticketResponses);
+    /** MySQL 分页和 ES 回表共用条件，当前处理人限制始终由服务端追加。 */
+    private LambdaQueryWrapper<Tickets> handlerTicketFilters(Long handlerId, HandlerTicketPageDto query) {
+        LambdaQueryWrapper<Tickets> filters = new LambdaQueryWrapper<Tickets>()
+                .eq(Tickets::getHandlerId, handlerId);
+        String status = normalizeHandlerStatus(query.getStatus());
+        if (status != null) {
+            filters.eq(Tickets::getStatus, status);
+        }
+        return filters;
+    }
+
+    /** 将 ES 字符串 ID 转为数据库正数 ID，损坏的投影作为搜索服务错误处理。 */
+    private Long handlerSearchTicketId(TicketSearchDocument record) {
+        if (record == null || !StringUtils.hasText(record.getTicketId())) {
+            throw new IllegalStateException("搜索结果缺少工单 ID");
+        }
+        try {
+            long id = Long.parseLong(record.getTicketId());
+            if (id <= 0) {
+                throw new IllegalStateException("搜索结果包含非法工单 ID");
+            }
+            return id;
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("搜索结果包含非法工单 ID", exception);
+        }
+    }
+
+    /** 校验公共参数，有关键词时限制 ES 基础分页窗口，避免溢出和非法排序。 */
+    private static void validateHandlerListQuery(HandlerTicketPageDto query) {
+        Assert.notNull(query, "查询条件不能为空");
+        Assert.isTrue(query.getPage() != null && query.getPage() >= 1, "页码必须大于等于 1");
+        Assert.isTrue(query.getPageSize() != null && query.getPageSize() >= 1 && query.getPageSize() <= 100,
+                "每页数量必须介于 1 和 100 之间");
+        Assert.isTrue(query.getKeyword() == null || query.getKeyword().length() <= 500,
+                "搜索关键字不能超过 500 个字符");
+        String status = normalizeHandlerStatus(query.getStatus());
+        if (status != null) {
+            TicketStatusEnum.valueOf(status);
+        }
+        String sort = normalizeHandlerSort(query.getSort());
+        Assert.isTrue("deadline".equals(sort) || "priority".equals(sort) || "createdAt".equals(sort),
+                "排序仅支持 deadline、priority 或 createdAt");
+        if (StringUtils.hasText(query.getKeyword())) {
+            Assert.isTrue(query.getPage() <= 10000 / query.getPageSize(),
+                    "基础分页仅支持前 10000 条，请缩小筛选范围");
+        } else {
+            Assert.isTrue(query.getPage() - 1 <= Long.MAX_VALUE / query.getPageSize(), "分页范围过大");
+        }
+    }
+
+    /** 将空白和 all 状态统一为不限制状态，其余状态编码去除首尾空白。 */
+    private static String normalizeHandlerStatus(String value) {
+        String status = StringUtils.hasText(value) ? value.trim() : null;
+        return "all".equalsIgnoreCase(status) ? null : status;
+    }
+
+    /** 未指定排序时沿用响应截止时间升序，显式排序值去除首尾空白。 */
+    private static String normalizeHandlerSort(String value) {
+        return StringUtils.hasText(value) ? value.trim() : "deadline";
     }
 
     /**
