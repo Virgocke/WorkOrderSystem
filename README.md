@@ -1,118 +1,151 @@
 # 智能工单调度系统（后端）
 
-基于 Spring Boot、Spring Cloud Alibaba 与 OAuth2/JWT 构建的微服务工单系统后端。系统提供工单流转、智能派单、SLA 监控、通知告警、用户与组织管理，以及报表查询等能力。
+基于 Spring Boot、Spring Cloud Alibaba 与 OAuth2/JWT 的微服务工单系统后端，提供工单流转、智能派单、SLA 监控、通知告警、组织与技能管理、审计和报表查询。
+
+MySQL 保存业务数据；RocketMQ 配合事务性 Outbox 驱动派单、SLA 和通知；Elasticsearch 提供关键词检索，业务响应仍从 MySQL 读取。本文按当前代码说明部署与功能边界。
 
 ## 技术栈
 
-- Java 8、Maven
-- Spring Boot 2.3.7.RELEASE、Spring Cloud Hoxton.SR9、Spring Cloud Alibaba 2.2.6.RELEASE
-- Nacos（服务注册与发现）、Spring Cloud Gateway、OpenFeign
-- MySQL 8、MyBatis-Plus、Redis、MinIO
-- OAuth2 Password Grant（仅用于本地联调）与 JWT
+| 组件 | 当前项目版本或用途 |
+| --- | --- |
+| Java / Maven | Java 8，多模块 Maven 工程 |
+| Spring Boot | `2.3.7.RELEASE` |
+| Spring Cloud / Alibaba | `Hoxton.SR9` / `2.2.6.RELEASE` |
+| Nacos / Gateway / OpenFeign | 服务注册发现、网关路由、服务间调用 |
+| MySQL / MyBatis-Plus | MySQL 8，MyBatis-Plus `3.4.1` |
+| Redis / MinIO | 认证相关缓存、附件对象存储 |
+| RocketMQ | Spring 集成 `2.2.3`；本地 Docker 配置使用 Broker `4.9.6` |
+| Elasticsearch / IK / Kibana | 本地配置均为 `7.12.1`，IK 提供中文分词，Kibana 用于查询调试 |
+| Lombok | `1.18.32` |
+| OAuth2 / JWT | 当前保留 Password Grant 供内部本地联调 |
 
 ## 服务组成
 
-| 模块 | 服务名 | 端口 | 职责 |
+| 模块 | 服务名 | 默认端口 | 职责 |
 | --- | --- | ---: | --- |
 | `api-gateway` | `gateway` | 63010 | 统一入口、鉴权与路由转发 |
-| `Authentication` | `authentication-service` | 63071 | OAuth2 登录、注册、密码重置与当前用户查询 |
+| `Authentication` | `authentication-service` | 63071 | 登录、注册、密码重置与当前用户查询 |
 | `User-Service/UserAPI` | `userAndHandler-service` | 63070 | 用户、部门、处理人、技能与技能调整申请 |
 | `Ticket-Service/TicketAPI` | `ticket-service` | 64060 | 工单、分类、附件、状态流转与评价 |
-| `Assign-Engine` | `Assign-Engine` | 64020 | 候选处理人推荐、派单记录与派单权重配置 |
-| `Sla-Monitor` | `Sla-Monitor` | 63050 | SLA 记录与超时监控 |
-| `Notification-Service` | `Notification` | 63030 | 站内通知与告警处理 |
-| `Search-Service` | `Search` | 63040 | 工作台、看板、评分与报表查询 |
+| `Assign-Engine` | `Assign-Engine` | 65020 | 派单评分、候选推荐、派单记录与系统配置 |
+| `Sla-Monitor` | `Sla-Monitor` | 63050 | SLA 记录、超时状态与自动升级 |
+| `Notification-Service` | `Notification` | 63030 | 站内通知、邮件任务与升级告警 |
+| `Search-Service` | `Search` | 63040 | 关键词搜索、工作台、看板、审计与报表 |
 | `Base-Utility` | — | — | 公共模型、异常、Jackson 与 MyBatis 配置 |
-| `Security-Common` | — | — | JWT 鉴权公共组件 |
-| `Messaging-Common` | — | — | 统一事件信封、Outbox 与幂等消费底座 |
-| `Ticket-Event-Contract` | — | — | 工单事件 V1 业务快照与共享校验 |
+| `Security-Common` | — | — | JWT 鉴权与当前用户解析 |
+| `Messaging-Common` | — | — | 事件信封、Outbox、重试恢复与幂等消费 |
+| `Ticket-Event-Contract` | — | — | 工单事件 V1 快照与共享校验 |
+| `Skill-Event-Contract` | — | — | 技能审核事件快照与共享校验 |
 
-> 业务请求建议统一通过网关 `http://localhost:63010` 访问，不直接依赖各服务端口。
+`UserModel` / `UserService`、`TicketModel` / `TicketService` 是各业务服务内部的模型和实现模块，不独立启动。业务请求统一通过网关 `http://localhost:63010` 访问；上表端口以各模块的 `bootstrap.yaml` 为准。
 
-Search-Service 提供可选的 Elasticsearch 基础组件，默认关闭，包含索引初始化、搜索投影读写与内部分页查询。启用配置和调用边界见 [Search-Service 说明](Search-Service/README.md)，现有业务搜索暂未接入。
+## 已实现的功能
 
-## 快速开始
+- **工单生命周期**：提交、自动/手动派单、响应、回复、催办、转派、升级、提交解决、确认、关闭、撤销和评价，包含状态历史、操作记录、内部备注与附件。每张工单最多催办 3 次，催办次数与升级级别独立。
+- **编号与 SLA 默认值**：按 `ticketNoRule` 和 MySQL 事务计数器生成编号，序号达到配置位数上限时返回冲突。分类响应/解决 SLA 可分别设为 `null`，创建时读取 `slaDefaults`；配置不存在时使用 30/240 分钟。截止时间在创建时固定，后续配置更新不追溯修改旧工单。
+- **统一派单评分**：自动派单、手动派单和转派复用技能匹配、实时在办负载及历史 SLA/评价评分。子分类未配置技能时继承最近上级；负载由待响应和处理中工单实时计算。解决与评价保存处理人归属快照，转派后的业绩归实际提交解决的接手人。管理员修改 `assignWeights` 后无需重启生效，配置保存使用版本号控制并发。
+- **SLA 与升级**：工单创建、解决、关闭、撤销和升级事件更新 SLA 记录；`escalationRules` 驱动自动升级。默认每 60 秒扫描一页、最多 200 单，工单服务锁定源记录并复核规则后升至最高匹配级别；空规则关闭自动升级，规则调整不回退已有级别，终态工单不再升级。
+- **通知与告警**：派单、回复、催办、转派、升级、解决、关闭、撤销及技能审核结果生成通知。支持站内信、未读数、批量已读和全部已读；邮件通过独立任务队列发送。升级告警保存事件发生时的工单编号/标题快照，历史展示不再同步请求工单详情。
+- **组织、技能和查询**：用户、部门树、处理人档案、技能标签、技能申请与审核；普通用户、处理人、管理员三类权限；管理员看板、处理人工作台、报表、评价明细、工单及配置审计。关键词查询的具体路径见下文。
 
-### 1. 准备运行环境
+## 本地启动
 
-请先安装并启动以下依赖：
+以下命令在包含 `pom.xml` 的 `WorkOrderSystem` 目录执行，示例终端为 PowerShell。
 
-- JDK 8
-- Maven 3.6+
-- MySQL 8（建议使用 `utf8mb4`）
-- Nacos 2.x，地址为 `localhost:8848`
-- Redis，默认地址为 `localhost:6379`（认证服务的 Redis 配置已预置）
-- MinIO，默认地址为 `http://localhost:9000`（启用附件上传时需要）
+### 1. 准备依赖
 
-在 Nacos 中使用命名空间 `dev`、分组 `WorkOrder-project`，这与各服务的 `bootstrap.yaml` 默认配置一致。
+| 依赖 | 默认地址 | 使用范围 |
+| --- | --- | --- |
+| JDK / Maven | JDK 8、Maven 3.6+ | 编译与运行后端 |
+| MySQL | `localhost:3306`，数据库 `WorkOrderSystem` | 业务与消息持久化，字符集 `utf8mb4` |
+| Nacos | `localhost:8848` | 服务注册与发现 |
+| Redis | `localhost:6379` | 认证服务 |
+| MinIO | `http://localhost:9000` | 附件上传与预览 |
+| RocketMQ NameServer / Broker | `localhost:9876` / `localhost:10911` | 异步派单、SLA 同步及事件通知 |
+| Elasticsearch / Kibana | `http://127.0.0.1:9200` / `http://127.0.0.1:5601` | 关键词检索及搜索调试 |
+
+各服务默认使用 Nacos 命名空间 ID `dev`、分组 `WorkOrder-project`，需与 Nacos 中实际配置一致。
+
+消息和 Elasticsearch 开关默认关闭。关闭消息后，自动派单、事件驱动的 SLA 同步和通知链路不会运行；关闭 ES 后，已接入 ES 的关键词查询会失败，无关键词列表仍可查询 MySQL。
 
 ### 2. 初始化数据库
 
-在 MySQL 中按顺序执行：
+**空库首次部署**按顺序执行：
 
 ```powershell
-mysql -u root -p < sql/work_order_system_schema.sql
-mysql -u root -p WorkOrderSystem < sql/work_order_system_add_messaging.sql
-mysql -u root -p WorkOrderSystem < sql/work_order_system_seed.sql
+mysql --default-character-set=utf8mb4 -u root -p --execute="SOURCE sql/work_order_system_schema.sql"
+mysql --default-character-set=utf8mb4 -u root -p WorkOrderSystem --execute="SOURCE sql/work_order_system_add_messaging.sql"
+mysql --default-character-set=utf8mb4 -u root -p WorkOrderSystem --execute="SOURCE sql/work_order_system_seed.sql"
 ```
 
-已有数据库升级时，不要重复执行建表脚本；请按已启用功能执行对应的增量脚本：
+全量建表脚本已包含当前业务表、邮件任务、技能审核关联、告警快照、评分归属与 SLA 终态字段；消息 Outbox 和消费日志由第二步补充。第三步初始化演示账号和权限。PowerShell 不支持 Bash 风格的 `<` 输入重定向，示例使用 MySQL 客户端的 `SOURCE`。
 
-| 脚本 | 用途 |
+**已有数据库升级**按缺失表/字段执行对应增量脚本，不重复运行全量建表脚本。示例：
+
+```powershell
+mysql --default-character-set=utf8mb4 -u root -p WorkOrderSystem --execute="SOURCE sql/work_order_system_add_alert_ticket_snapshot.sql"
+```
+
+下表文件均位于 `sql/`；先完成数据库升级，再启动使用新字段的服务。
+
+| 增量脚本 | 用途 |
 | --- | --- |
-| `sql/work_order_system_add_attachments.sql` | 附件元数据 |
-| `sql/work_order_system_migrate_attachment_ids.sql` | 附件 ID 迁移 |
-| `sql/work_order_system_add_configuration_version.sql` | 派单配置乐观锁版本与修改日志 |
-| `sql/work_order_system_add_remind_count.sql` | 工单催办次数 |
-| `sql/work_order_system_add_skill_applications.sql` | 技能调整申请 |
-| `sql/work_order_system_add_unique_phone.sql` | 手机号唯一约束 |
-| `sql/work_order_system_rbac.sql` | RBAC 角色与权限数据 |
-| `sql/work_order_system_add_messaging.sql` | RocketMQ Outbox、消费幂等日志与通知来源事件唯一约束 |
-| `sql/work_order_system_add_ticket_numbering.sql` | 工单编号事务计数器 |
-| `sql/work_order_system_add_sla_defaults.sql` | 分类 SLA 可空并继承系统默认值，保留现有时限 |
+| `work_order_system_rbac.sql` | RBAC 角色与权限表 |
+| `work_order_system_add_unique_phone.sql` | 手机号唯一约束，已有重复手机号需先处理 |
+| `work_order_system_add_attachments.sql` | 附件元数据表 |
+| `work_order_system_migrate_attachment_ids.sql` | 旧附件引用迁移为附件 ID |
+| `work_order_system_add_configuration_version.sql` | 配置版本号与修改日志 |
+| `work_order_system_add_remind_count.sql` | 独立催办次数 |
+| `work_order_system_add_skill_applications.sql` | 技能调整申请表 |
+| `work_order_system_add_messaging.sql` | Outbox、消费日志及通知事件唯一约束 |
+| `work_order_system_add_ticket_terminal_sla.sql` | SLA 终态与终态时间 |
+| `work_order_system_add_assignment_scoring.sql` | 分类技能与解决/评价处理人快照 |
+| `work_order_system_add_ticket_numbering.sql` | 工单编号事务计数器 |
+| `work_order_system_add_sla_defaults.sql` | 分类 SLA 可空并继承系统默认值 |
+| `work_order_system_add_notification_email.sql` | 可恢复邮件投递队列 |
+| `work_order_system_add_skill_review_audit.sql` | 技能审核通知关联与审计索引 |
+| `work_order_system_add_alert_ticket_snapshot.sql` | 升级告警工单编号/标题快照 |
 
-### 3. 配置本地环境
+`add_ticket_terminal_sla`、`add_assignment_scoring` 含直接新增列的 DDL，不能重复执行。旧评分数据按当前可确认的处理人补齐，旧告警按工单当前摘要补录，均不能还原已经丢失的历史事实；具体条件以各脚本注释为准。
 
-各服务配置位于其 `src/main/resources/bootstrap.yaml`。启动前请根据本机环境调整 MySQL、Redis、MinIO、Nacos 与邮件配置；不要将真实密码、访问密钥或生产 JWT 密钥提交到仓库。
+### 3. 配置服务
 
-所有需要验签的服务必须使用同一 JWT 签名密钥。开发环境可在 PowerShell 中设置：
+各服务的连接配置在 `src/main/resources/bootstrap.yaml`；Search-Service 的 ES 配置、Notification-Service 的邮件配置位于各自的 `application.yaml`。启动前调整本机 MySQL、Redis、MinIO、Nacos 和邮件连接信息。真实密码与密钥通过环境变量或受控配置注入。
+
+所有验签服务使用同一 JWT 签名密钥。在各服务启动终端设置相同值，IDE 启动时填写到运行配置：
 
 ```powershell
 $env:OAUTH_JWT_SIGNING_KEY = "replace-with-a-local-development-secret"
 ```
 
-生产环境应通过安全的配置管理系统注入高强度密钥，并改用非对称签名方案，使资源服务仅持有公钥。
+消息、ES 和 SMTP 的开关及配置见后续各节；PowerShell 设置的环境变量只对该终端及其启动的子进程生效。
 
 ### 4. 构建与启动
 
-在项目根目录执行：
+先在根目录构建、运行测试，并将公共模块安装到本地 Maven 仓库：
 
 ```powershell
-mvn clean package -DskipTests
+mvn clean install
 ```
 
-启动顺序建议为认证服务、用户服务、工单服务、其余业务服务，最后启动网关。每个命令应在独立终端中运行：
+本项目 POM 当前没有配置 Spring Boot 打包插件。可在 IDEA 中运行各服务的 `*Application` 主类；命令行启动则显式指定与项目一致的 Boot 插件版本，每条命令在独立终端运行：
 
 ```powershell
-mvn -pl Authentication -am spring-boot:run
-mvn -pl User-Service/UserAPI -am spring-boot:run
-mvn -pl Ticket-Service/TicketAPI -am spring-boot:run
-mvn -pl Assign-Engine -am spring-boot:run
-mvn -pl Sla-Monitor -am spring-boot:run
-mvn -pl Notification-Service -am spring-boot:run
-mvn -pl Search-Service -am spring-boot:run
-mvn -pl api-gateway -am spring-boot:run
+mvn -f Authentication/pom.xml org.springframework.boot:spring-boot-maven-plugin:2.3.7.RELEASE:run
+mvn -f User-Service/UserAPI/pom.xml org.springframework.boot:spring-boot-maven-plugin:2.3.7.RELEASE:run
+mvn -f Search-Service/pom.xml org.springframework.boot:spring-boot-maven-plugin:2.3.7.RELEASE:run
+mvn -f Ticket-Service/TicketAPI/pom.xml org.springframework.boot:spring-boot-maven-plugin:2.3.7.RELEASE:run
+mvn -f Assign-Engine/pom.xml org.springframework.boot:spring-boot-maven-plugin:2.3.7.RELEASE:run
+mvn -f Sla-Monitor/pom.xml org.springframework.boot:spring-boot-maven-plugin:2.3.7.RELEASE:run
+mvn -f Notification-Service/pom.xml org.springframework.boot:spring-boot-maven-plugin:2.3.7.RELEASE:run
+mvn -f api-gateway/pom.xml org.springframework.boot:spring-boot-maven-plugin:2.3.7.RELEASE:run
 ```
 
-运行测试：
+启动基础设施后，再启动认证、用户和搜索服务、其余业务服务，最后启动网关。不要使用 `-am spring-boot:run` 同时运行整个依赖链，父 POM 和公共模块没有可启动的主类。
 
-```powershell
-mvn test
-```
+## 认证与网关
 
-## 认证与调用示例
-
-初始化脚本提供本地演示用户：
+种子脚本提供以下本地演示账号：
 
 | 账号 | 密码 | 角色 |
 | --- | --- | --- |
@@ -120,10 +153,10 @@ mvn test
 | `handler` | `Handler@123` | 处理人 |
 | `user` | `User@123` | 普通用户 |
 
-使用认证服务获取令牌（Password Grant 仅限内部本地联调）：
+通过网关获取令牌：
 
 ```powershell
-curl.exe -X POST http://localhost:63071/oauth/token `
+curl.exe -X POST http://localhost:63010/api/oauth/token `
   -d "grant_type=password" `
   -d "username=admin" `
   -d "password=Admin@123" `
@@ -131,80 +164,154 @@ curl.exe -X POST http://localhost:63071/oauth/token `
   -d "client_secret=WorkOrderSystemSecret"
 ```
 
-返回结果中的 `access_token` 为 JWT；调用受保护接口时带上：
+`client_id` / `client_secret` 使用认证服务当前配置；示例为本地默认值。受保护接口携带返回的 JWT：
 
 ```http
 Authorization: Bearer <access_token>
 ```
 
-网关会将 `/api/oauth/**` 转发到认证服务的 `/oauth/**`，并将以下路径路由到对应服务：
+网关移除 `/api` 前缀后转发：
 
 | 网关路径 | 服务 |
 | --- | --- |
-| `/api/auth/**`、`/api/oauth/**` | 认证服务 |
-| `/api/users/**`、`/api/handlers/**`、`/api/handler-skills/**`、`/api/departments/**`、`/api/skills/**` | 用户与处理人服务 |
-| `/api/tickets/**`、`/api/ticket-categories/**`、`/api/files/**` | 工单服务 |
-| `/api/assign-engine/**`、`/api/configurations/**`、`/api/assignment-records/**` | 智能派单服务 |
-| `/api/sla/**` | SLA 监控服务 |
-| `/api/notifications/**`、`/api/alerts/**` | 通知服务 |
-| `/api/dashboard/**`、`/api/handler/**`、`/api/reports/**`、`/api/ratings/**` | 查询与报表服务 |
+| `/api/auth/**`、`/api/oauth/**` | Authentication |
+| `/api/users/**`、`/api/handlers/**`、`/api/handler-skills/**`、`/api/departments/**`、`/api/skills/**`、`/api/skill-applications/**` | UserAPI |
+| `/api/tickets/**`、`/api/ticket-categories/**`、`/api/files/**` | TicketAPI |
+| `/api/assign-engine/**`、`/api/configurations/**`、`/api/assignment-records/**` | Assign-Engine |
+| `/api/sla/**` | Sla-Monitor |
+| `/api/notifications/**`、`/api/alerts/**` | Notification-Service |
+| `/api/dashboard/**`、`/api/handler/**`、`/api/reports/**`、`/api/ratings/**`、`/api/audit-logs`、`/api/audit-logs/**`、`/api/internal/search/**` | Search-Service |
 
-## 已实现的业务说明
+## RocketMQ 与异步业务
 
-- 工单包含分类、优先级、处理人、状态、SLA 时限、操作记录、评分与附件元数据；每张工单最多催办 3 次，`remindCount` 与升级级别独立。
-- 分类的响应和解决 SLA 可分别设为 `null` 以使用 `slaDefaults`；创建工单时读取系统默认值（配置不存在时为 30/240 分钟），生成并固定截止时间。配置与分类更新只影响新工单，已有分类数值在迁移时保留。
-- 创建工单时按 `ticketNoRule` 生成编号；同一前缀和日期范围使用 MySQL 事务计数器连续取号，序号达到配置位数上限时返回冲突错误，不截断或自动扩位。
-- 处理人逐级升级待响应或处理中工单时，升级事实进入事务性 Outbox；通知服务为启用管理员生成站内通知，SLA 服务在独立消费组内同步升级级别。
-- `escalationRules` 已接通自动升级：SLA 服务默认每 60 秒扫描一页（最多 200 单），工单服务锁定源记录并重新读取当前规则，升至最高匹配级别。响应/解决超时分钟数从对应截止时间起算，已响应不再检查响应超时，已解决/关闭/撤销不升级；空规则关闭自动升级，调整规则不回退已有级别。系统操作以 `SYSTEM` 留痕，通知与升级告警由同一个幂等消费事务创建。
-- 升级通知的 `MANAGER` 表示当前处理人的部门负责人，未派单时为提交人部门负责人；不可用时回退到启用管理员，`ADMIN` 表示全部启用管理员。完全没有接收人时升级回滚并重试。自动升级沿用既有表，无新增数据库迁移。
-- 自动升级需要 SLA、工单和通知服务开启 `WORK_ORDER_MESSAGING_ENABLED=true` 并运行 RocketMQ；SLA 已配置 `sla-monitor` Outbox 生产端。首次部署需一起更新 Ticket-Service、Sla-Monitor、Notification-Service 的公共事件契约。扫描周期可通过 `work-order.sla.escalation.scan-interval-ms` 调整，规则保存后由后续扫描读取，无需重启。
-- 工单创建时发布 `TICKET_CREATED`；SLA 服务幂等初始化记录，派单引擎按分类技能、实时在办负载和历史表现生成 `ASSIGNMENT_PROPOSED`，工单服务在仍待分配且处理人未满额时条件确认并发送处理人通知。
-- 智能派单基于技能、当前负载、SLA 与评分进行候选人推荐。`GET /api/configurations` 可读取权重配置，管理员通过 `PUT /api/configurations` 以版本号进行并发安全更新；权重保存后无需重启即可生效。
-- 部署新版评分逻辑前，先执行 `sql/work_order_system_add_assignment_scoring.sql`。分类可配置所需技能，子分类无配置时继承最近上级；在办负载实时从工单状态计算。工单解决和评价分别保存归属处理人快照，转派后的业绩归最终提交解决的接手人；SLA 与评价按快照按需聚合，无定时重算。手动派单及转派复用引擎评分。
-- 通知列表通过 `GET /api/notifications` 查询，未读数通过 `GET /api/notifications/unread-count` 查询；告警可经 `POST /api/alerts/{id}/handle` 标记为已处理。
-- 用户、部门、处理人、技能标签与技能调整申请均已提供服务端接口；权限模型包含普通用户、处理人和管理员三类角色，并提供 RBAC 基础数据。
+本地 Docker 配置位于 `deploy/rocketmq/docker-compose.yml`。启动后确认 Broker 已注册，再创建工单和技能事件 Topic：
 
-## 当前限制与后续工作
+```powershell
+docker compose -f deploy/rocketmq/docker-compose.yml up -d
+docker exec workorder-rocketmq-broker sh mqadmin clusterList -n namesrv:9876
+docker exec workorder-rocketmq-broker sh mqadmin updateTopic -n namesrv:9876 -c DefaultCluster -t wo-ticket-event
+docker exec workorder-rocketmq-broker sh mqadmin updateTopic -n namesrv:9876 -c DefaultCluster -t wo-skill-event
+```
 
-- 部分通知投递、全部标记已读、催办日志与配置审计查询仍待接入。
-- OAuth2 Password Grant 只应作为本地兼容联调方案；面向浏览器或第三方客户端时应采用 Authorization Code + PKCE。
-- 部署到生产前，请将配置中的本地连接信息、邮件凭据、MinIO 密钥和 JWT 签名密钥迁移到受控的外部配置系统。
+在 UserAPI、TicketAPI、Assign-Engine、Sla-Monitor、Notification-Service 的启动环境中配置：
 
+```powershell
+$env:WORK_ORDER_MESSAGING_ENABLED = "true"
+$env:ROCKETMQ_NAME_SERVER = "localhost:9876"
+$env:WORK_ORDER_TICKET_EVENT_TOPIC = "wo-ticket-event"
+$env:WORK_ORDER_SKILL_EVENT_TOPIC = "wo-skill-event"
+$env:WORK_ORDER_OUTBOX_ENABLED = "true"
+```
 
-### 工单通知渠道与邮件部署
+业务修改和事件 Outbox 在同一 MySQL 事务提交；后台发送器投递 RocketMQ，消费者将幂等日志与业务结果在同一事务落库。发送重试、Outbox 恢复及各消费组可独立运行；MySQL 提交不代表下游已处理完毕。
 
-`notificationChannels` 已接入派单、回复、催办、转派、升级、解决、关闭、撤销通知。配置为 `{"internal":true,"email":true}`：站内信始终开启，邮件可关闭，不提供短信。旧配置中的布尔 `sms` 字段读取时忽略，新保存只接受 `internal/email` 两项。认证服务的验证码邮件保持独立。
+- **自动派单**：创建工单发布 `TICKET_CREATED`，SLA 初始化记录，派单引擎生成 `ASSIGNMENT_PROPOSED`，工单服务在仍待分配且处理人未满额时条件确认，再发布派单通知事件。
+- **自动升级**：SLA 扫描读取规则，工单服务复核并发布升级事件；通知服务在幂等事务中创建通知与告警。`MANAGER` 指当前处理人的部门负责人，未派单时为提交人部门负责人，不可用时回退启用管理员；`ADMIN` 指全部启用管理员。没有接收人时升级失败，后续扫描重试。扫描周期可通过 `work-order.sla.escalation.scan-interval-ms` 调整。
+- **技能审核**：审核事务发布 `SKILL_APPLICATION_REVIEWED`，通知服务在独立消费组生成结果通知，并按渠道配置创建邮件任务；历史审核不补发通知。申请详情仅允许原申请人或管理员访问。
 
-1. 先运行 `sql/work_order_system_add_notification_email.sql`，创建邮件投递队列；全量建库脚本也已包含该表。已有 `notification_records` 和消息幂等表继续复用。
-2. 更新 Assign-Engine、Notification-Service 及前端，工单事件需开启 `WORK_ORDER_MESSAGING_ENABLED=true` 并接通 RocketMQ。
-3. 当前本机已从 Authentication 提取相同 SMTP 账号至通知服务的 `application-mail-local.yaml`，由 `mail-local` profile 自动加载；文件已加入 Git 忽略。它是本机快照，认证服务邮箱配置变更后需同步更新。新环境可配置下表中的环境变量；这些变量也可以覆盖本地快照。默认配置位于 `Notification-Service/src/main/resources/application.yaml`。
+消息契约变更时一起更新生产端、消费端及共享契约模块；各服务应使用相同 Topic，各业务消费者保留独立消费组。
 
-本机已于 2026-09-30 执行邮件队列迁移并验证重复执行成功；没有发送真实邮件或重启业务服务。
+## Elasticsearch 关键词检索
+
+当前关键词查询已接入 ES，MySQL 仍负责读取最新业务字段、复核筛选条件与权限：
+
+| 业务入口 | 有关键词 | 无关键词 |
+| --- | --- | --- |
+| 管理员工单列表 `GET /api/tickets` | ES 分页命中工单 ID，Ticket-Service 回表 | MySQL 分页 |
+| 处理人工单列表 `GET /api/tickets/handler` | 服务端从 JWT 限定当前处理人，ES 返回 ID，Ticket-Service 回表复核归属 | MySQL 按当前处理人分页 |
+| 审计 `GET /api/audit-logs`、`/api/audit-logs/configurations` | 独立审计索引检索，回表读取日志和当前展示字段，仅管理员访问 | MySQL 分页 |
+| 用户 `GET /api/users`、处理人 `GET /api/handlers` | 独立目录索引返回候选用户 ID，User-Service 在 MySQL 过滤角色/状态并分页，仅管理员访问 | MySQL 查询 |
+
+搜索调用失败、ES 关闭或审计/目录尚未准备完成时，关键词请求明确报错，不自动降级为 SQL `LIKE`。普通用户“我的工单”、看板、工作台汇总、报表和评分仍走原有 MySQL 查询。
+
+### 本地启用
+
+```powershell
+docker compose -f Search-Service/docker/compose.yaml up -d --build
+docker compose -f Search-Service/docker/compose.yaml ps
+Invoke-RestMethod 'http://127.0.0.1:9200/'
+Invoke-RestMethod 'http://127.0.0.1:9200/_cat/plugins?format=json'
+```
+
+在 **Search-Service 的启动终端**设置后再启动服务：
+
+```powershell
+$env:WORK_ORDER_ES_ENABLED = "true"
+$env:WORK_ORDER_ES_URIS = "http://localhost:9200"
+$env:WORK_ORDER_ES_INITIALIZE_ON_STARTUP = "true"
+```
+
+| 配置 | 默认值 | 说明 |
+| --- | --- | --- |
+| `WORK_ORDER_ES_ENABLED` | `false` | 启用 ES 组件和内部搜索接口 |
+| `WORK_ORDER_ES_USERNAME` / `WORK_ORDER_ES_PASSWORD` | 空 | 服务端启用认证时成对配置，本地 Docker 节点不需要 |
+| `WORK_ORDER_ES_TICKET_INDEX_NAME` / `WORK_ORDER_ES_TICKET_INDEX_ALIAS` | `wo-ticket-v2` / `wo-ticket` | 工单物理索引 / 读写别名 |
+| `WORK_ORDER_ES_AUDIT_INDEX_NAME` / `WORK_ORDER_ES_AUDIT_INDEX_ALIAS` | `wo-audit-v1` / `wo-audit` | 审计物理索引 / 别名 |
+| `WORK_ORDER_ES_AUDIT_SYNC_DELAY_MS` | `30000` | 审计分批回填与周期对账间隔 |
+| `WORK_ORDER_ES_DIRECTORY_INDEX_PREFIX` / `WORK_ORDER_ES_DIRECTORY_INDEX_ALIAS` | `wo-directory-v1` / `wo-directory` | 目录快照索引前缀 / 别名 |
+| `WORK_ORDER_ES_DIRECTORY_SYNC_DELAY_MS` | `30000` | 目录快照检查间隔 |
+
+审计索引在 ES 启用后自动初始化并分批回填，首轮完成前拒绝关键词搜索；目录读取 MySQL 快照，内容变化时完整写入新索引并原子切换别名。两者当前使用数据库周期同步，不依赖 RocketMQ。
+
+**工单投影尚未接通业务写入、MQ 同步和历史导入。** `WORK_ORDER_ES_INITIALIZE_ON_STARTUP=true` 只创建/校验工单索引和别名，不导入工单。关键词入口已经实现，但新库空索引不会返回现存工单；部署时需准备工单投影及后续同步，不能把创建索引视为搜索数据已就绪。
+
+工单标题和描述使用 `ik_max_word` 建索引、`ik_smart` 查询，编号精确匹配。关键词工单分页每页最多 100 条，查询窗口最多 10000 条；总数取 ES 命中数，回表剔除已删除或归属/状态变化的记录后，当前页可能不足。旧 V1 `standard` 索引需重建并切换别名，启动初始化不会自动迁移。
+
+客户端、IK 映射和旧索引迁移的细节见 [Search-Service 的索引配置说明](Search-Service/README.md#本机-docker-desktop)，当前业务入口和同步范围以本节为准。本地 Docker 配置关闭 ES 认证，端口只绑定本机；数据保存在命名卷，`down -v` 会删除索引数据。
+
+## 通知与邮件
+
+系统配置 `notificationChannels` 使用 `{"internal":true,"email":true}`：站内信固定开启，邮件可关闭，不提供短信。读取旧配置时兼容忽略布尔 `sms` 字段，新保存只接受 `internal` / `email`。认证验证码邮件独立于此配置。
+
+| 接口 | 用途 |
+| --- | --- |
+| `GET /api/notifications` | 当前用户站内信列表 |
+| `GET /api/notifications/unread-count` | 未读数量 |
+| `POST /api/notifications/read` | 批量标记已读 |
+| `POST /api/notifications/read-all` | 全部标记已读 |
+| `GET /api/alerts` | 管理员告警列表 |
+| `POST /api/alerts/{id}/handle` | 处理告警 |
+
+站内信列表、未读数和已读操作只处理 `INTERNAL`；邮件状态独立，邮件失败不会覆盖成功的站内告警状态。
+
+Notification-Service 的 SMTP 配置支持以下环境变量：
 
 | 环境变量 | 用途及默认值 |
 | --- | --- |
-| `NOTIFICATION_MAIL_HOST` | SMTP 服务器，需填写 |
-| `NOTIFICATION_MAIL_PORT` | 默认 587 |
-| `NOTIFICATION_MAIL_USERNAME` | SMTP 登录账号，需填写 |
-| `NOTIFICATION_MAIL_PASSWORD` | SMTP 密码或服务商授权码，需填写 |
+| `NOTIFICATION_MAIL_HOST` | SMTP 服务器 |
+| `NOTIFICATION_MAIL_PORT` | `587` |
+| `NOTIFICATION_MAIL_USERNAME` / `NOTIFICATION_MAIL_PASSWORD` | SMTP 账号与密码/授权码 |
 | `NOTIFICATION_MAIL_FROM` | 发件地址，默认使用登录账号 |
-| `NOTIFICATION_MAIL_AUTH` | 默认 true |
-| `NOTIFICATION_MAIL_STARTTLS` | 默认 true，启用且要求 STARTTLS |
-| `NOTIFICATION_MAIL_SSL` | 默认 false；465 端口通常设 true，同时关闭 STARTTLS |
-| `NOTIFICATION_MAIL_WORKER_ENABLED` | 默认 true；false 暂停工作者，已生成任务保留 |
+| `NOTIFICATION_MAIL_AUTH` | `true` |
+| `NOTIFICATION_MAIL_STARTTLS` | `true`，启用且要求 STARTTLS |
+| `NOTIFICATION_MAIL_SSL` | `false`；使用隐式 TLS 的 465 端口时开启并关闭 STARTTLS |
+| `NOTIFICATION_MAIL_WORKER_ENABLED` | `true`；设为 `false` 暂停工作者，保留已生成任务 |
 
-邮件开关从后续通知消费起生效，已生成任务继续处理，不为历史已消费事件补发邮件。通知、邮件任务、消费日志在同一事务落库；工作者在事务外发送 SMTP，每 10 秒最多 20 封，租约 5 分钟，失败按 30/60/120/240 秒退避，最多尝试 5 次。`notification_email_deliveries` 保存邮箱/内容快照、重试状态及脱敏错误，关联的 EMAIL 通知同步 PENDING/SENT/FAILED。缺失或非法邮箱直接失败，站内信仍创建。SMTP 未配置或认证失败也记录失败并有限重试，不会假记成功；修正配置后，已达 FAILED 的任务不会自动重发，当前没有管理员重发入口。
+服务自动包含 `mail-local` profile。本机可使用被 Git 忽略的 `application-mail-local.yaml`，新环境需自行注入配置，不依赖本机 SMTP 快照。
 
-站内信列表、未读数量及已读操作仅包含 INTERNAL。自动升级告警仍记录站内信的送达状态，邮件的投递结果查看独立队列，不用邮件失败覆盖已经成功的站内告警。
+通知、邮件任务和消费日志在同一事务落库，工作者在事务外执行 SMTP：每 10 秒最多 20 封，租约 5 分钟，最多尝试 5 次，失败按 30/60/120/240 秒退避。邮箱/内容使用任务创建时快照；缺失或非法邮箱直接失败，站内信仍创建。
 
-邮件投递采用可恢复任务队列：普通 SMTP 不支持端到端幂等键，服务器接受邮件后、成功状态提交前退出，恢复时可能重复发送。SENT 表示 SMTP 接受，不保证最终送达或阅读。本地临时 SMTP 测试只验证发送协议和内容，不等于真实邮箱验收。
+邮件开关影响后续消费，已生成任务继续处理，历史事件不补发。`SENT` 表示 SMTP 接受，不表示最终送达或阅读；SMTP 接受后、成功回写前进程退出，恢复时可能重复发送。达到 `FAILED` 的任务不会因修正配置自动重发，当前没有管理员重发入口。
 
+## 验证与当前边界
 
-### 技能审核通知与管理员审计（2026-10-01）
+全量测试及按模块测试：
 
-- 技能申请批准/拒绝后，通过审核事务内的 Outbox 发布 `SKILL_APPLICATION_REVIEWED`；新增 `Skill-Event-Contract` 共享契约，通知服务幂等生成站内信，并按 `notificationChannels.email` 创建邮件任务。原申请理由、审核意见、审核时间分别返回，通知可查看对应申请详情。
-- `GET /api/skill-applications/{id}` 仅允许原申请人或管理员。历史审核不补通知，历史申请仍可查。
-- 管理员审计由 Search-Service 提供：`GET /api/audit-logs` 合并工单操作与状态变更，`GET /api/audit-logs/configurations` 查询配置前后值；网关已配置路由。分页和时间/关键字过滤直接查询 MySQL，不需要 Elasticsearch。操作人采用当前姓名，账号缺失时显示 ID。
-- **升级顺序**：先运行 `sql/work_order_system_add_skill_review_audit.sql`，再更新 UserAPI、Notification-Service、Search-Service、api-gateway 及前端。此本机脚本已在 2026-10-01 执行并验证重复运行；新增通知 `skill_application_id` 字段和审计索引，不修改历史审核结果。
-- UserAPI 和 Notification-Service 均开启 `WORK_ORDER_MESSAGING_ENABLED=true`，共同使用 `WORK_ORDER_SKILL_EVENT_TOPIC`（默认 `wo-skill-event`）。UserAPI 的 Outbox 来源为 `user-service`，保持 `WORK_ORDER_OUTBOX_ENABLED=true`；通知组默认 `notification-skill-review-v1`。生产环境需预建 Topic 并授予对应生产/消费权限。消息底座关闭时不发布事件。
-- 已验证审核/事件事务回滚、消费去重、邮件开关、申请访问控制、审计管理员权限及真实 SQL 分页筛选；前端类型、构建和本机演示页面通过。业务服务未重启，真实 RocketMQ 与 SMTP 端到端投递尚未验收。
+```powershell
+mvn test
+mvn -pl Search-Service -am test
+```
+
+真实 ES / IK 集成测试平时跳过，需在本地节点就绪后显式开启：
+
+```powershell
+$env:WORK_ORDER_ES_LIVE_TEST = "true"
+mvn -pl Search-Service -am test "-Dtest=TicketSearchIkIntegrationTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+Remove-Item Env:WORK_ORDER_ES_LIVE_TEST
+```
+
+单元测试通过不代表运行服务已部署新代码，也不代表 RocketMQ 已完成消费、邮件已送达或 ES 数据已同步。部署后需用新创建的工单验证派单、SLA 和通知链路，并核对审计/目录回填及工单投影。
+
+当前需要补齐的主要能力是工单搜索投影的历史导入、可靠同步与乱序保护，以及邮件失败任务的管理员重发入口。现有框架版本、开发账号、JWT 默认密钥及未开启认证的本地中间件配置用于当前项目联调；生产部署需单独维护凭据、访问控制与版本升级方案。
+
+这四项能力的实现方案见[工单搜索同步与失败邮件重发设计](docs/工单搜索同步与失败邮件重发设计.md)，包含事务边界、接口、迁移与验收计划；方案不代表功能已经实现。

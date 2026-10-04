@@ -18,6 +18,7 @@ import com.WorkOrder.ticket.messaging.TicketCreatedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketRemindedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketRepliedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketTerminalEventPublisher;
+import com.WorkOrder.ticket.messaging.TicketSearchChangePublisher;
 import com.WorkOrder.ticket.model.*;
 import com.WorkOrder.ticket.service.TicketService;
 import com.WorkOrder.ticket.service.TicketNumberService;
@@ -85,6 +86,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final TicketRemindedEventPublisher ticketRemindedEventPublisher;
     /** 关闭和撤销工单事件的事务内发布器。 */
     private final TicketTerminalEventPublisher ticketTerminalEventPublisher;
+    private final TicketSearchChangePublisher ticketSearchChangePublisher;
 
 
     /**
@@ -94,7 +96,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
      * @param createTicketDto 创建工单DTO
      * @return 工单响应对象
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public TicketResponse createTicket(Long creatorId, String creatorName, CreateTicketDto createTicketDto) {
         TicketResponse ticketResponse = new TicketResponse(); // 创建工单响应对象
@@ -135,6 +137,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         ticket.setEscalatedLevel(0); // 设置升级级别为0
         ticket.setRemindCount(0); // 设置催办次数为0
         ticket.setSource("WEB"); // 设置来源为WEB
+        ticket.setSourceVersion(1L);
 
         int insert = ticketMapper.insert(ticket);
         if (insert < 1){
@@ -170,6 +173,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         if (newTicket == null) {
             throw new SystemException(SystemExceptionEnum.TICKET_CREATE_FAILED);
         }
+        ticketSearchChangePublisher.publish(ticket.getId());
 
         return withAttachmentUrls(
                 TicketConverter.toResponse(newTicket, ticketResponse),
@@ -411,6 +415,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         );
 
         // 催办不修改工单状态、升级级别或 SLA 状态。
+        ticketSearchChangePublisher.publish(ticketId);
         return true;
     }
 
@@ -459,7 +464,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         int update = ticketMapper.update(null, new LambdaUpdateWrapper<Tickets>()
                 .eq(Tickets::getId, ticketId)
                 .eq(Tickets::getStatus, ticketStatus)
-                .set(Tickets::getStatus, TicketStatusEnum.CANCELLED.name()));
+                .set(Tickets::getStatus, TicketStatusEnum.CANCELLED.name())
+                .setSql("source_version = source_version + 1"));
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
@@ -479,6 +485,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
         // 工单状态、历史和 Outbox 同事务提交，发布失败时整体回滚。
         ticketTerminalEventPublisher.publishCancelled(ticket, ticketStatus, userId, cancelledAt);
+        ticketSearchChangePublisher.publish(ticketId);
 
         return withAttachmentUrls(TicketConverter.toResponse(ticket), ticket.getId());
     }
@@ -504,7 +511,8 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
                 .eq(Tickets::getId, ticketId)
                 .eq(Tickets::getStatus, TicketStatusEnum.RESOLVED.name())
                 .set(Tickets::getStatus, TicketStatusEnum.CLOSED.name())
-                .set(Tickets::getClosedAt, closedAt));
+                .set(Tickets::getClosedAt, closedAt)
+                .setSql("source_version = source_version + 1"));
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
@@ -524,6 +532,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         }
         // 工单状态、历史和 Outbox 同事务提交，发布失败时整体回滚。
         ticketTerminalEventPublisher.publishClosed(ticket, userId);
+        ticketSearchChangePublisher.publish(ticketId);
         return withAttachmentUrls(TicketConverter.toResponse(ticket), ticket.getId());
     }
 

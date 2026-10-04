@@ -26,6 +26,7 @@ import com.WorkOrder.ticket.model.TicketOperationLog;
 import com.WorkOrder.ticket.model.TicketStatusHistory;
 import com.WorkOrder.ticket.model.Tickets;
 import com.WorkOrder.ticket.messaging.TicketAssignedEventPublisher;
+import com.WorkOrder.ticket.messaging.TicketSearchChangePublisher;
 import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
 import com.WorkOrder.ticket.service.AssignmentScoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -67,6 +68,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
     private final TicketResponseAttachmentEnricher ticketResponseAttachmentEnricher;
     private final TicketAssignedEventPublisher ticketAssignedEventPublisher;
     private final AssignmentScoreService assignmentScoreService;
+    private final TicketSearchChangePublisher ticketSearchChangePublisher;
     
     /**
      * 查询管理员工单列表：空关键词由 MySQL 分页，有关键词由 ES 分页后批量回表。
@@ -307,7 +309,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
      * @return 分配后的工单信息
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse assignTicket(
             Long ticketId,
             AssignTicketDto assignTicketDto,
@@ -358,7 +360,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
      * @return 分配后的工单ID列表
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public List<Long> assignTicketList(
             List<Long> ticketIds,
             Long handlerId,
@@ -474,7 +476,8 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                 .eq(oldHandlerId != null, Tickets::getHandlerId, oldHandlerId)
                 .set(Tickets::getHandlerId, handlerId)
                 .set(Tickets::getAssignedAt, assignedAt)
-                .set(Tickets::getStatus, ticket.getStatus()));
+                .set(Tickets::getStatus, ticket.getStatus())
+                .setSql("source_version = source_version + 1"));
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
@@ -509,11 +512,13 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
         // 与工单、分配记录和审计记录处于同一事务；Outbox 写入失败时整笔派单回滚。
         ticketAssignedEventPublisher.publish(ticket, handlerId, operatorId, assignedAt, reason);
+        // 工单搜索索引更新
+        ticketSearchChangePublisher.publish(ticketId);
 
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse closeTicket(Long ticketId, CloseTicketDto closeTicketDto, Long operatorId, String operatorRole, String clientIp) {
         // 操作人角色取自后端认证信息，服务层再次校验管理员权限。
         if (!"ADMIN".equals(operatorRole)) {
@@ -553,7 +558,8 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                         .eq(Tickets::getId, ticketId)
                         .eq(Tickets::getStatus, oldStatus)
                         .set(Tickets::getStatus, ticket.getStatus())
-                        .set(Tickets::getClosedAt, ticket.getClosedAt()));
+                        .set(Tickets::getClosedAt, ticket.getClosedAt())
+                        .setSql("source_version = source_version + 1"));
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
@@ -579,6 +585,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
+        ticketSearchChangePublisher.publish(ticketId);
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
@@ -592,7 +599,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
      * @return 关闭的工单ID列表
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public List<Long> closeTicketList(List<Long> closedTickets, String reason, Long operatorId, String operatorRole, String clientIp) {
         if (!"ADMIN".equals(operatorRole)) {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
@@ -642,7 +649,8 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                     .eq(Tickets::getId, ticketId)
                     .eq(Tickets::getStatus, oldStatus)
                     .set(Tickets::getStatus, TicketStatusEnum.CLOSED.name())
-                    .set(Tickets::getClosedAt, closedAt));
+                    .set(Tickets::getClosedAt, closedAt)
+                    .setSql("source_version = source_version + 1"));
             if (update != 1) {
                 throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
             }
@@ -658,6 +666,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                     "关闭工单，原因：" + closeReason, closedAt)) {
                 throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
             }
+            ticketSearchChangePublisher.publish(ticketId);
             closedTicketIds.add(ticketId);
         }
         return closedTicketIds;

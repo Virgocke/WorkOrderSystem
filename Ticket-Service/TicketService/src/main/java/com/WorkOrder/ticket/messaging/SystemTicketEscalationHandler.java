@@ -38,6 +38,8 @@ public class SystemTicketEscalationHandler {
     private final TicketOperationLogMapper operationLogMapper;
     /** 同事务升级事件发布器。 */
     private final TicketEscalatedEventPublisher publisher;
+    /** 同事务登记最终源版本的搜索变更事件。 */
+    private final TicketSearchChangePublisher searchChangePublisher;
 
     /**
      * 自动升至当前满足的最高级别；同级重复请求、已解决工单和已停用规则均无副作用。
@@ -96,7 +98,8 @@ public class SystemTicketEscalationHandler {
                 .eq(Tickets::getId, ticketId).eq(Tickets::getStatus, ticket.getStatus())
                 .eq(Tickets::getEscalatedLevel, fromLevel)
                 .set(Tickets::getEscalatedLevel, matched.getLevel())
-                .set(Tickets::getSlaStatus, "ESCALATED")) != 1) {
+                .set(Tickets::getSlaStatus, "ESCALATED")
+                .setSql("source_version = source_version + 1")) != 1) {
             throw new IllegalStateException("自动升级工单状态更新失败");
         }
         ticket.setEscalatedLevel(matched.getLevel());
@@ -121,6 +124,7 @@ public class SystemTicketEscalationHandler {
             throw new IllegalStateException("自动升级操作日志写入失败");
         }
         publisher.publishSystem(ticket, fromLevel, reason, now, log, receivers);
+        searchChangePublisher.publish(ticketId);
         return true;
     }
 }

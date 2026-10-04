@@ -28,18 +28,22 @@ public class SystemTicketAssignmentHandler {
     private final TicketOperationLogMapper operationLogMapper;
     /** 最终派单事件发布器。 */
     private final TicketAssignedEventPublisher assignedPublisher;
+    /** 同事务登记最终源版本的搜索变更事件。 */
+    private final TicketSearchChangePublisher searchChangePublisher;
 
     /** 注入同库事务内使用的持久化组件。 */
     public SystemTicketAssignmentHandler(TicketMapper ticketMapper,
                                          AssignmentRecordMapper assignmentRecordMapper,
                                          TicketStatusHistoryMapper historyMapper,
                                          TicketOperationLogMapper operationLogMapper,
-                                         TicketAssignedEventPublisher assignedPublisher) {
+                                         TicketAssignedEventPublisher assignedPublisher,
+                                         TicketSearchChangePublisher searchChangePublisher) {
         this.ticketMapper = ticketMapper;
         this.assignmentRecordMapper = assignmentRecordMapper;
         this.historyMapper = historyMapper;
         this.operationLogMapper = operationLogMapper;
         this.assignedPublisher = assignedPublisher;
+        this.searchChangePublisher = searchChangePublisher;
     }
 
     /**
@@ -101,6 +105,7 @@ public class SystemTicketAssignmentHandler {
 
         assignedPublisher.publishSystem(ticket, proposal.getHandlerId(), assignedAt,
                 "系统自动分配");
+        searchChangePublisher.publish(proposal.getTicketId());
         return true;
     }
 }

@@ -22,6 +22,8 @@ public enum EventType {
     TICKET_CANCELLED,
     /** 工单升级事件 */
     TICKET_ESCALATED,
+    /** 工单搜索投影需要按源版本刷新。 */
+    TICKET_SEARCH_CHANGED,
     /** SLA 监控请求工单服务重新判断自动升级。 */
     ESCALATION_REQUESTED,
     /** 自动派单候选提议事件 */

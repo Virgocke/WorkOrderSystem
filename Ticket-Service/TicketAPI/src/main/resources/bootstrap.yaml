@@ -42,11 +42,14 @@ mybatis-plus:
   mapper-locations: classpath*:*Mapper.xml
 
 work-order:
+  search-projection:
+    publish-enabled: ${WORK_ORDER_TICKET_SEARCH_PUBLISH_ENABLED:false}
   messaging:
     enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
     producer-group: ${ROCKETMQ_PRODUCER_GROUP:ticket-service-producer}
     ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
+    ticket-search-topic: ${WORK_ORDER_TICKET_SEARCH_EVENT_TOPIC:wo-ticket-search-event}
     assignment-proposed:
       consumer-group: ${ROCKETMQ_TICKET_ASSIGNMENT_CONSUMER_GROUP:ticket-assignment-proposed-v1}
     outbox:

@@ -54,5 +54,8 @@ public class Tickets {
     // 来源
     private String source;
 
+    /** 工单已提交状态的源版本，由业务 UPDATE 原子递增。 */
+    private Long sourceVersion;
+
     private LocalDateTime updatedAt;
 }

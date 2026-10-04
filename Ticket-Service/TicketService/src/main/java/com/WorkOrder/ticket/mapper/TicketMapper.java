@@ -21,6 +21,10 @@ import java.util.List;
  */
 @Mapper
 public interface TicketMapper extends BaseMapper<Tickets> {
+    /** 在工单修改事务内读取数据库中的最终源版本，避免使用调用方的陈旧实体。 */
+    @Select("SELECT source_version FROM tickets WHERE id = #{ticketId}")
+    Long selectSourceVersion(@Param("ticketId") Long ticketId);
+
     /** 锁定工单源记录，串行化自动升级与响应、解决、转派等修改。 */
     @Select("SELECT * FROM tickets WHERE id = #{ticketId} FOR UPDATE")
     Tickets selectForEscalation(@Param("ticketId") long ticketId);
@@ -50,7 +54,8 @@ public interface TicketMapper extends BaseMapper<Tickets> {
             + "WHERE status IN ('PENDING_RESPONSE', 'PROCESSING') GROUP BY handler_id) active_load "
             + "ON active_load.handler_id = u.id "
             + "SET target.handler_id = #{handlerId}, target.assigned_at = #{assignedAt}, "
-            + "target.status = 'PENDING_RESPONSE' WHERE target.id = #{ticketId} "
+            + "target.status = 'PENDING_RESPONSE', target.source_version = target.source_version + 1 "
+            + "WHERE target.id = #{ticketId} "
             + "AND target.status = 'PENDING_ASSIGN' AND target.handler_id IS NULL "
             + "AND COALESCE(active_load.active_count, 0) < hp.max_capacity")
     int assignIfPending(@Param("ticketId") long ticketId,

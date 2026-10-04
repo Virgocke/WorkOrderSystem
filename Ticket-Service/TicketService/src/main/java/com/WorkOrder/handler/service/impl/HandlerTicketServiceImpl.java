@@ -29,6 +29,7 @@ import com.WorkOrder.ticket.model.Tickets;
 import com.WorkOrder.ticket.messaging.TicketTransferredEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketEscalatedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketResolvedEventPublisher;
+import com.WorkOrder.ticket.messaging.TicketSearchChangePublisher;
 import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
 import com.WorkOrder.ticket.service.AssignmentScoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -89,6 +90,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
     private final AssignmentScoreService assignmentScoreService;
     /** 按当前处理人权限查询 ES 候选工单。 */
     private final TicketSearchFeignClient ticketSearchFeignClient;
+    private final TicketSearchChangePublisher ticketSearchChangePublisher;
 
     /**
      * 查询当前处理人工单：空关键词由 MySQL 分页，有关键词由 ES 排序分页后批量回表。
@@ -236,7 +238,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
      * @return 工单响应结果
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse firstResponse(Long ticketId, Long operatorId, String operatorRole, String clientIp) {
         Tickets ticket = ticketMapper.selectById(ticketId);
         // 如果工单不存在，则抛出异常
@@ -270,7 +272,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 .eq(Tickets::getStatus, oldStatus)
                 .eq(!isAdmin, Tickets::getHandlerId, operatorId)
                 .set(Tickets::getStatus, ticket.getStatus())
-                .set(Tickets::getFirstResponseAt, ticket.getFirstResponseAt()));
+                .set(Tickets::getFirstResponseAt, ticket.getFirstResponseAt())
+                .setSql("source_version = source_version + 1"));
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
@@ -294,6 +297,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
         }
 
+        ticketSearchChangePublisher.publish(ticketId);
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
@@ -350,7 +354,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 .eq(!isAdmin, Tickets::getHandlerId, operatorId)
                 .set(Tickets::getStatus, ticket.getStatus())
                 .set(Tickets::getResolvedAt, ticket.getResolvedAt())
-                .set(Tickets::getResolvedByHandlerId, ticket.getResolvedByHandlerId()));
+                .set(Tickets::getResolvedByHandlerId, ticket.getResolvedByHandlerId())
+                .setSql("source_version = source_version + 1"));
 
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
@@ -377,6 +382,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
 
         ticketResolvedEventPublisher.publish(ticket, oldStatus, resolutionLog);
+        ticketSearchChangePublisher.publish(ticketId);
 
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
@@ -445,7 +451,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 .eq(Tickets::getHandlerId, oldHandlerId)
                 .eq(Tickets::getStatus, ticket.getStatus())
                 .set(Tickets::getHandlerId,transferTicketDto.getToHandlerId())
-                .set(Tickets::getAssignedAt, transferredAt));
+                .set(Tickets::getAssignedAt, transferredAt)
+                .setSql("source_version = source_version + 1"));
 
         // 失败则抛出异常
         if (update != 1) {
@@ -502,6 +509,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 transferReason,
                 transferLog,
                 assignmentRecord);
+        ticketSearchChangePublisher.publish(ticketId);
 
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
@@ -556,7 +564,8 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 .eq(Tickets::getStatus, ticket.getStatus())
                 .eq(Tickets::getEscalatedLevel, escalatedLevel)
                 .set(Tickets::getEscalatedLevel, ticket.getEscalatedLevel())
-                .set(Tickets::getSlaStatus, ticket.getSlaStatus()));
+                .set(Tickets::getSlaStatus, ticket.getSlaStatus())
+                .setSql("source_version = source_version + 1"));
         // 更新工单信息，失败则抛出异常
         if (update != 1) {
             throw new SystemException(SystemExceptionEnum.TICKET_STATUS_UPDATE_ERROR);
@@ -595,6 +604,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 .collect(Collectors.toList());
         ticketEscalatedEventPublisher.publish(ticket, escalatedLevel, escalationReason,
                 escalatedAt, escalationLog, receiverIds);
+        ticketSearchChangePublisher.publish(ticketId);
 
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }

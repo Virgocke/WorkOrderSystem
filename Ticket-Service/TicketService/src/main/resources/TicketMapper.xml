@@ -8,7 +8,8 @@
     <!-- 同一条 SQL 中检查权限、状态和上限，防止并发催办越权、越界或作用于已解决工单。 -->
     <update id="incrementRemindCount">
         UPDATE tickets
-        SET remind_count = remind_count + 1
+        SET remind_count = remind_count + 1,
+            source_version = source_version + 1
         WHERE id = #{ticketId}
           AND creator_id = #{userId}
           AND remind_count &lt; 3
