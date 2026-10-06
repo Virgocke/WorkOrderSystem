@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.search.mapper.TicketSearchDiagnosticsMapper">
+    <resultMap id="outboxStatus" type="com.WorkOrder.search.model.admin.TicketSearchOutboxStatus">
+        <result property="newCount" column="new_count"/>
+        <result property="retryCount" column="retry_count"/>
+        <result property="sendingCount" column="sending_count"/>
+        <result property="staleSendingCount" column="stale_sending_count"/>
+        <result property="deadCount" column="dead_count"/>
+        <result property="unknownStatusCount" column="unknown_status_count"/>
+        <result property="oldestActiveCreatedAt" column="oldest_active_created_at"/>
+        <result property="collectedAt" column="collected_at"/>
+    </resultMap>
+
+    <!-- COALESCE 只处理成功查询中的空集合，数据库异常由服务明确返回 UNKNOWN。 -->
+    <select id="selectOutboxStatus" resultMap="outboxStatus" useCache="false" flushCache="true">
+        SELECT COALESCE(SUM(CASE WHEN status = 'NEW' THEN 1 ELSE 0 END), 0) AS new_count,
+               COALESCE(SUM(CASE WHEN status = 'RETRY' THEN 1 ELSE 0 END), 0) AS retry_count,
+               COALESCE(SUM(CASE WHEN status = 'SENDING' THEN 1 ELSE 0 END), 0) AS sending_count,
+               COALESCE(SUM(CASE WHEN status = 'SENDING' AND
+                   (locked_at IS NULL OR locked_at &lt; TIMESTAMPADD(SECOND, -#{staleSeconds}, CURRENT_TIMESTAMP(3)))
+                   THEN 1 ELSE 0 END), 0) AS stale_sending_count,
+               COALESCE(SUM(CASE WHEN status = 'DEAD' THEN 1 ELSE 0 END), 0) AS dead_count,
+               COALESCE(SUM(CASE WHEN status NOT IN ('NEW', 'RETRY', 'SENDING', 'SENT', 'DEAD')
+                   OR status IS NULL THEN 1 ELSE 0 END), 0) AS unknown_status_count,
+               MIN(CASE WHEN status IN ('NEW', 'RETRY', 'SENDING') THEN created_at ELSE NULL END)
+                   AS oldest_active_created_at,
+               CURRENT_TIMESTAMP(3) AS collected_at
+        FROM message_outbox
+        WHERE source_service = 'ticket-service'
+          AND event_type = 'TICKET_SEARCH_CHANGED'
+          AND topic = #{topic}
+    </select>
+</mapper>

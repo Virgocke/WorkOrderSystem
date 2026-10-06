@@ -1,5 +1,7 @@
 package com.WorkOrder.search.exception;
 
+import com.WorkOrder.search.model.TicketSearchBulkResult;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -11,22 +13,24 @@ public class TicketSearchBulkException extends IOException {
     /** 异常对象序列化的版本标识。 */
     private static final long serialVersionUID = 1L;
 
-    /** 本批次已经成功写入的文档数量，抛出异常不会撤销这些写入。 */
-    private final int successCount;
+    /** 包含已写入、已覆盖及真正失败项的完整批次结果。 */
+    private final TicketSearchBulkResult result;
 
     /** 失败文档 ID 与错误原因的只读映射，保留批量响应中的失败顺序。 */
     private final Map<String, String> failures;
 
     /**
-     * 记录批量写入的成功数量和逐条失败信息，复制失败映射以固定异常发生时的结果。
+     * 记录逐项分类结果；抛出异常不会撤销已完成的 Elasticsearch 写入。
      *
-     * @param successCount 已成功写入的文档数量
-     * @param failures 文档 ID 到 Elasticsearch 错误原因的映射，不能为 null
+     * @param result 包含真正失败项目的批量结果
      */
-    public TicketSearchBulkException(int successCount, Map<String, String> failures) {
-        super("Elasticsearch 批量写入失败 " + failures.size() + " 条，成功 " + successCount + " 条");
-        this.successCount = successCount;
-        this.failures = Collections.unmodifiableMap(new LinkedHashMap<>(failures));
+    public TicketSearchBulkException(TicketSearchBulkResult result) {
+        super("Elasticsearch 批量写入失败 " + result.getFailures().size() + " 条，写入 "
+                + result.getAppliedCount() + " 条，版本覆盖 " + result.getCoveredCount() + " 条");
+        this.result = result;
+        Map<String, String> messages = new LinkedHashMap<>();
+        result.getFailures().forEach((id, failure) -> messages.put(id, failure.getMessage()));
+        this.failures = Collections.unmodifiableMap(messages);
     }
 
     /**
@@ -35,7 +39,17 @@ public class TicketSearchBulkException extends IOException {
      * @return 成功写入的文档数量
      */
     public int getSuccessCount() {
-        return successCount;
+        return result.getAppliedCount();
+    }
+
+    /** @return 已被相同或更高版本覆盖的文档数量 */
+    public int getCoveredCount() {
+        return result.getCoveredCount();
+    }
+
+    /** @return 本次批量写入的完整逐项分类结果 */
+    public TicketSearchBulkResult getResult() {
+        return result;
     }
 
     /**

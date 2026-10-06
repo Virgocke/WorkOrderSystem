@@ -48,7 +48,13 @@ public abstract class BaseExceptionHandler {
         switch (error) {
             case CONFIGURATION_VERSION_CONFLICT:
             case TICKET_NO_EXHAUSTED:
+            case TICKET_SEARCH_JOB_CONFLICT:
+                // 搜索任务冲突也使用 409，提示调用方先读取当前任务状态再尝试导入、恢复或发布。
                 status = HttpStatus.CONFLICT;
+                break;
+            case TICKET_SEARCH_NOT_READY:
+                // 暂时不能提供关键词搜索，保留业务码供搜索专属 Feign 解码器跨服务识别。
+                status = HttpStatus.SERVICE_UNAVAILABLE;
                 break;
             case TICKET_NOT_FOUND:
             case RESOURCE_NOT_FOUND:

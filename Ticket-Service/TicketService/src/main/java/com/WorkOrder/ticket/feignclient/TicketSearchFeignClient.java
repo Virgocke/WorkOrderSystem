@@ -14,7 +14,7 @@ import java.io.IOException;
  * @date 2026年10月03日 04:45
  * @description ES查询工单服务
  */
-@FeignClient(name = "Search", path = "/internal/search/" , configuration = TicketFeignConfiguration.class)
+@FeignClient(name = "Search", path = "/internal/search/", configuration = TicketSearchFeignConfiguration.class)
 public interface TicketSearchFeignClient {
 
     @PostMapping("/tickets/admin")

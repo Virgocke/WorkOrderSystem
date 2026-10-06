@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.search.mapper.TicketIndexSourceMapper">
+    <resultMap id="ticketSource" type="com.WorkOrder.search.model.TicketIndexSource">
+        <id property="ticketId" column="id"/>
+        <result property="ticketNo" column="ticket_no"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="priority" column="priority"/>
+        <result property="status" column="status"/>
+        <result property="creatorId" column="creator_id"/>
+        <result property="handlerId" column="handler_id"/>
+        <result property="slaStatus" column="sla_status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="responseDeadline" column="response_deadline"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="sourceVersion" column="source_version"/>
+    </resultMap>
+
+    <sql id="projectionColumns">
+        id, ticket_no, title, description, category_id, priority, status,
+        creator_id, handler_id, sla_status, created_at, response_deadline,
+        updated_at, source_version
+    </sql>
+
+    <!-- 字段与版本来自同一行同一快照；不联接用户、分类或附件表。 -->
+    <select id="selectById" resultMap="ticketSource" useCache="false" flushCache="true">
+        SELECT <include refid="projectionColumns"/>
+        FROM tickets
+        WHERE id = #{ticketId}
+    </select>
+
+    <select id="selectMaxId" resultType="java.lang.Long" useCache="false" flushCache="true">
+        SELECT COALESCE(MAX(id), 0) FROM tickets
+    </select>
+
+    <!-- 上界只限定本轮结束条件，迟提交的小 ID 由后续从头轮扫与实时消息补齐。 -->
+    <select id="selectBatch" resultMap="ticketSource" useCache="false" flushCache="true">
+        SELECT <include refid="projectionColumns"/>
+        FROM tickets
+        WHERE id &gt; #{afterId} AND id &lt;= #{upperId}
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+</mapper>

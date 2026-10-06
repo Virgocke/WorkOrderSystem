@@ -6,7 +6,6 @@ import com.WorkOrder.model.search.TicketSearchQuery;
 import com.WorkOrder.search.service.AdminTicketSearchService;
 import com.WorkOrder.search.service.HandlerTicketSearchService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,11 +21,6 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/internal/search/")
 @RequiredArgsConstructor
-@ConditionalOnProperty(
-        prefix = "work-order.elasticsearch",
-        name = "enabled",
-        havingValue = "true"
-)
 public class ElasticsearchSearchController {
 
     private final AdminTicketSearchService adminTicketSearchService;

@@ -7,7 +7,7 @@ import java.time.OffsetDateTime;
 
 /**
  * 工单的搜索投影，与数据库实体及接口响应分离。
- * ID 使用字符串，时间必须携带偏移量；后续由同步层生成完整快照。
+ * ID 使用字符串，时间必须携带偏移量；同步层生成内容与源版本一致的完整快照。
  */
 @Getter
 @Setter
@@ -51,4 +51,7 @@ public class TicketSearchDocument {
 
     /** 源工单的更新时间，保存时必须提供偏移量；此字段不承担乱序写入的版本仲裁。 */
     private OffsetDateTime updatedAt;
+
+    /** 与本份完整投影对应的源行版本，写入时同时作为 Elasticsearch 的 external 版本。 */
+    private Long sourceVersion;
 }

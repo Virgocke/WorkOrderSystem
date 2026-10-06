@@ -6,6 +6,13 @@ spring:
       - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
 
 work-order:
+  messaging:
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
+    name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+    ticket-search-topic: ${WORK_ORDER_TICKET_SEARCH_EVENT_TOPIC:wo-ticket-search-event}
+    # Search-Service 只消费搜索事件，不运行发送端 Relay。
+    outbox:
+      enabled: false
   elasticsearch:
     enabled: ${WORK_ORDER_ES_ENABLED:false}
 
@@ -37,6 +44,17 @@ work-order:
     number-of-shards: 1
     number-of-replicas: 0
     max-bulk-size: 1000
+
+    # 显式开启后由管理员创建导入任务，验证并独立发布前关键词请求仍为 503。
+    ticket-sync:
+      enabled: ${WORK_ORDER_TICKET_SEARCH_SYNC_ENABLED:false}
+      consumer-group: ${WORK_ORDER_TICKET_SEARCH_CONSUMER_GROUP:search-ticket-projection-v1}
+      source-zone-id: ${WORK_ORDER_TICKET_SEARCH_SOURCE_ZONE_ID:Asia/Shanghai}
+      batch-size: 500
+      batches-per-run: 10
+      import-delay-ms: 1000
+      reconcile-delay-ms: 30000
+      import-lease-seconds: 120
 
     # 审计索引与工单索引独立；启用 ES 后自动初始化、分批回填并周期对账。
     # 首轮回填完成前关键词请求明确失败，无关键词查询仍使用 MySQL。

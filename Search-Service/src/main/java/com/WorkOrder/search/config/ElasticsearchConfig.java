@@ -10,6 +10,7 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -129,7 +130,10 @@ public class ElasticsearchConfig {
     @Bean
     @ConditionalOnProperty(prefix = "work-order.elasticsearch",
             name = "initialize-on-startup", havingValue = "true")
+    @ConditionalOnExpression(
+            "!${work-order.elasticsearch.ticket-sync.enabled:false}")
     public ApplicationRunner ticketSearchIndexInitializer(TicketSearchIndexService indexService) {
+        // 此初始化只用于非同步模式；开启同步后由导入任务创建目标，避免启动时接管读别名。
         return args -> indexService.initializeIndex();
     }
 

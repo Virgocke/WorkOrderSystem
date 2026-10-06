@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.search.mapper.TicketSearchTaskMapper">
+    <resultMap id="state" type="com.WorkOrder.search.model.TicketSearchControlState">
+        <id property="id" column="id"/>
+        <result property="currentJobId" column="current_job_id"/>
+        <result property="writeGeneration" column="write_generation"/>
+        <result property="writeAlias" column="write_alias"/>
+        <result property="publishedGeneration" column="published_generation"/>
+        <result property="phase" column="phase"/>
+        <result property="lastError" column="last_error"/>
+    </resultMap>
+    <resultMap id="task" type="com.WorkOrder.search.model.TicketSearchImportTask">
+        <id property="id" column="id"/>
+        <result property="requestId" column="request_id"/>
+        <result property="reason" column="reason"/>
+        <result property="generation" column="generation"/>
+        <result property="targetIndex" column="target_index"/>
+        <result property="writeAlias" column="write_alias"/>
+        <result property="status" column="status"/>
+        <result property="scanUpperId" column="scan_upper_id"/>
+        <result property="lastTicketId" column="last_ticket_id"/>
+        <result property="scannedCount" column="scanned_count"/>
+        <result property="coveredCount" column="covered_count"/>
+        <result property="lastError" column="last_error"/>
+        <result property="leaseOwner" column="lease_owner"/>
+        <result property="leaseUntil" column="lease_until"/>
+        <result property="leaseToken" column="lease_token"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="targetInitializedAt" column="target_initialized_at"/>
+        <result property="scanStartedAt" column="scan_started_at"/>
+        <result property="resumePhase" column="resume_phase"/>
+        <result property="verifiedAt" column="verified_at"/>
+        <result property="refreshCompletedAt" column="refresh_completed_at"/>
+        <result property="failureCount" column="failure_count"/>
+        <result property="lastFailedTicketId" column="last_failed_ticket_id"/>
+        <result property="publisherToken" column="publisher_token"/>
+        <result property="publisherOwner" column="publisher_owner"/>
+        <result property="publishStartedAt" column="publish_started_at"/>
+        <result property="deploymentConfirmedBy" column="deployment_confirmed_by"/>
+        <result property="deploymentConfirmedAt" column="deployment_confirmed_at"/>
+        <result property="deploymentManifest" column="deployment_manifest"/>
+        <result property="publicationRecoveryBy" column="publication_recovery_by"/>
+        <result property="publicationRecoveryAt" column="publication_recovery_at"/>
+        <result property="publicationRecoveryReason" column="publication_recovery_reason"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <resultMap id="reconciliation" type="com.WorkOrder.search.model.TicketSearchReconciliationState">
+        <id property="id" column="id"/>
+        <result property="generation" column="generation"/>
+        <result property="scanUpperId" column="scan_upper_id"/>
+        <result property="lastTicketId" column="last_ticket_id"/>
+        <result property="leaseToken" column="lease_token"/>
+        <result property="leaseUntil" column="lease_until"/>
+        <result property="completedRounds" column="completed_rounds"/>
+        <result property="lastFullSuccessAt" column="last_full_success_at"/>
+        <result property="lastError" column="last_error"/>
+    </resultMap>
+    <select id="selectState" resultMap="state" useCache="false" flushCache="true">SELECT * FROM ticket_search_sync_state WHERE id=1</select>
+    <select id="lockState" resultMap="state" useCache="false" flushCache="true">SELECT * FROM ticket_search_sync_state WHERE id=1 FOR UPDATE</select>
+    <select id="selectTask" resultMap="task" useCache="false" flushCache="true">SELECT * FROM ticket_search_import_jobs WHERE id=#{id}</select>
+    <select id="selectByRequest" resultMap="task" useCache="false" flushCache="true">SELECT * FROM ticket_search_import_jobs WHERE request_id=#{requestId}</select>
+    <insert id="insertTask" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ticket_search_import_jobs(request_id,reason,generation,target_index,write_alias,created_by)
+        VALUES(#{requestId},#{reason},0,'pending','pending',#{createdBy})
+    </insert>
+    <update id="updateTask">
+        UPDATE ticket_search_import_jobs SET generation=#{generation}, target_index=#{targetIndex},
+        write_alias=#{writeAlias}, status=#{status}, scan_upper_id=#{scanUpperId},
+        last_ticket_id=#{lastTicketId}, scanned_count=#{scannedCount}, covered_count=#{coveredCount},
+        last_error=#{lastError}, target_initialized_at=#{targetInitializedAt}, scan_started_at=#{scanStartedAt}, resume_phase=#{resumePhase},
+        verified_at=#{verifiedAt}, refresh_completed_at=#{refreshCompletedAt}, failure_count=#{failureCount},
+        last_failed_ticket_id=#{lastFailedTicketId}, publisher_token=#{publisherToken}, publisher_owner=#{publisherOwner},
+        publish_started_at=#{publishStartedAt}, deployment_confirmed_by=#{deploymentConfirmedBy},
+        deployment_confirmed_at=#{deploymentConfirmedAt}, deployment_manifest=#{deploymentManifest},
+        publication_recovery_by=#{publicationRecoveryBy},publication_recovery_at=#{publicationRecoveryAt},
+        publication_recovery_reason=#{publicationRecoveryReason}
+        WHERE id=#{id}
+    </update>
+    <update id="updateState">
+        UPDATE ticket_search_sync_state SET current_job_id=#{currentJobId},write_generation=#{writeGeneration},
+        write_alias=#{writeAlias},published_generation=#{publishedGeneration},phase=#{phase},last_error=#{lastError} WHERE id=1
+    </update>
+    <update id="acquireLease">
+        UPDATE ticket_search_import_jobs SET lease_owner=#{owner},lease_token=#{token},
+        lease_until=DATE_ADD(CURRENT_TIMESTAMP, INTERVAL #{seconds} SECOND)
+        WHERE id=#{id} AND status IN ('IMPORTING','VERIFYING') AND verified_at IS NULL
+        AND (lease_until IS NULL OR lease_until &lt;= CURRENT_TIMESTAMP)
+    </update>
+    <update id="renewLease">
+        UPDATE ticket_search_import_jobs SET lease_until=DATE_ADD(CURRENT_TIMESTAMP, INTERVAL #{seconds} SECOND)
+        WHERE id=#{id} AND lease_token=#{token} AND lease_until &gt; CURRENT_TIMESTAMP
+    </update>
+    <select id="ownsLease" resultType="int" useCache="false" flushCache="true">
+        SELECT COUNT(*) FROM ticket_search_import_jobs WHERE id=#{id} AND lease_token=#{token} AND lease_until &gt; CURRENT_TIMESTAMP
+    </select>
+    <update id="releaseLease">
+        UPDATE ticket_search_import_jobs SET lease_owner=NULL,lease_token=NULL,lease_until=NULL WHERE id=#{id} AND lease_token=#{token}
+    </update>
+    <select id="selectReconciliation" resultMap="reconciliation" useCache="false" flushCache="true">SELECT * FROM ticket_search_reconciliation_state WHERE id=1</select>
+    <update id="updateReconciliation">
+        UPDATE ticket_search_reconciliation_state SET generation=#{generation},scan_upper_id=#{scanUpperId},
+        last_ticket_id=#{lastTicketId},completed_rounds=#{completedRounds},last_full_success_at=#{lastFullSuccessAt},last_error=#{lastError} WHERE id=1
+    </update>
+    <update id="acquireReconciliation">
+        UPDATE ticket_search_reconciliation_state SET lease_token=#{token},lease_until=DATE_ADD(CURRENT_TIMESTAMP, INTERVAL #{seconds} SECOND)
+        WHERE id=1 AND (lease_until IS NULL OR lease_until &lt;= CURRENT_TIMESTAMP)
+    </update>
+    <select id="ownsReconciliation" resultType="int" useCache="false" flushCache="true">
+        SELECT COUNT(*) FROM ticket_search_reconciliation_state WHERE id=1 AND lease_token=#{token} AND lease_until &gt; CURRENT_TIMESTAMP
+    </select>
+    <update id="renewReconciliation">
+        UPDATE ticket_search_reconciliation_state SET lease_until=DATE_ADD(CURRENT_TIMESTAMP, INTERVAL #{seconds} SECOND)
+        WHERE id=1 AND lease_token=#{token} AND lease_until &gt; CURRENT_TIMESTAMP
+    </update>
+    <update id="releaseReconciliation">
+        UPDATE ticket_search_reconciliation_state SET lease_token=NULL,lease_until=NULL WHERE id=1 AND lease_token=#{token}
+    </update>
+</mapper>

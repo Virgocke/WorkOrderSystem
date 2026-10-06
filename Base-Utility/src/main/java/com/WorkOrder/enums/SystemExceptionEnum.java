@@ -54,6 +54,10 @@ public enum SystemExceptionEnum {
     // === 系统配置相关 (1080~1089) ===
     CONFIGURATION_VERSION_CONFLICT(1080, "配置已被其他管理员修改，请刷新后重试"),
 
+    // === 工单搜索运维相关 (1090~1099) ===
+    TICKET_SEARCH_NOT_READY(1090, "关键词搜索暂不可用，可清空关键词查看工单"),
+    TICKET_SEARCH_JOB_CONFLICT(1091, "工单搜索任务状态已变化，请刷新后重试"),
+
     // === 服务内部错误 ===
     INTERNAL_SERVER_ERROR(5000, "系统内部错误，请稍后重试"),
     ;

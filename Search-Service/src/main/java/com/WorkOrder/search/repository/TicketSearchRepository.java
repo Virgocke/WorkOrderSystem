@@ -5,21 +5,29 @@ import com.WorkOrder.model.search.TicketSearchDocument;
 import com.WorkOrder.model.search.TicketSearchPage;
 import com.WorkOrder.model.search.TicketSearchQuery;
 import com.WorkOrder.search.exception.TicketSearchBulkException;
+import com.WorkOrder.search.model.TicketSearchBulkResult;
+import com.WorkOrder.search.model.TicketSearchWriteOutcome;
+import com.WorkOrder.search.model.TicketSearchWriteTarget;
+import com.WorkOrder.search.model.TicketSearchStoredVersion;
+import com.WorkOrder.search.support.ElasticsearchFailureClassifier;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.lucene.search.TotalHits;
-import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.get.MultiGetItemResponse;
+import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -29,15 +37,21 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
+import org.elasticsearch.index.VersionType;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,7 +61,7 @@ import java.util.Set;
 
 /**
  * 内部搜索存储能力；不访问 MySQL、不发布消息、不承担业务授权。
- * 保存为完整替换，同一 ID 重复保存不会增加文档；暂不处理乱序事件的版本仲裁。
+ * 写入只接受服务端解析的受管目标，以源版本原子拒绝重复或乱序旧投影。
  */
 public class TicketSearchRepository {
 
@@ -92,16 +106,29 @@ public class TicketSearchRepository {
     }
 
     /**
-     * 使用稳定工单 ID 将完整搜索投影写入别名，已有文档会被整体替换。
+     * 使用稳定工单 ID 将完整搜索投影写入受管别名，以 external 源版本进行原子仲裁。
      * 未提供的可选字段会从旧文档移除；缺失别名时服务端拒绝写入，不自动创建物理索引。
-     * 搜索可见性等待自动刷新，不校验源业务权限和事件版本。
+     * 只有明确的版本冲突视为已覆盖；其他异常继续向同步调用方传播。
      *
-     * @param document 工单搜索投影，必须提供 ID、编号、标题、创建时间和更新时间
+     * @param target 服务端解析、验证后的受管写目标
+     * @param document 完整搜索投影，必填字段完整且源版本大于零
+     * @return 实际写入或已被相同、更高版本覆盖
      * @throws IllegalArgumentException 文档为空或必填字段缺失
      * @throws IOException 文档序列化失败、网络通信失败或响应解析失败
      */
-    public void save(TicketSearchDocument document) throws IOException {
-        client.index(toIndexRequest(document), ALIAS_WRITE_OPTIONS);
+    public TicketSearchWriteOutcome save(TicketSearchWriteTarget target, TicketSearchDocument document)
+            throws IOException {
+        IndexRequest request = toIndexRequest(target, document);
+        try {
+            client.index(request, ALIAS_WRITE_OPTIONS);
+            return TicketSearchWriteOutcome.APPLIED;
+        } catch (ElasticsearchStatusException exception) {
+            if (isVersionConflict(exception.status(), exception)) {
+                // 本请求采用 EXTERNAL；明确版本冲突表示 ES 已保存相同或更高版本，可确认覆盖。
+                return TicketSearchWriteOutcome.COVERED;
+            }
+            throw exception;
+        }
     }
 
     /**
@@ -120,18 +147,75 @@ public class TicketSearchRepository {
     }
 
     /**
-     * 按 ID 删除搜索投影，不修改源数据库中的工单。
-     * 重复删除不存在的文档返回 false，搜索结果中的删除可见性等待自动刷新。
+     * 实时读取固定代次的批量版本，只取 ID 和 sourceVersion，不依赖搜索刷新。
+     * 文档缺失返回 found=false；分片错误、响应缺项、目标错配及版本协议破坏均抛出异常。
      *
-     * @param ticketId 非空的稳定工单 ID
-     * @return 删除已有文档时为 true，文档不存在时为 false
-     * @throws IllegalArgumentException 工单 ID 为空或空白
-     * @throws IOException 网络请求失败或删除响应解析失败
+     * @param target 当前批次已经固定并校验的受管写目标
+     * @param ticketIds 正整数工单 ID，不允许重复，数量不超过批次上限
+     * @return 按工单 ID 保存的只读版本记录
+     * @throws IOException 网络错误、单项失败、响应不完整或存储版本不符合协议
      */
-    public boolean deleteById(String ticketId) throws IOException {
-        Assert.hasText(ticketId, "工单 ID 不能为空");
-        return client.delete(new DeleteRequest(alias(), ticketId), RequestOptions.DEFAULT)
-                .getResult() != DocWriteResponse.Result.NOT_FOUND;
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public Map<Long, TicketSearchStoredVersion> multiGetVersions(TicketSearchWriteTarget target,
+                                                                List<Long> ticketIds) throws IOException {
+        validateTarget(target);
+        Assert.notNull(ticketIds, "工单版本查询 ID 列表不能为空");
+        Assert.isTrue(ticketIds.size() <= properties.getMaxBulkSize(), "工单版本查询数量超过配置上限");
+        if (ticketIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        // 实时 MGET 可看到已写入但尚未 refresh 的文档，核对时不必主动刷新每个批次。
+        MultiGetRequest request = new MultiGetRequest().realtime(true).refresh(false);
+        Map<String, Long> requested = new LinkedHashMap<>();
+        for (Long ticketId : ticketIds) {
+            Assert.isTrue(ticketId != null && ticketId > 0, "工单版本查询 ID 必须为正数");
+            Assert.isTrue(requested.put(ticketId.toString(), ticketId) == null, "工单版本查询不能包含重复 ID");
+            request.add(new MultiGetRequest.Item(target.getWriteAlias(), ticketId.toString())
+                    .fetchSourceContext(new FetchSourceContext(true,
+                            new String[]{"ticketId", "sourceVersion"}, new String[0])));
+        }
+        MultiGetResponse response = client.mget(request, RequestOptions.DEFAULT);
+        MultiGetItemResponse[] items = response.getResponses();
+        if (items == null || items.length != ticketIds.size()) {
+            throw new IOException("Elasticsearch 工单版本查询返回数量与请求不一致");
+        }
+        Map<Long, TicketSearchStoredVersion> versions = new LinkedHashMap<>();
+        for (MultiGetItemResponse item : items) {
+            Long ticketId = item == null ? null : requested.get(item.getId());
+            if (ticketId == null || versions.containsKey(ticketId)) {
+                throw new IOException("Elasticsearch 工单版本查询包含未请求或重复 ID");
+            }
+            // 读取失败和文档缺失必须区分；不能把分片错误当作“未找到”继续推进验证进度。
+            if (item.isFailed()) {
+                throw new IOException("Elasticsearch 工单版本查询单项失败，ticketId=" + ticketId,
+                        item.getFailure().getFailure());
+            }
+            GetResponse document = item.getResponse();
+            if (document == null || !target.getPhysicalIndex().equals(document.getIndex())) {
+                throw new IOException("Elasticsearch 工单版本查询目标与登记索引不一致，ticketId=" + ticketId);
+            }
+            if (!document.isExists()) {
+                versions.put(ticketId, new TicketSearchStoredVersion(0, null, false));
+            } else {
+                versions.put(ticketId, readStoredVersion(ticketId, document));
+            }
+        }
+        return Collections.unmodifiableMap(versions);
+    }
+
+    /** 只承认完整投影协议中的数值版本和稳定字符串 ID，不掩盖内部版本写入造成的错配。 */
+    private TicketSearchStoredVersion readStoredVersion(Long ticketId, GetResponse document) throws IOException {
+        String source = document.getSourceAsString();
+        JsonNode fields = source == null ? null : documentMapper.readTree(source);
+        JsonNode storedId = fields == null ? null : fields.get("ticketId");
+        JsonNode storedVersion = fields == null ? null : fields.get("sourceVersion");
+        // EXTERNAL 协议下 ES _version 应等于源版本，错配说明文档不能用于判断已覆盖。
+        if (storedId == null || !storedId.isTextual() || !ticketId.toString().equals(storedId.asText())
+                || storedVersion == null || !storedVersion.isIntegralNumber() || !storedVersion.canConvertToLong()
+                || storedVersion.longValue() <= 0 || document.getVersion() != storedVersion.longValue()) {
+            throw new IOException("Elasticsearch 工单投影 ID 或源版本与元数据版本不一致，ticketId=" + ticketId);
+        }
+        return new TicketSearchStoredVersion(document.getVersion(), storedVersion.longValue(), true);
     }
 
     /**
@@ -139,38 +223,60 @@ public class TicketSearchRepository {
      * 空列表不发送请求，不自动拆批或重试；调用方按 max-bulk-size 拆分并根据异常恢复。
      * 每条文档采用与 save 相同的完整替换规则，网络异常不代表服务端完全未写入。
      *
+     * @param target 服务端解析、验证后的受管写目标
      * @param documents 同一批次的完整搜索投影，列表和元素不能为 null，工单 ID 不得重复
+     * @return 包含实际写入及版本覆盖数量的结果，正常返回时没有真正失败项
      * @throws IllegalArgumentException 数量超过配置上限、文档字段缺失或同一批次包含重复工单 ID
      * @throws TicketSearchBulkException 服务端返回逐条失败，异常包含成功数量及失败 ID 和原因
      * @throws IOException 文档序列化失败、网络通信失败或批量响应解析失败
      */
-    public void bulkSave(List<TicketSearchDocument> documents) throws IOException {
+    public TicketSearchBulkResult bulkSave(TicketSearchWriteTarget target, List<TicketSearchDocument> documents)
+            throws IOException {
+        validateTarget(target);
         Assert.notNull(documents, "批量文档不能为空");
         Assert.isTrue(documents.size() <= properties.getMaxBulkSize(), "批量文档数量超过配置上限");
         if (documents.isEmpty()) {
-            return;
+            return new TicketSearchBulkResult(0, 0, java.util.Collections.emptyMap());
         }
         // 构建批量请求
         BulkRequest request = new BulkRequest();
         Set<String> ids = new HashSet<>();
         // 遍历文档列表，添加到批量请求中
         for (TicketSearchDocument document : documents) {
-            IndexRequest item = toIndexRequest(document);
+            IndexRequest item = toIndexRequest(target, document);
             Assert.isTrue(ids.add(item.id()), "同一批次不能包含重复工单 ID");
             request.add(item);
         }
         // 执行批量请求
         BulkResponse response = client.bulk(request, ALIAS_WRITE_OPTIONS);
-        Map<String, String> failures = new LinkedHashMap<>();
+        if (response.getItems().length != documents.size()) {
+            throw new IOException("Elasticsearch Bulk 返回数量与请求不一致，不能确认批次完成");
+        }
+        Map<String, TicketSearchBulkResult.Failure> failures = new LinkedHashMap<>();
+        int appliedCount = 0;
+        int coveredCount = 0;
+        Set<String> returnedIds = new HashSet<>();
         // 遍历批量响应，收集失败项
         for (BulkItemResponse item : response.getItems()) {
-            if (item.isFailed()) {
-                failures.put(item.getId(), item.getFailureMessage());
+            if (!ids.contains(item.getId()) || !returnedIds.add(item.getId())) {
+                throw new IOException("Elasticsearch Bulk 返回未请求或重复 ID，不能确认批次完成");
+            }
+            if (!item.isFailed()) {
+                appliedCount++;
+            } else if (isVersionConflict(item.status(), item.getFailure().getCause())) {
+                // 旧批次或重复消息无需再次写入，已有相同或更高版本也算本项完成。
+                coveredCount++;
+            } else {
+                failures.put(item.getId(), new TicketSearchBulkResult.Failure(item.status().getStatus(),
+                        ElasticsearchFailureClassifier.errorType(item.getFailure().getCause()), item.getFailureMessage()));
             }
         }
+        TicketSearchBulkResult result = new TicketSearchBulkResult(appliedCount, coveredCount, failures);
         if (!failures.isEmpty()) {
-            throw new TicketSearchBulkException(response.getItems().length - failures.size(), failures);
+            // Bulk 不会回滚成功项；让任务保留原游标重试，重复项由版本仲裁安全跳过。
+            throw new TicketSearchBulkException(result);
         }
+        return result;
     }
 
     /**
@@ -301,23 +407,60 @@ public class TicketSearchRepository {
     }
 
     /**
+     * 刷新尚未发布的固定任务代次，不读取或刷新业务读别名。
+     *
+     * @param target 已校验的受管写目标
+     * @throws IOException 网络失败或存在失败分片
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void refresh(TicketSearchWriteTarget target) throws IOException {
+        validateTarget(target);
+        RefreshResponse response = client.indices()
+                .refresh(new RefreshRequest(target.getWriteAlias()), RequestOptions.DEFAULT);
+        if (response.getFailedShards() > 0) {
+            throw new IOException("Elasticsearch 受管目标刷新存在失败分片");
+        }
+    }
+
+    /**
      * 校验完整搜索投影的必填字段，并构建以工单 ID 为 _id 的别名写入请求。
      * 本方法仅构造请求，不发送网络请求；别名保护由调用方传入的请求选项启用。
      *
+     * @param target 受管写目标
      * @param document 待保存的完整搜索投影
-     * @return 以搜索别名为目标、包含 JSON 投影内容的索引请求
+     * @return 以受管写别名为目标、带 external 源版本及完整 JSON 内容的索引请求
      * @throws IllegalArgumentException 文档为空或 ID、编号、标题、创建时间、更新时间缺失
      * @throws IOException 投影无法序列化为 JSON
      */
-    private IndexRequest toIndexRequest(TicketSearchDocument document) throws IOException {
+    private IndexRequest toIndexRequest(TicketSearchWriteTarget target, TicketSearchDocument document)
+            throws IOException {
+        validateTarget(target);
         Assert.notNull(document, "搜索文档不能为空");
         Assert.hasText(document.getTicketId(), "工单 ID 不能为空");
         Assert.hasText(document.getTicketNo(), "工单编号不能为空");
         Assert.hasText(document.getTitle(), "工单标题不能为空");
         Assert.notNull(document.getCreatedAt(), "工单创建时间不能为空");
         Assert.notNull(document.getUpdatedAt(), "工单更新时间不能为空");
-        return new IndexRequest(alias()).id(document.getTicketId())
+        Assert.isTrue(document.getSourceVersion() != null && document.getSourceVersion() > 0,
+                "工单源版本必须大于零");
+        // ES 原子比较源版本并完整替换文档，避免应用层先查再写的并发窗口；旧版本不能覆盖新版本。
+        return new IndexRequest(target.getWriteAlias()).id(document.getTicketId())
+                .version(document.getSourceVersion()).versionType(VersionType.EXTERNAL)
                 .source(documentMapper.writeValueAsString(document), XContentType.JSON);
+    }
+
+    /** 校验固定写目标，禁止把业务读别名或物理索引当作增量写入入口。 */
+    private void validateTarget(TicketSearchWriteTarget target) {
+        Assert.notNull(target, "工单搜索写目标不能为空");
+        Assert.hasText(target.getWriteAlias(), "工单搜索写别名不能为空");
+        Assert.isTrue(!target.getWriteAlias().equals(alias()), "工单投影不能写入业务读别名");
+        Assert.isTrue(!target.getWriteAlias().equals(target.getPhysicalIndex()), "工单投影必须使用受管写别名");
+    }
+
+    /** 409 本身不足以表示完成，只接受明确的版本冲突类型。 */
+    private boolean isVersionConflict(RestStatus status, Throwable failure) {
+        return status == RestStatus.CONFLICT
+                && ElasticsearchFailureClassifier.hasType(failure, "version_conflict_engine_exception");
     }
 
     /**
@@ -349,7 +492,7 @@ public class TicketSearchRepository {
     }
 
     /**
-     * 获取仓库统一用于文档读写、搜索和刷新的索引别名。
+     * 获取用于文档读取、业务搜索和显式刷新的业务读别名。
      *
      * @return Elasticsearch 配置中的工单搜索别名
      */

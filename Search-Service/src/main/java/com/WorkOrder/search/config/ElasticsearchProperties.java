@@ -21,7 +21,7 @@ import java.util.List;
 @ConfigurationProperties(prefix = "work-order.elasticsearch")
 public class ElasticsearchProperties {
 
-    /** 是否注册 Elasticsearch 组件，默认关闭；关闭时不创建客户端和搜索相关 Bean。 */
+    /** 是否注册 Elasticsearch 网络组件；关闭时关键词入口仍存在并返回未就绪。 */
     private boolean enabled;
 
     /** 非空节点地址列表，默认连接本机 9200；每个节点使用无内嵌凭据的 http/https URI。 */
@@ -64,7 +64,7 @@ public class ElasticsearchProperties {
     @Pattern(regexp = "[a-z0-9][a-z0-9._-]*")
     private String ticketIndexName = "wo-ticket-v2";
 
-    /** 仓库统一读写的索引别名，默认 wo-ticket；不能与物理索引名相同。 */
+    /** 业务读别名，默认 wo-ticket；V3 写入仅使用任务专属别名。 */
     @NotBlank
     @Size(max = 255)
     @Pattern(regexp = "[a-z0-9][a-z0-9._-]*")
