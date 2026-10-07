@@ -41,7 +41,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
-/** 通过现有消费者只读采集 Broker 位置，发布时拒绝未知或仍有活跃积压的观测。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 通过现有消费者只读采集 Broker 位置，发布时拒绝未知或仍有活跃积压的观测。
+ */
 @Service
 public class TicketSearchRuntimeStatusService {
     private static final long RPC_TIMEOUT_MS = 3000L;
@@ -52,7 +56,15 @@ public class TicketSearchRuntimeStatusService {
     private final String consumerGroup;
     private final int staleSeconds;
 
-    /** 保存诊断依赖；不创建新 MQ 客户端、不在构造时连接数据库或 Broker。 */
+    /**
+     * 保存诊断依赖；不创建新 MQ 客户端、不在构造时连接数据库或 Broker。
+     *
+     * @param diagnosticsMapper 主库 Outbox 积压与陈旧发送记录的聚合查询 Mapper
+     * @param containers 当前进程已有 RocketMQ 监听容器的可选提供器
+     * @param properties 工单搜索同步配置属性
+     * @param topic 工单搜索变更消息的主 Topic 名称
+     * @param staleSeconds 判定发送中 Outbox 记录陈旧的阈值，单位为秒
+     */
     public TicketSearchRuntimeStatusService(TicketSearchDiagnosticsMapper diagnosticsMapper,
                                            ObjectProvider<DefaultRocketMQListenerContainer> containers,
                                            TicketSearchSyncProperties properties,
@@ -73,7 +85,11 @@ public class TicketSearchRuntimeStatusService {
         this.staleSeconds = staleSeconds;
     }
 
-    /** 新采集 DB 和 MQ 数据；异常明确标为 UNKNOWN，采集不占用调用方数据库事务。 */
+    /**
+     * 新采集 DB 和 MQ 数据；异常明确标为 UNKNOWN，采集不占用调用方数据库事务。
+     *
+     * @return 本次独立采集的共享控制、Outbox 与消费队列运行事实
+     */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TicketSearchRuntimeStatus inspect() {
         TicketSearchRuntimeStatus status = new TicketSearchRuntimeStatus();
@@ -106,7 +122,11 @@ public class TicketSearchRuntimeStatusService {
         }
     }
 
-    /** 聚合查询返回异常或不完整计数时，数量保持未知。 */
+    /**
+     * 聚合查询返回异常或不完整计数时，数量保持未知。
+     *
+     * @return 工单搜索Outbox状态
+     */
     private TicketSearchOutboxStatus inspectOutbox() {
         try {
             TicketSearchOutboxStatus status = diagnosticsMapper.selectOutboxStatus(topic, staleSeconds);
@@ -125,7 +145,11 @@ public class TicketSearchRuntimeStatusService {
         }
     }
 
-    /** 使用现有已运行容器及客户端，仅直接查询 Broker，不改 OffsetStore 的内存位置。 */
+    /**
+     * 使用现有已运行容器及客户端，仅直接查询 Broker，不改 OffsetStore 的内存位置。
+     *
+     * @return 工单搜索消费者状态
+     */
     private TicketSearchConsumerStatus inspectConsumer() {
         TicketSearchConsumerStatus status = new TicketSearchConsumerStatus();
         status.setState(TicketSearchDiagnosticState.UNKNOWN);
@@ -180,7 +204,15 @@ public class TicketSearchRuntimeStatusService {
         return status;
     }
 
-    /** 从 NameServer 新读路由，避免只统计本机分配队列或复用过期路由漏掉新队列。 */
+    /**
+     * 从 NameServer 新读路由，避免只统计本机分配队列或复用过期路由漏掉新队列。
+     *
+     * @param api 当前已运行 RocketMQ 客户端的 Broker 查询接口
+     * @param assigned 当前进程已分配的消息队列及本地处理队列映射
+     * @param localRegistered 当前进程是否确认为目标消费组成员
+     * @param status 接收全消费组路由、积压及完整性结果的诊断对象
+     * @throws Exception 处理过程中发生异常时
+     */
     private void inspectGroupQueues(MQClientAPIImpl api, Map<MessageQueue, ProcessQueue> assigned,
                                     boolean localRegistered,
                                     TicketSearchConsumerStatus status) throws Exception {
@@ -233,7 +265,17 @@ public class TicketSearchRuntimeStatusService {
         status.setState(TicketSearchDiagnosticState.AVAILABLE);
     }
 
-    /** 查询持久提交位置，不调用会回写内存消费位置的 OffsetStore.readOffset。 */
+    /**
+     * 查询持久提交位置，不调用会回写内存消费位置的 OffsetStore.readOffset。
+     *
+     * @param api 当前已运行 RocketMQ 客户端的 Broker 查询接口
+     * @param queue 需要观测的 Topic、Broker 与队列编号
+     * @param brokerAddress 该队列所属 Broker 的当前地址
+     * @param localAssigned 该队列是否分配给当前进程
+     * @param localRegistered 当前进程是否属于目标消费组
+     * @return 该队列的 Broker 最大位置、持久消费位置及积压诊断
+     * @throws InterruptedException 处理过程中发生Interrupted异常时
+     */
     private TicketSearchQueueStatus inspectQueue(MQClientAPIImpl api, MessageQueue queue, String brokerAddress,
                                                 boolean localAssigned, boolean localRegistered) throws InterruptedException {
         TicketSearchQueueStatus status = new TicketSearchQueueStatus();
@@ -283,10 +325,22 @@ public class TicketSearchRuntimeStatusService {
         return status;
     }
 
+    /**
+     * 检查诊断计数是否为已知非负数。
+     *
+     * @param value 数据库返回的可空积压计数
+     * @return 值非 null 且不小于 0 时为 true
+     */
     private boolean nonnegative(Long value) {
         return value != null && value >= 0;
     }
 
+    /**
+     * 保留采集失败事实，构造计数未知的 Outbox 诊断。
+     *
+     * @param error 不含外部凭据和正文的诊断失败摘要
+     * @return 计数保持未知并记录脱敏错误的 Outbox 状态
+     */
     private TicketSearchOutboxStatus unknownOutbox(String error) {
         TicketSearchOutboxStatus status = new TicketSearchOutboxStatus();
         status.setState(TicketSearchDiagnosticState.UNKNOWN);

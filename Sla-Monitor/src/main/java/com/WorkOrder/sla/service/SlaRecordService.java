@@ -7,7 +7,7 @@ import com.WorkOrder.sla.dto.SlaRecordBoardDto;
 /**
  * @author Virgor
  * @date 2026年09月19日 04:29
- * @description
+ * @description 查询 SLA 看板上的实时工单与历史 SLA 记录。
  */
 public interface SlaRecordService {
     /**

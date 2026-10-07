@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 /**
  * @author Virgor
  * @date 2026年09月15日 03:25
- * @description
+ * @description 查询和记录工单状态变更历史。
  */
 @Service
 @RequiredArgsConstructor
@@ -34,6 +34,7 @@ public class TicketStatusHistoryServiceImpl implements TicketStatusHistoryServic
 
     /**
      * 格式化时间
+     *
      * @param time 时间
      * @return 格式化后的时间
      */
@@ -44,8 +45,9 @@ public class TicketStatusHistoryServiceImpl implements TicketStatusHistoryServic
 
     /**
      * 获取工单状态时间线
+     *
      * @param ticketId 工单ID
-      * @return 工单状态时间线
+     * @return 工单状态时间线
      */
     @Override
     public List<StatusHistory> getTicketStatusTimeline(Long ticketId) {
@@ -68,7 +70,9 @@ public class TicketStatusHistoryServiceImpl implements TicketStatusHistoryServic
 
     /**
      * 将TicketStatusHistory转换为StatusHistory
+     *
      * @param history 数据库里工单状态历史记录
+     * @param operatorNames 操作员Names
      * @return 转换后，用于返回前端的状态历史记录
      */
     private StatusHistory convertToStatusHistory(TicketStatusHistory history,

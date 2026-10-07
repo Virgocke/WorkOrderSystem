@@ -6,28 +6,62 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.OffsetDateTime;
 
-/** 工单创建事件 V1 快照，供派单和 SLA 消费者独立使用。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 工单创建事件 V1 快照，供派单和 SLA 消费者独立使用。
+ */
 public final class TicketCreatedPayload {
-    /** 工单主键。 */
+    /**
+     * 工单主键。
+     */
     private final long ticketId;
-    /** 工单编号。 */
+    /**
+     * 工单编号。
+     */
     private final String ticketNo;
-    /** 可空的工单标题。 */
+    /**
+     * 可空的工单标题。
+     */
     private final String ticketTitle;
-    /** 工单分类 ID。 */
+    /**
+     * 工单分类 ID。
+     */
     private final long categoryId;
-    /** 工单优先级，1 为最高。 */
+    /**
+     * 工单优先级，1 为最高。
+     */
     private final int priority;
-    /** 工单创建人 ID。 */
+    /**
+     * 工单创建人 ID。
+     */
     private final long creatorId;
-    /** 创建时间，包含时区偏移量。 */
+    /**
+     * 创建时间，包含时区偏移量。
+     */
     private final OffsetDateTime createdAt;
-    /** 响应截止时间，包含时区偏移量。 */
+    /**
+     * 响应截止时间，包含时区偏移量。
+     */
     private final OffsetDateTime responseDeadline;
-    /** 解决截止时间，包含时区偏移量。 */
+    /**
+     * 解决截止时间，包含时区偏移量。
+     */
     private final OffsetDateTime resolutionDeadline;
 
-    /** 保存校验后的创建快照。 */
+    /**
+     * 保存校验后的创建快照。
+     *
+     * @param ticketId 工单主键
+     * @param ticketNo 工单编号
+     * @param ticketTitle 可空的工单标题
+     * @param categoryId 工单分类 ID
+     * @param priority 工单优先级，1 为最高
+     * @param creatorId 工单创建人 ID
+     * @param createdAt 创建时间，包含时区偏移量
+     * @param responseDeadline 响应截止时间，包含时区偏移量
+     * @param resolutionDeadline 解决截止时间，包含时区偏移量
+     */
     private TicketCreatedPayload(long ticketId, String ticketNo, String ticketTitle,
                                  long categoryId, int priority, long creatorId,
                                  OffsetDateTime createdAt, OffsetDateTime responseDeadline,
@@ -43,7 +77,12 @@ public final class TicketCreatedPayload {
         this.resolutionDeadline = resolutionDeadline;
     }
 
-    /** 校验创建状态、操作者、时间和聚合标识后读取 V1 快照。 */
+    /**
+     * 校验创建状态、操作者、时间和聚合标识后读取 V1 快照。
+     *
+     * @param event 携带创建动作快照的 V1 工单领域事件
+     * @return 通过信封、业务身份及创建事实校验的稳定事件载荷
+     */
     public static TicketCreatedPayload from(WorkOrderEvent event) {
         JsonNode payload = TicketPayloadReader.payload(event, EventType.TICKET_CREATED);
         long ticketId = TicketPayloadReader.positiveLong(payload, "ticketId");
@@ -66,22 +105,58 @@ public final class TicketCreatedPayload {
                 priority, creatorId, createdAt, responseDeadline, resolutionDeadline);
     }
 
-    /** @return 工单主键 */
+    /**
+     * 获取工单主键。
+     *
+     * @return 工单主键
+     */
     public long getTicketId() { return ticketId; }
-    /** @return 工单编号 */
+    /**
+     * 获取工单编号。
+     *
+     * @return 工单编号
+     */
     public String getTicketNo() { return ticketNo; }
-    /** @return 可空的工单标题 */
+    /**
+     * 获取可空的工单标题。
+     *
+     * @return 可空的工单标题
+     */
     public String getTicketTitle() { return ticketTitle; }
-    /** @return 工单分类 ID */
+    /**
+     * 获取工单分类 ID。
+     *
+     * @return 工单分类 ID
+     */
     public long getCategoryId() { return categoryId; }
-    /** @return 优先级，1 至 4 */
+    /**
+     * 获取工单优先级，1 为最高。
+     *
+     * @return 优先级，1 至 4
+     */
     public int getPriority() { return priority; }
-    /** @return 创建人 ID */
+    /**
+     * 获取工单创建人 ID。
+     *
+     * @return 创建人 ID
+     */
     public long getCreatorId() { return creatorId; }
-    /** @return 带时区偏移量的创建时间 */
+    /**
+     * 获取创建时间，包含时区偏移量。
+     *
+     * @return 带时区偏移量的创建时间
+     */
     public OffsetDateTime getCreatedAt() { return createdAt; }
-    /** @return 带时区偏移量的响应截止时间 */
+    /**
+     * 获取响应截止时间，包含时区偏移量。
+     *
+     * @return 带时区偏移量的响应截止时间
+     */
     public OffsetDateTime getResponseDeadline() { return responseDeadline; }
-    /** @return 带时区偏移量的解决截止时间 */
+    /**
+     * 获取解决截止时间，包含时区偏移量。
+     *
+     * @return 带时区偏移量的解决截止时间
+     */
     public OffsetDateTime getResolutionDeadline() { return resolutionDeadline; }
 }

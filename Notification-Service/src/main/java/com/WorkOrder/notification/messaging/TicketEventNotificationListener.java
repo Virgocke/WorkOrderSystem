@@ -13,7 +13,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;
 
-/** 消费工单事件，幂等生成对应的站内通知。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 消费工单事件，幂等生成对应的站内通知。
+ */
 @Component
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 @RocketMQMessageListener(
@@ -25,51 +29,95 @@ import java.util.regex.Pattern;
 )
 public class TicketEventNotificationListener implements RocketMQListener<WorkOrderEvent> {
 
-    /** 默认通知消费者组，用于独立记录幂等消费。 */
+    /**
+     * 默认通知消费者组，用于独立记录幂等消费。
+     */
     static final String DEFAULT_CONSUMER_GROUP = "notification-ticket-event-v1";
-    /** 默认工单事件 Topic。 */
+    /**
+     * 默认工单事件 Topic。
+     */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
-    /** 派单事件标签。 */
+    /**
+     * 派单事件标签。
+     */
     static final String ASSIGNED_TAG = "ASSIGNED";
-    /** 回复事件标签。 */
+    /**
+     * 回复事件标签。
+     */
     static final String REPLIED_TAG = "REPLIED";
-    /** 催办事件标签。 */
+    /**
+     * 催办事件标签。
+     */
     static final String REMINDED_TAG = "REMINDED";
-    /** 转派事件标签。 */
+    /**
+     * 转派事件标签。
+     */
     static final String TRANSFERRED_TAG = "TRANSFERRED";
-    /** 升级事件标签。 */
+    /**
+     * 升级事件标签。
+     */
     static final String ESCALATED_TAG = "ESCALATED";
-    /** 解决事件标签。 */
+    /**
+     * 解决事件标签。
+     */
     static final String RESOLVED_TAG = "RESOLVED";
-    /** 关闭事件标签。 */
+    /**
+     * 关闭事件标签。
+     */
     static final String CLOSED_TAG = "CLOSED";
-    /** 撤销事件标签。 */
+    /**
+     * 撤销事件标签。
+     */
     static final String CANCELLED_TAG = "CANCELLED";
 
-    /** 统一事件 ID 的 32 位十六进制格式。 */
+    /**
+     * 统一事件 ID 的 32 位十六进制格式。
+     */
     private static final Pattern EVENT_ID_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
 
-    /** 同事务写入消费日志与业务通知的执行器。 */
+    /**
+     * 同事务写入消费日志与业务通知的执行器。
+     */
     private final IdempotentConsumerExecutor idempotentConsumerExecutor;
-    /** 派单通知处理器。 */
+    /**
+     * 派单通知处理器。
+     */
     private final TicketAssignedNotificationHandler assignedHandler;
-    /** 回复通知处理器。 */
+    /**
+     * 回复通知处理器。
+     */
     private final TicketRepliedNotificationHandler repliedHandler;
-    /** 催办通知处理器。 */
+    /**
+     * 催办通知处理器。
+     */
     private final TicketRemindedNotificationHandler remindedHandler;
-    /** 转派通知处理器。 */
+    /**
+     * 转派通知处理器。
+     */
     private final TicketTransferredNotificationHandler transferredHandler;
-    /** 升级通知处理器。 */
+    /**
+     * 升级通知处理器。
+     */
     private final TicketEscalatedNotificationHandler escalatedHandler;
-    /** 解决通知处理器。 */
+    /**
+     * 解决通知处理器。
+     */
     private final TicketResolvedNotificationHandler resolvedHandler;
-    /** 关闭通知处理器。 */
+    /**
+     * 关闭通知处理器。
+     */
     private final TicketClosedNotificationHandler closedHandler;
-    /** 撤销通知处理器。 */
+    /**
+     * 撤销通知处理器。
+     */
     private final TicketCancelledNotificationHandler cancelledHandler;
-    /** 当前通知消费组。 */
+    /**
+     * 当前通知消费组。
+     */
     private final String consumerGroup;
-    /** 当前工单事件 Topic。 */
+    /**
+     * 当前工单事件 Topic。
+     */
     private final String topic;
 
     /**
@@ -176,8 +224,8 @@ public class TicketEventNotificationListener implements RocketMQListener<WorkOrd
     /**
      * 将领域事件类型映射为实际订阅的 RocketMQ Tag。
      *
-     * @param event 工单事件
-     * @return RocketMQ Tag
+     * @param event 需要映射订阅路由的工单领域事件
+     * @return 对应的 ASSIGNED、REPLIED 等 RocketMQ Tag；不支持的事件类型会抛出异常
      */
     private String resolveTag(WorkOrderEvent event) {
         if (EventType.TICKET_ASSIGNED.name().equals(event.getEventType())) {

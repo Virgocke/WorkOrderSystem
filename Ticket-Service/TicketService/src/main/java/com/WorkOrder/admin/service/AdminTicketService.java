@@ -16,6 +16,13 @@ import java.util.List;
  */
 public interface AdminTicketService {
 
+    /**
+     * 按管理员筛选条件分页查询工单。
+     *
+     * @param adminId 当前管理员的用户 ID
+     * @param adminTicketListDto 分页、关键词、状态等查询条件
+     * @return 符合管理员查询条件的工单分页结果
+     */
     PageResult<TicketResponse> getTicketListForAdmin(Long adminId, @Valid AdminTicketListDto adminTicketListDto);
 
     /**
@@ -33,6 +40,7 @@ public interface AdminTicketService {
 
     /**
      * 批量分配无处理人或待分配的工单，任一工单分配失败时整批回滚。
+     *
      * @param ticketIds 工单ID列表
      * @param handlerId 目标处理人ID
      * @param operatorId 当前操作人ID
@@ -45,7 +53,9 @@ public interface AdminTicketService {
 
     /**
      * 强制关闭工单。
+     *
      * @param ticketId 工单ID
+     * @param closeTicketDto close工单请求数据
      * @param operatorId 当前操作人ID
      * @param operatorRole 当前登录角色，由后端认证信息取得
      * @param clientIp 客户端IP
@@ -55,6 +65,7 @@ public interface AdminTicketService {
 
     /**
      * 批量关闭工单。
+     *
      * @param closedTickets 工单ID列表
      * @param reason 关闭原因
      * @param operatorId 操作人ID

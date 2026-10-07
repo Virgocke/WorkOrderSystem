@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.WorkOrder.notification.mapper.EmailDeliveryAdminMapper">
+    <sql id="publicColumns">
+        id, notification_id, recipient, subject, status, retry_round, attempts, total_attempts,
+        last_error, created_at, updated_at, sent_at
+    </sql>
+    <sql id="pageConditions">
+        <where>
+            <if test="query.status != 'ALL'">status = #{query.status}</if>
+            <if test="query.startAt != null">AND created_at &gt;= #{query.startAt}</if>
+            <if test="query.endBefore != null">AND created_at &lt; #{query.endBefore}</if>
+        </where>
+    </sql>
+    <select id="selectPage" resultType="com.WorkOrder.notification.model.EmailDelivery">
+        SELECT <include refid="publicColumns"/> FROM notification_email_deliveries
+        <include refid="pageConditions"/>
+        ORDER BY created_at DESC, id DESC LIMIT #{query.pageSize} OFFSET #{query.offset}
+    </select>
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*) FROM notification_email_deliveries <include refid="pageConditions"/>
+    </select>
+    <select id="selectDetail" resultType="com.WorkOrder.notification.model.EmailDelivery">
+        SELECT <include refid="publicColumns"/> FROM notification_email_deliveries WHERE id = #{id}
+    </select>
+    <select id="selectLocked" resultType="com.WorkOrder.notification.model.EmailDelivery">
+        SELECT * FROM notification_email_deliveries WHERE id = #{id} FOR UPDATE
+    </select>
+    <update id="requeue">
+        UPDATE notification_email_deliveries
+        SET status = 'PENDING', retry_round = retry_round + 1, attempts = 0,
+            next_attempt_at = #{now}, claim_token = NULL, lease_until = NULL,
+            sent_at = NULL, last_error = NULL, updated_at = #{now}
+        WHERE id = #{id} AND status = 'FAILED' AND retry_round = #{expectedRound}
+    </update>
+</mapper>

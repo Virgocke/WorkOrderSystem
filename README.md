@@ -103,10 +103,13 @@ mysql --default-character-set=utf8mb4 -u root -p WorkOrderSystem --execute="SOUR
 | `work_order_system_add_ticket_numbering.sql` | 工单编号事务计数器 |
 | `work_order_system_add_sla_defaults.sql` | 分类 SLA 可空并继承系统默认值 |
 | `work_order_system_add_notification_email.sql` | 可恢复邮件投递队列 |
+| `work_order_system_add_email_retry.sql` | 管理员单条邮件重发轮次、累计次数和幂等审计 |
 | `work_order_system_add_skill_review_audit.sql` | 技能审核通知关联与审计索引 |
 | `work_order_system_add_alert_ticket_snapshot.sql` | 升级告警工单编号/标题快照 |
 
 `add_ticket_terminal_sla`、`add_assignment_scoring` 含直接新增列的 DDL，不能重复执行。旧评分数据按当前可确认的处理人补齐，旧告警按工单当前摘要补录，均不能还原已经丢失的历史事实；具体条件以各脚本注释为准。
+
+邮件重发升级先停止全部旧邮件工作者，执行 `add_email_retry`，再升级全部 Notification-Service 实例并恢复工作者。管理员在“邮件投递”页查看失败任务并重排原收件地址和内容；上线不会自动重发历史失败邮件。接口、部署与验证记录见 [阶段四实施记录](docs/工单搜索同步阶段四实施记录.md)。
 
 ### 3. 配置服务
 

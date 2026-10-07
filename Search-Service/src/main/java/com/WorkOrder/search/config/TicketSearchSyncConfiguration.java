@@ -25,14 +25,26 @@ import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.util.regex.Pattern;
 
-/** 独立校验同步开关，即使 ES 配置被禁用也能报告配置矛盾。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 独立校验同步开关，即使 ES 配置被禁用也能报告配置矛盾。
+ */
 @Configuration
 @EnableConfigurationProperties({TicketSearchSyncProperties.class,
         ElasticsearchProperties.class, MessagingProperties.class})
 public class TicketSearchSyncConfiguration {
     private static final Pattern MQ_NAME = Pattern.compile("[%|a-zA-Z0-9_-]+");
 
-    /** 校验配置而不访问远程服务；初始 NOT_READY 不妨碍管理服务启动。 */
+    /**
+     * 校验配置而不访问远程服务；初始 NOT_READY 不妨碍管理服务启动。
+     *
+     * @param sync 同步
+     * @param elasticsearch Elasticsearch配置属性，对应 elasticsearch
+     * @param messaging 消息
+     * @param environment Environment，对应 environment
+     * @return 操作是否成功
+     */
     @Bean
     public Boolean ticketSearchSyncRequirements(TicketSearchSyncProperties sync,
                                                ElasticsearchProperties elasticsearch,
@@ -77,25 +89,48 @@ public class TicketSearchSyncConfiguration {
         return Boolean.TRUE;
     }
 
+    /**
+     * 校验MQ名称。
+     *
+     * @param value 待处理的值
+     * @param maxLength 整型数值，对应 maxLength
+     * @param field 待读取或校验的字段名
+     */
     private static void validateMqName(String value, int maxLength, String field) {
         if (value == null || value.length() > maxLength || !MQ_NAME.matcher(value).matches()) {
             throw new IllegalStateException("工单搜索 " + field + " 格式无效");
         }
     }
 
-    /** 同步显式开启时创建回源、转换和消费组件，导入由持久管理任务触发。 */
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description 同步显式开启时创建回源、转换和消费组件，导入由持久管理任务触发。
+     */
     @Configuration
     @EnableTransactionManagement
     @ConditionalOnProperty(prefix = "work-order.elasticsearch.ticket-sync", name = "enabled", havingValue = "true")
     @DependsOn("ticketSearchSyncRequirements")
     static class EnabledConfiguration {
-        /** 保证 DATETIME 按配置时区转换。 */
+        /**
+         * 保证 DATETIME 按配置时区转换。
+         *
+         * @param sync 同步
+         * @return 工单搜索文档转换器
+         */
         @Bean
         TicketSearchDocumentConverter ticketSearchDocumentConverter(TicketSearchSyncProperties sync) {
             return new TicketSearchDocumentConverter(ZoneId.of(sync.getSourceZoneId()));
         }
 
-        /** 缺少主库或事务管理器时启动失败；短事务每次读取共享目标。 */
+        /**
+         * 缺少主库或事务管理器时启动失败；短事务每次读取共享目标。
+         *
+         * @param mapper 工单搜索写入目标数据访问器
+         * @param dataSource 数据库数据源
+         * @param transactionManager 事务Manager
+         * @return 工单搜索写入目标Resolver
+         */
         @Bean
         TicketSearchWriteTargetResolver ticketSearchWriteTargetResolver(TicketSearchWriteTargetMapper mapper,
                                                                         DataSource dataSource,
@@ -103,7 +138,16 @@ public class TicketSearchSyncConfiguration {
             return new TicketSearchWriteTargetResolver(mapper);
         }
 
-        /** 统一投影入口；代理暂停外层事务，ES 网络请求不占用数据库事务。 */
+        /**
+         * 统一投影入口；代理暂停外层事务，ES 网络请求不占用数据库事务。
+         *
+         * @param mapper 工单索引源数据数据访问器
+         * @param converter 转换器
+         * @param resolver 工单搜索写入目标Resolver，对应 resolver
+         * @param indexService 工单搜索索引服务
+         * @param repository 工单搜索仓储
+         * @return 工单投影服务
+         */
         @Bean
         TicketProjectionService ticketProjectionService(TicketIndexSourceMapper mapper,
                                                         TicketSearchDocumentConverter converter,
@@ -113,7 +157,13 @@ public class TicketSearchSyncConfiguration {
             return new TicketProjectionService(mapper, converter, resolver, indexService, repository);
         }
 
-        /** RocketMQ Starter 根据类上的订阅注解注册消费者。 */
+        /**
+         * RocketMQ Starter 根据类上的订阅注解注册消费者。
+         *
+         * @param projectionService 工单投影服务
+         * @param listenerContainers 监听器Containers
+         * @return 工单搜索Changed监听器
+         */
         @Bean
         TicketSearchChangedListener ticketSearchChangedListener(TicketProjectionService projectionService,
                                                                 ListenerContainerConfiguration listenerContainers) {

@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * @author Virgor
  * @date 2026年09月16日 02:37
- * @description
+ * @description 部门的数据库记录。
  */
 @Data
 @AllArgsConstructor

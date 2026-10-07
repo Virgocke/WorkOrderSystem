@@ -16,7 +16,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
-/** 回源写入完成后才正常返回；异常交给 RocketMQ 重投，不记录本地跳过日志。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 回源写入完成后才正常返回；异常交给 RocketMQ 重投，不记录本地跳过日志。
+ */
 @RocketMQMessageListener(
         topic = "${work-order.messaging.ticket-search-topic:wo-ticket-search-event}",
         selectorExpression = "CHANGED",
@@ -28,7 +32,11 @@ public class TicketSearchChangedListener implements RocketMQListener<WorkOrderEv
     private static final Pattern EVENT_ID = Pattern.compile("[0-9a-fA-F]{32}");
     private final TicketProjectionService projectionService;
 
-    /** @param projectionService 统一回源及版本写入组件 */
+    /**
+     * 构造工单搜索Changed监听器。
+     *
+     * @param projectionService 统一回源及版本写入组件
+     */
     public TicketSearchChangedListener(TicketProjectionService projectionService) {
         this.projectionService = projectionService;
     }
@@ -36,13 +44,19 @@ public class TicketSearchChangedListener implements RocketMQListener<WorkOrderEv
     /**
      * 新消费组没有持久位点时从保留消息开头消费，避免第一次队列分配前的增量被跳过。
      * 已有消费组仍从 Broker 持久位点继续；历史重复由源版本仲裁安全覆盖。
+     *
+     * @param consumer 消费者
      */
     @Override
     public void prepareStart(DefaultMQPushConsumer consumer) {
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
     }
 
-    /** 校验信封与契约；只有 APPLIED 或 COVERED 才允许确认消费。 */
+    /**
+     * 校验信封与契约；只有 APPLIED 或 COVERED 才允许确认消费。
+     *
+     * @param event 待处理的领域事件
+     */
     @Override
     public void onMessage(WorkOrderEvent event) {
         if (event == null || event.getEventId() == null

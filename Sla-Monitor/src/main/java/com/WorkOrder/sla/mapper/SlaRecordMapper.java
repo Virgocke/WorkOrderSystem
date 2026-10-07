@@ -34,6 +34,10 @@ public interface SlaRecordMapper extends BaseMapper<SlaRecord> {
      * 从升级事件创建 SLA 快照或只提高已有级别。
      * 保留已有记录的截止时间和响应统计；乱序到达也不能使级别倒退。
      *
+     * @param ticketId 工单 ID
+     * @param responseDeadline SLA 响应截止时间
+     * @param resolutionDeadline SLA 解决截止时间
+     * @param level 级别
      * @return 新增或更新影响的行数；旧级别事件允许返回零
      */
     @Insert("INSERT INTO sla_records "
@@ -46,7 +50,15 @@ public interface SlaRecordMapper extends BaseMapper<SlaRecord> {
                          @Param("resolutionDeadline") LocalDateTime resolutionDeadline,
                          @Param("level") int level);
 
-    /** 记录首次解决时间；乱序升级不得清除解决结果，重复解决不得覆盖首次事实。 */
+    /**
+     * 记录首次解决时间；乱序升级不得清除解决结果，重复解决不得覆盖首次事实。
+     *
+     * @param ticketId 工单 ID
+     * @param responseDeadline SLA 响应截止时间
+     * @param resolutionDeadline SLA 解决截止时间
+     * @param resolvedAt 工单解决事件的发生时间
+     * @return 新增或更新影响的记录行数
+     */
     @Insert("INSERT INTO sla_records "
             + "(ticket_id, response_deadline, resolution_deadline, resolved_at, is_resolution_timeout) "
             + "VALUES (#{ticketId}, #{responseDeadline}, #{resolutionDeadline}, #{resolvedAt}, "
@@ -61,7 +73,16 @@ public interface SlaRecordMapper extends BaseMapper<SlaRecord> {
                          @Param("resolutionDeadline") LocalDateTime resolutionDeadline,
                          @Param("resolvedAt") LocalDateTime resolvedAt);
 
-    /** 记录首次终态及时间；乱序解决或升级事件不能恢复已终止的 SLA。 */
+    /**
+     * 记录首次终态及时间；乱序解决或升级事件不能恢复已终止的 SLA。
+     *
+     * @param ticketId 工单 ID
+     * @param responseDeadline SLA 响应截止时间
+     * @param resolutionDeadline SLA 解决截止时间
+     * @param terminalStatus 关闭或取消等工单终态
+     * @param terminalAt 终态事件的发生时间
+     * @return 新增或更新影响的记录行数
+     */
     @Insert("INSERT INTO sla_records "
             + "(ticket_id, response_deadline, resolution_deadline, terminal_status, terminal_at) "
             + "VALUES (#{ticketId}, #{responseDeadline}, #{resolutionDeadline}, "

@@ -23,6 +23,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private UsersMapper usersMapper;
 
+    /**
+     * 注入当前用户资料与权限的数据库读取组件。
+     *
+     * @param usersMapper 用户账号、资料与权限数据访问器
+     */
     public AuthenticationServiceImpl(UsersMapper usersMapper){
         this.usersMapper = usersMapper;
     }

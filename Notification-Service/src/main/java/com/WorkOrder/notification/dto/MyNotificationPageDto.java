@@ -5,7 +5,11 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 我的通知分页查询参数。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 我的通知分页查询参数。
+ */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class MyNotificationPageDto extends PageParams {

@@ -7,19 +7,24 @@ import com.WorkOrder.model.Result;
 import java.util.Arrays;
 
 /**
- * 统一响应数据提取工具。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 统一响应数据提取工具。
  */
 public final class ResponseUtils {
 
+    /**
+     * 禁止实例化响应工具类。
+     */
     private ResponseUtils() {
     }
 
     /**
      * 校验响应并提取数据，保留业务错误码并避免空数据引起空指针异常。
      *
+     * @param <T> 响应数据类型
      * @param result 待校验的响应
      * @param missingDataError 响应成功但数据为空时抛出的业务错误
-     * @param <T> 响应数据类型
      * @return 响应数据
      * @throws SystemException 响应为空、响应失败或数据为空时抛出
      */

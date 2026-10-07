@@ -6,7 +6,9 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 工单附件元数据。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 工单附件元数据。
  *
  * 文件内容存储在 MinIO 中，本实体仅保存对象定位信息、业务归属和生命周期状态。
  */

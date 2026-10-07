@@ -7,12 +7,15 @@ import com.WorkOrder.model.page.PageResult;
 import java.util.List;
 
 /**
+ * @author Virgor
+ * @date 2026年10月07日
  * @description 智能分配引擎服务。
  */
 public interface AssignEngineService {
 
     /**
      * 获取推荐候选人。
+     *
      * @param ticketId 待推荐工单ID
      * @param operatorRole 当前登录用户角色
      * @return 按综合得分降序排列的候选人
@@ -27,11 +30,20 @@ public interface AssignEngineService {
      */
     AssignCandidate recommendForSystem(Long ticketId);
 
-    /** 用推荐同一算法计算指定工单和处理人的派单分数。 */
+    /**
+     * 用推荐同一算法计算指定工单和处理人的派单分数。
+     *
+     * @param ticketId 工单 ID
+     * @param handlerId 处理人用户 ID
+     * @param additionalLoad 本批次内额外分配的工单数量
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @return 分配Candidate
+     */
     AssignCandidate scoreForHandler(Long ticketId, Long handlerId, int additionalLoad, String operatorRole);
 
     /**
      * 获取工单分配记录。
+     *
      * @param page 页码
      * @param pageSize 每页大小
      * @param ticketId 工单ID

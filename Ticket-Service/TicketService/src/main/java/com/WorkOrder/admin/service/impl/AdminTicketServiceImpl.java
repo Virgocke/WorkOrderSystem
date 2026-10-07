@@ -137,7 +137,13 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     }
 
-    /** 按 ES 命中顺序转换数据库中的最新工单，跳过已删除或不再满足筛选的候选。 */
+    /**
+     * 按 ES 命中顺序转换数据库中的最新工单，跳过已删除或不再满足筛选的候选。
+     *
+     * @param records 按搜索排序返回的候选文档
+     * @param tickets 主库重新查询得到的当前工单记录
+     * @return 保持搜索顺序并使用当前主库信息的工单响应列表
+     */
     private List<TicketResponse> toResponsesInSearchOrder(List<TicketSearchDocument> records, List<Tickets> tickets) {
         Map<Long, Tickets> ticketsById = tickets.stream()
                 .collect(Collectors.toMap(Tickets::getId, ticket -> ticket));
@@ -150,7 +156,13 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                 .collect(Collectors.toList());
     }
 
-    /** 仅按当前搜索页的 ID 批量回表并复核条件；空页不查数据库，回表不再分页。 */
+    /**
+     * 仅按当前搜索页的 ID 批量回表并复核条件；空页不查数据库，回表不再分页。
+     *
+     * @param records 待回查主库的搜索候选文档
+     * @param adminTicketListDto 管理员工单列表请求数据
+     * @return 候选 ID 对应的当前主库工单记录
+     */
     private List<Tickets> loadCurrentTickets(List<TicketSearchDocument> records, AdminTicketListDto adminTicketListDto) {
         if (records.isEmpty()) {
             return Collections.emptyList();
@@ -165,7 +177,12 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         return ticketMapper.selectList(query);
     }
 
-    /** 将 ES 字符串 ID 转为数据库正整数 ID；异常投影作为服务错误处理。 */
+    /**
+     * 将 ES 字符串 ID 转为数据库正整数 ID；异常投影作为服务错误处理。
+     *
+     * @param record 包含字符串工单 ID 的搜索文档
+     * @return 通过正整数校验的工单 ID
+     */
     private Long searchTicketId(TicketSearchDocument record) {
         try {
             if (record == null || !StringUtils.hasText(record.getTicketId())) {
@@ -183,6 +200,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     /**
      * 关键词为空时按创建时间和数值 ID 倒序查询 MySQL，保留数据库分页总数。
+     *
      * @param adminTicketListDto 管理员工单列表查询参数
      * @return 管理员工单列表查询结果，空页的列表为空且保留查询总数
      */
@@ -198,7 +216,12 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                 adminTicketListDto.getPage(), adminTicketListDto.getPageSize());
     }
 
-    /** MySQL 分页和 ES 回表共用筛选条件，关键词交给 ES 分词查询。 */
+    /**
+     * MySQL 分页和 ES 回表共用筛选条件，关键词交给 ES 分词查询。
+     *
+     * @param adminTicketListDto 管理员工单列表请求数据
+     * @return Lambda查询条件WrapperTickets
+     */
     private LambdaQueryWrapper<Tickets> adminTicketFilters(AdminTicketListDto adminTicketListDto) {
         LambdaQueryWrapper<Tickets> queryWrapper = new LambdaQueryWrapper<>();
         String status = normalizeStatus(adminTicketListDto.getStatus());
@@ -236,7 +259,12 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         return queryWrapper;
     }
 
-    /** 生成内部搜索请求，将可选条件规范化，并按上海时区转换创建时间边界。 */
+    /**
+     * 生成内部搜索请求，将可选条件规范化，并按上海时区转换创建时间边界。
+     *
+     * @param adminTicketListDto 管理员工单列表请求数据
+     * @return 工单搜索查询条件
+     */
     private static TicketSearchQuery getTicketSearchQuery(AdminTicketListDto adminTicketListDto) {
         TicketSearchQuery ticketSearchQuery = new TicketSearchQuery();
         ticketSearchQuery.setStatus(normalizeStatus(adminTicketListDto.getStatus()));
@@ -257,7 +285,11 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         return ticketSearchQuery;
     }
 
-    /** 校验两条查询路径的公共参数，并在关键词搜索时限制 ES 基础分页窗口。 */
+    /**
+     * 校验两条查询路径的公共参数，并在关键词搜索时限制 ES 基础分页窗口。
+     *
+     * @param query 管理员工单列表请求数据
+     */
     private static void validateAdminListQuery(AdminTicketListDto query) {
         Assert.notNull(query, "查询条件不能为空");
         Assert.isTrue(query.getPage() != null && query.getPage() >= 1, "页码必须大于等于 1");
@@ -283,24 +315,40 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         }
     }
 
-    /** 将空白和 all 统一为不限制状态，其余编码去除首尾空白。 */
+    /**
+     * 将空白和 all 统一为不限制状态，其余编码去除首尾空白。
+     *
+     * @param value 原始工单状态筛选值
+     * @return 去掉两端空白后的状态；空白或 all 表示不筛选，返回 null
+     */
     private static String normalizeStatus(String value) {
         String status = trimToNull(value);
         return "all".equalsIgnoreCase(status) ? null : status;
     }
 
-    /** 去除首尾空白，空值或纯空白返回 null。 */
+    /**
+     * 去除首尾空白，空值或纯空白返回 null。
+     *
+     * @param value 原始可选文本
+     * @return 去掉两端空白后的文本；空值或纯空白时为 null
+     */
     private static String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
-    /** 保留可选 ID 的 null 语义，避免未指定筛选时发生空指针。 */
+    /**
+     * 保留可选 ID 的 null 语义，避免未指定筛选时发生空指针。
+     *
+     * @param id 可选的筛选 ID
+     * @return 十进制 ID 文本；未提供 ID 时为 null
+     */
     private static String idToString(Long id) {
         return id == null ? null : id.toString();
     }
 
     /**
      * 分配工单
+     *
      * @param ticketId 工单ID
      * @param assignTicketDto 分配参数
      * @param operatorId 当前操作人ID
@@ -352,6 +400,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     /**
      * 批量分配工单
+     *
      * @param ticketIds 工单ID列表
      * @param handlerId 目标处理人ID
      * @param operatorId 当前操作人ID
@@ -412,6 +461,8 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     /**
      * 校验工单是否允许分配，已有处理人且非待分配时必须使用转派接口。
+     *
+     * @param ticket 工单
      */
     private void validateAssignmentStatus(Tickets ticket) {
         if (ticket.getHandlerId() != null
@@ -422,6 +473,9 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     /**
      * 获取启用的处理人账号。
+     *
+     * @param handlerId 处理人用户 ID
+     * @return 用户资料
      */
     private UserProfile getEnabledHandler(Long handlerId) {
         Result<UserProfile> result = userFeignClient.getById(handlerId);
@@ -437,6 +491,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     /**
      * 保存工单分配信息
+     *
      * @param ticket 工单信息
      * @param handlerId 处理人ID
      * @param reason 分配原因
@@ -517,6 +572,16 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     }
 
+    /**
+     * 关闭指定工单，并记录操作和状态变更。
+     *
+     * @param ticketId 工单 ID
+     * @param closeTicketDto 关闭原因等请求数据
+     * @param operatorId 当前操作员的用户 ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @param clientIp 客户端 IP 地址
+     * @return 关闭后的工单详情
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TicketResponse closeTicket(Long ticketId, CloseTicketDto closeTicketDto, Long operatorId, String operatorRole, String clientIp) {
@@ -591,6 +656,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     /**
      * 批量关闭工单
+     *
      * @param closedTickets 工单ID列表
      * @param reason 关闭原因
      * @param operatorId 操作人ID
@@ -674,6 +740,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     /**
      * 保存工单状态历史
+     *
      * @param ticket 变更后的工单
      * @param oldStatus 旧状态
      * @param operatorId 操作人ID
@@ -703,6 +770,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
     /**
      * 保存工单操作日志
+     *
      * @param ticket 工单
      * @param action 操作类型
      * @param operatorId 操作人ID

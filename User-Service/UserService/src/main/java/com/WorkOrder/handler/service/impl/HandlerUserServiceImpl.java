@@ -37,6 +37,7 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
 
     /**
      * 查询启用处理人的真实用户资料、部门与档案信息。
+     *
      * @return 可用于分配的处理人列表
      */
     @Override
@@ -46,6 +47,7 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
 
     /**
      * 分页查询处理人；ES 只筛选关键词，SQL 保留用户 ID 正序及实时负载、评分计算。
+     *
      * @param query 分页与筛选条件
      * @return 处理人列表
      */
@@ -73,6 +75,7 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
 
     /**
      * 查询所有处理人列表
+     *
      * @return 处理人列表
      */
     @Override
@@ -85,6 +88,10 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
     /**
      * 按接口文档 15.4 部分更新处理人档案。档案容量与用户部门、状态分属两张表，
      * 因此必须在同一事务中完成。
+     *
+     * @param userId 用户 ID
+     * @param request Update处理人资料请求
+     * @return 处理人资料
      */
     @Override
     @Transactional
@@ -133,9 +140,10 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
 
     /**
      * 在同一事务内全量覆盖处理人技能
+     *
      * @param userId 处理人用户 ID
      * @param request 完整技能列表，空列表表示清空
-     * @return
+     * @return 处理人资料
      */
     @Override
     @Transactional
@@ -165,7 +173,12 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
         return updated;
     }
 
-    /** 按接口文档 15.6 查询 Token 所属处理人的档案与技能。 */
+    /**
+     * 按接口文档 15.6 查询 Token 所属处理人的档案与技能。
+     *
+     * @param userId 用户 ID
+     * @return 处理人资料
+     */
     @Override
     @Transactional(readOnly = true)
     public HandlerProfile getMyHandlerProfile(Long userId) {
@@ -179,7 +192,13 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
         return profile;
     }
 
-    /** 服务被非 Web 调用时仍校验技能 ID、熟练度和重复项。 */
+    /**
+     * 服务被非 Web 调用时仍校验技能 ID、熟练度和重复项。
+     *
+     * @param userId 用户 ID
+     * @param request Update处理人Skills请求
+     * @return 长整型数值集合
+     */
     private Set<Long> validateSkillsRequest(Long userId, UpdateHandlerSkillsRequest request) {
         if (userId == null || userId <= 0 || request == null || request.getSkills() == null) {
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);
@@ -197,7 +216,12 @@ public class HandlerUserServiceImpl extends ServiceImpl<HandlerProfileMapper, Ha
         return skillIds;
     }
 
-    /** 服务被非 Web 调用时仍执行与 Bean Validation 一致的边界校验。 */
+    /**
+     * 服务被非 Web 调用时仍执行与 Bean Validation 一致的边界校验。
+     *
+     * @param userId 用户 ID
+     * @param request Update处理人资料请求
+     */
     private void validateUpdateRequest(Long userId, UpdateHandlerProfileRequest request) {
         if (userId == null || userId <= 0 || request == null) {
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);

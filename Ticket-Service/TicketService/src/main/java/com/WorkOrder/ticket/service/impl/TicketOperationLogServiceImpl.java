@@ -37,6 +37,7 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
 
     /**
      * 格式化时间
+     *
      * @param time 时间
      * @return 格式化后的时间
      */
@@ -46,8 +47,9 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
 
     /**
      * 根据工单ID获取工单操作日志
+     *
      * @param ticketId 工单ID
-      * @return 工单操作日志列表
+     * @return 工单操作日志列表
      */
     @Override
     public List<OperationLog> getTicketOperationLog(Long ticketId) {
@@ -92,6 +94,7 @@ public class TicketOperationLogServiceImpl implements TicketOperationLogService 
 
     /**
      * 将TicketOperationLog转换为OperationLog
+     *
      * @param log 工单操作日志
      * @param operatorNames 操作员名称映射
      * @param attachmentUrlsByOperationLogId 操作日志附件 URL 映射

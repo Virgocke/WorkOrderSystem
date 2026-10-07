@@ -12,6 +12,11 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication
 @EnableFeignClients
 public class TicketApplication {
+    /**
+     * 启动服务。
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(TicketApplication.class, args);
     }

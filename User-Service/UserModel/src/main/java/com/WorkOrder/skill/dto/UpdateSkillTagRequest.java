@@ -6,7 +6,11 @@ import lombok.Getter;
 
 import javax.validation.constraints.Size;
 
-/** 修改技能标签请求，所有字段均采用部分更新语义。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 修改技能标签请求，所有字段均采用部分更新语义。
+ */
 @Getter
 public class UpdateSkillTagRequest {
 

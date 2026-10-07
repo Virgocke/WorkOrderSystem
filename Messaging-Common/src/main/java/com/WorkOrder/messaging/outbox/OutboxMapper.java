@@ -13,7 +13,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-/** 使用短事务实现 Outbox 插入、认领和状态迁移。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 使用短事务实现 Outbox 插入、认领和状态迁移。
+ */
 public class OutboxMapper {
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -46,10 +50,10 @@ public class OutboxMapper {
      * 查询使用 FOR UPDATE SKIP LOCKED，避免多个 Relay 实例认领同一记录；
      * 返回前记录已经更新为 SENDING，方法结束后事务提交。
      *
-     * @param sourceService 当前生产服务标识
-     * @param instanceId Relay 实例标识
-     * @param batchSize 单次最大认领数量
-     * @return 当前实例成功认领的记录，按内部主键升序排列
+     * @param sourceService 生产服务标识及 Outbox 扫描隔离键
+     * @param instanceId 本次领取后保存到 locked_by 的 Relay 实例标识
+     * @param batchSize 此次短事务最大认领记录数
+     * @return 已更新为 SENDING 且归当前实例持有的到期记录，按主键升序；无可领取任务时为空列表
      */
     @Transactional(rollbackFor = Exception.class)
     public List<OutboxEvent> claimAvailable(String sourceService, String instanceId, int batchSize) {
@@ -101,11 +105,11 @@ public class OutboxMapper {
      * 记录发送失败并计算下一次指数退避时间。
      * 达到最大失败次数时进入 DEAD，否则进入 RETRY。
      *
-     * @param event 本次发送的 Outbox 快照
-     * @param instanceId 当前 Relay 实例标识
-     * @param maxRetries 最大失败次数
-     * @param error 错误摘要
-     * @return 受影响行数
+     * @param event 当前实例已领取的 Outbox 快照，包含旧 retryCount
+     * @param instanceId 当前持有 SENDING 记录的 Relay 实例标识
+     * @param maxRetries 进入 DEAD 前允许的最大失败次数
+     * @param error 此次发送失败摘要，落库前限制为 1000 字符
+     * @return 状态和锁持有者仍匹配时更新 1 行；已被恢复或其他实例接管时为 0
      */
     public int markFailed(OutboxEvent event, String instanceId, int maxRetries, String error) {
         int failureCount = event.getRetryCount() + 1;
@@ -144,7 +148,7 @@ public class OutboxMapper {
      * 统计等待发送的 NEW 和 RETRY 记录数量。
      *
      * @param sourceService 生产服务标识
-     * @return 待发送数量
+     * @return 当前服务所有 NEW 或 RETRY 记录数，包括尚未到 next_retry_at 的记录
      */
     public long countPending(String sourceService) {
         return count("status IN ('NEW', 'RETRY')", sourceService);
@@ -180,7 +184,7 @@ public class OutboxMapper {
      * 查询最早一条待发送记录的创建时间，用于计算积压时长。
      *
      * @param sourceService 生产服务标识
-     * @return 最早创建时间；没有待发送记录时返回 null
+     * @return 当前服务 NEW 或 RETRY 记录的最早创建时间；无待发送记录时为 null
      */
     public LocalDateTime findOldestPendingCreatedAt(String sourceService) {
         String sql = "SELECT MIN(created_at) FROM message_outbox WHERE source_service = :sourceService "
@@ -240,13 +244,18 @@ public class OutboxMapper {
         return value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description OutboxRow数据访问器，封装对应的业务职责。
+     */
     private static class OutboxRowMapper implements RowMapper<OutboxEvent> {
         /**
          * 将当前结果集行映射为 Outbox 模型。
          *
-         * @param resultSet 当前查询结果集
-         * @param rowNum 当前行号
-         * @return 映射后的 Outbox 模型
+         * @param resultSet 已定位到当前行的 message_outbox 查询结果集
+         * @param rowNum Spring JDBC 当前行的序号，从 0 开始
+         * @return 包含载荷、锁信息、版本及重试计数的 Outbox 快照
          * @throws SQLException 读取结果集失败时抛出
          */
         @Override

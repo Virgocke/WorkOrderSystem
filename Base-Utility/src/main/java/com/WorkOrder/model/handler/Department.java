@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 /**
  * @author Virgor
  * @date 2026年09月15日 04:26
- * @description 部门信息
+ * @description 部门的数据库记录。
  */
 @Data
 @AllArgsConstructor

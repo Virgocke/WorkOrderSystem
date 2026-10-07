@@ -19,7 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.validation.Valid;
 import java.util.List;
 
-/** 技能标签目录接口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 技能标签目录接口。
+ */
 @RestController
 @RequestMapping("/skills")
 @RequiredArgsConstructor

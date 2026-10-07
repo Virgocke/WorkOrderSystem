@@ -9,18 +9,28 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** 独立邮件工作者；进程重启后可通过过期租约恢复未完成任务。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 独立邮件工作者；进程重启后可通过过期租约恢复未完成任务。
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "work-order.notification.email", name = "worker-enabled", havingValue = "true", matchIfMissing = true)
 public class EmailDeliveryJob {
-    /** 领取和回写事务由另一个 Spring Bean 执行。 */
+    /**
+     * 领取和回写事务由另一个 Spring Bean 执行。
+     */
     private final EmailDeliveryQueue queue;
-    /** 实际 SMTP 投递入口。 */
+    /**
+     * 实际 SMTP 投递入口。
+     */
     private final NotificationMailSender sender;
 
-    /** 每轮最多处理二十封，默认每十秒执行；失败只记录脱敏任务标识。 */
+    /**
+     * 每轮最多处理二十封，默认每十秒执行；失败只记录脱敏任务标识。
+     */
     @Scheduled(fixedDelayString = "${work-order.notification.email.poll-interval-ms:10000}",
             initialDelayString = "${work-order.notification.email.initial-delay-ms:10000}")
     public void run() {

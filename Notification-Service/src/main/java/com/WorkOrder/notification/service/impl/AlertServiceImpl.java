@@ -38,22 +38,29 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class AlertServiceImpl implements AlertService {
 
-    /** 告警接口统一使用的日期时间格式。 */
+    /**
+     * 告警接口统一使用的日期时间格式。
+     */
     private static final DateTimeFormatter DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    /** 告警记录与工单摘要快照的数据访问组件。 */
+    /**
+     * 告警记录与工单摘要快照的数据访问组件。
+     */
     private final AlertRecordMapper alertRecordMapper;
-    /** 操作人状态校验和告警接收人姓名查询。 */
+    /**
+     * 操作人状态校验和告警接收人姓名查询。
+     */
     private final UserFeignClient userFeignClient;
 
 
     /**
      * 获取告警列表
-     * @param operatorId 操作员ID
-     * @param operatorRole 操作员角色
-     * @param alertDto 告警查询条件
-     * @return 告警列表
+     *
+     * @param operatorId 从 JWT 读取的当前操作人用户 ID
+     * @param operatorRole 认证信息中的 ADMIN 或 HANDLER 角色快照
+     * @param alertDto 告警类型、状态及分页筛选条件
+     * @return 管理员可见全部告警、处理人仅可见本人告警的分页结果
      */
     @Override
     public PageResult<AlertRecord> getAlertList(Long operatorId, String operatorRole, AlertDto alertDto) {
@@ -93,10 +100,11 @@ public class AlertServiceImpl implements AlertService {
 
     /**
      * 管理员可处理全部告警，处理人只能处理自己的告警。
-     * @param alertId 告警ID
-     * @param operatorId 操作员ID
-     * @param operatorRole 当前登录角色，由后端认证信息取得
-     * @return 已处理的告警记录
+     *
+     * @param alertId 需要确认处理的告警主键
+     * @param operatorId 从 JWT 读取的当前操作人用户 ID
+     * @param operatorRole 认证信息中的 ADMIN 或 HANDLER 角色快照
+     * @return 已标记 HANDLED 的告警响应；重复处理沿用已有状态和时间
      */
     @Override
     @Transactional
@@ -137,7 +145,12 @@ public class AlertServiceImpl implements AlertService {
         return toResponse(record, new HashMap<>());
     }
 
-    /** 校验操作人的登录状态、角色及账号状态。 */
+    /**
+     * 校验操作人的登录状态、角色及账号状态。
+     *
+     * @param operatorId 当前操作员的用户 ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     */
     private void validateOperator(Long operatorId, String operatorRole) {
         if (operatorId == null || operatorId <= 0) {
             throw new SystemException(SystemExceptionEnum.ACCOUNT_OFFLINE);
@@ -175,7 +188,13 @@ public class AlertServiceImpl implements AlertService {
         }
     }
 
-    /** 校验告警是否存在，以及当前处理人是否为告警目标用户。 */
+    /**
+     * 校验告警是否存在，以及当前处理人是否为告警目标用户。
+     *
+     * @param record 待确认处理的告警记录，可为空
+     * @param operatorId 当前操作人用户 ID
+     * @param operatorRole 决定可处理范围的 ADMIN 或 HANDLER 认证角色
+     */
     private void validateAlertAccess(AlertRecords record, Long operatorId, String operatorRole) {
         if (record == null) {
             throw new SystemException(SystemExceptionEnum.RESOURCE_NOT_FOUND);
@@ -213,7 +232,12 @@ public class AlertServiceImpl implements AlertService {
         return alertRecord;
     }
 
-    /** 目标用户已删除时，历史告警的目标姓名保留为空。 */
+    /**
+     * 目标用户已删除时，历史告警的目标姓名保留为空。
+     *
+     * @param targetUserId 告警原接收人的用户 ID
+     * @return 接收人当前公开资料；用户已删除或 ID 为空时为 null
+     */
     private UserProfile getTargetProfile(Long targetUserId) {
         try {
             Result<UserProfile> result = userFeignClient.getById(targetUserId);

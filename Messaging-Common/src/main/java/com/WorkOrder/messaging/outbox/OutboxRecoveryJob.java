@@ -7,7 +7,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 import java.time.LocalDateTime;
 
-/** 将超过发送锁时限的 SENDING 记录恢复为 RETRY。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 将超过发送锁时限的 SENDING 记录恢复为 RETRY。
+ */
 public class OutboxRecoveryJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(OutboxRecoveryJob.class);
 

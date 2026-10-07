@@ -15,23 +15,48 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/** 在 Ticket-Service 的消费事务内确认自动派单及全部审计记录。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在 Ticket-Service 的消费事务内确认自动派单及全部审计记录。
+ */
 @Component
 public class SystemTicketAssignmentHandler {
-    /** 工单条件更新和查询入口。 */
+    /**
+     * 工单条件更新和查询入口。
+     */
     private final TicketMapper ticketMapper;
-    /** 派单评分记录入口。 */
+    /**
+     * 派单评分记录入口。
+     */
     private final AssignmentRecordMapper assignmentRecordMapper;
-    /** 工单状态历史入口。 */
+    /**
+     * 工单状态历史入口。
+     */
     private final TicketStatusHistoryMapper historyMapper;
-    /** 工单操作日志入口。 */
+    /**
+     * 工单操作日志入口。
+     */
     private final TicketOperationLogMapper operationLogMapper;
-    /** 最终派单事件发布器。 */
+    /**
+     * 最终派单事件发布器。
+     */
     private final TicketAssignedEventPublisher assignedPublisher;
-    /** 同事务登记最终源版本的搜索变更事件。 */
+    /**
+     * 同事务登记最终源版本的搜索变更事件。
+     */
     private final TicketSearchChangePublisher searchChangePublisher;
 
-    /** 注入同库事务内使用的持久化组件。 */
+    /**
+     * 注入同库事务内使用的持久化组件。
+     *
+     * @param ticketMapper 工单条件更新和查询入口
+     * @param assignmentRecordMapper 派单评分记录入口
+     * @param historyMapper 工单状态历史入口
+     * @param operationLogMapper 工单操作日志入口
+     * @param assignedPublisher 最终派单事件发布器
+     * @param searchChangePublisher 同事务登记最终源版本的搜索变更事件
+     */
     public SystemTicketAssignmentHandler(TicketMapper ticketMapper,
                                          AssignmentRecordMapper assignmentRecordMapper,
                                          TicketStatusHistoryMapper historyMapper,

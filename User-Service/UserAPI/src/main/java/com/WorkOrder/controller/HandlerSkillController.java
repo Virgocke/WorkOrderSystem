@@ -11,7 +11,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 处理人查看自身技能的接口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 处理人查看自身技能的接口。
+ */
 @RestController
 @RequestMapping("/handler-skills")
 @RequiredArgsConstructor

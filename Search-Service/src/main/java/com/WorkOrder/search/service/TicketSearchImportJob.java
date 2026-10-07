@@ -13,7 +13,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/** 有预算的历史扫描工作者；ES 调用之间才进入 TaskStore 的短事务。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 有预算的历史扫描工作者；ES 调用之间才进入 TaskStore 的短事务。
+ */
 @Component
 @ConditionalOnProperty(prefix="work-order.elasticsearch.ticket-sync", name="enabled", havingValue="true")
 public class TicketSearchImportJob {
@@ -27,7 +31,17 @@ public class TicketSearchImportJob {
     private final TicketSearchRepository repository;
     private final TicketSearchSyncProperties properties;
 
-    /** 保存任务和既有投影依赖，不在构造时执行导入。 */
+    /**
+     * 保存任务和既有投影依赖，不在构造时执行导入。
+     *
+     * @param store 使用短事务管理代次、扫描租约及游标的存储服务
+     * @param sources 读取完整工单源行、源版本及有限扫描上界的 Mapper
+     * @param indexes 创建并校验任务专属索引和写别名的服务
+     * @param projection 统一转换完整源行并以外部源版本写入的投影服务
+     * @param verification 读取目标版本并修复缺失或陈旧投影的验证服务
+     * @param repository 刷新固定代次及执行版本化读写的搜索仓库
+     * @param properties 工单搜索同步配置属性
+     */
     public TicketSearchImportJob(TicketSearchTaskStore store, TicketIndexSourceMapper sources,
                                 TicketSearchIndexService indexes, TicketProjectionService projection,
                                 TicketSearchVerificationService verification, TicketSearchRepository repository,
@@ -36,13 +50,17 @@ public class TicketSearchImportJob {
         this.verification=verification; this.repository=repository; this.properties=properties;
     }
 
-    /** 同一时刻每个任务只有一个租约持有者；失败不会使定时器停止。 */
+    /**
+     * 同一时刻每个任务只有一个租约持有者；失败不会使定时器停止。
+     */
     @Scheduled(fixedDelayString="${work-order.elasticsearch.ticket-sync.import-delay-ms:1000}")
     public void runOnce() {
         TicketSearchImportTask claimed = null;
         try {
             claimed = store.claim(owner, properties.getImportLeaseSeconds());
-            if (claimed == null) { return; }
+            if (claimed == null) {
+                return;
+            }
             runClaimed(claimed);
         } catch (TicketSearchTaskStore.LostLeaseException ignored) {
             LOGGER.info("工单导入扫描租约已改变，旧工作者停止提交进度");
@@ -55,12 +73,14 @@ public class TicketSearchImportJob {
     }
 
     /**
-     * 执行租约任务，失败时释放租约。
-     * @param claimed 租约任务
+     * 按固定批次数执行已领取的导入或验证任务，并续租和提交完整批次进度。
+     *
+     * @param claimed 本工作者已领取、带有效租约令牌的导入或验证任务
      * @throws Exception 租约任务执行过程中的所有异常
      */
     private void runClaimed(TicketSearchImportTask claimed) throws Exception {
-        Long id = claimed.getId(); String token = claimed.getLeaseToken();
+        Long id = claimed.getId();
+        String token = claimed.getLeaseToken();
         // 每次调度只处理有限批次；未完成的游标留在数据库，下一次调度接着跑。
         for (int i=0; i<properties.getBatchesPerRun(); i++) {
             if (!store.renew(id, token, properties.getImportLeaseSeconds())) { return; }
@@ -101,12 +121,27 @@ public class TicketSearchImportJob {
         }
     }
 
+    /**
+     * 取得本轮有限扫描的工单 ID 上界。
+     *
+     * @return 当前源表最大工单 ID；空表时为 0
+     */
     private long upper() { Long result=sources.selectMaxId(); return result == null ? 0 : result; }
 
-    /** 只存异常类别，不把 ES 服务端正文、地址或凭据暴露在管理接口。 */
+    /**
+     * 只存异常类别，不把 ES 服务端正文、地址或凭据暴露在管理接口。
+     *
+     * @param exception 捕获的异常
+     * @return 异常类的简单名称，用于不含外部响应正文的失败摘要
+     */
     static String safeError(Exception exception) { return exception.getClass().getSimpleName(); }
 
-    /** Bulk 有明确失败项时额外记录第一个工单主键。 */
+    /**
+     * Bulk 有明确失败项时额外记录第一个工单主键。
+     *
+     * @param exception 捕获的异常
+     * @return Bulk 首个明确失败项的工单 ID；无法定位或转换时为 null
+     */
     static Long failedId(Exception exception) {
         if (exception instanceof TicketSearchBulkException) {
             TicketSearchBulkResult result=((TicketSearchBulkException)exception).getResult();

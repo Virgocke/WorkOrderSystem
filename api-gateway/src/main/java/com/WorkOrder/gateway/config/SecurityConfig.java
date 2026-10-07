@@ -15,6 +15,12 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
+    /**
+     * 配置网关 WebFlux 安全过滤器链。
+     *
+     * @param http WebFlux HTTP 安全配置构建器
+     * @return 配置后的安全过滤器链
+     */
     @Bean
     public SecurityWebFilterChain webFilterChain(ServerHttpSecurity http){
         return http.authorizeExchange()

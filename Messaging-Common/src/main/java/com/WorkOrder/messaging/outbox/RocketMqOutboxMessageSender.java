@@ -7,7 +7,11 @@ import org.apache.rocketmq.spring.support.RocketMQHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 
-/** RocketMQTemplate 发送适配器。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description RocketMQTemplate 发送适配器。
+ */
 public class RocketMqOutboxMessageSender implements OutboxMessageSender {
     private final RocketMQTemplate rocketMQTemplate;
     private final MessagingProperties properties;
@@ -28,8 +32,8 @@ public class RocketMqOutboxMessageSender implements OutboxMessageSender {
      * 使用 eventId 作为消息 Key 发送完整事件 JSON。
      * 开启有序发送时使用 aggregateId 作为队列选择键。
      *
-     * @param event 待发送的 Outbox 记录
-     * @return Broker 消息 ID
+     * @param event 已认领的 Outbox 路由和 JSON 快照，messageKey 保持业务 eventId
+     * @return Broker 返回的消息 ID；该 ID 不替代生产端和消费端的业务 eventId
      */
     @Override
     public String send(OutboxEvent event) {

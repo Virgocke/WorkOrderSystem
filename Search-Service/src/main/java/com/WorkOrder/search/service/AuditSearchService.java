@@ -19,22 +19,38 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** 管理员审计检索：当前动态字段先转换为 ID 过滤，ES 分页后读取数据库响应。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理员审计检索：当前动态字段先转换为 ID 过滤，ES 分页后读取数据库响应。
+ */
 @Service
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @ConditionalOnProperty(prefix = "work-order.elasticsearch", name = "enabled", havingValue = "true")
 public class AuditSearchService {
-    /** 查询当前姓名、编号和 ES 命中的源日志记录。 */
+    /**
+     * 查询当前姓名、编号和 ES 命中的源日志记录。
+     */
     private final AuditMapper mapper;
 
-    /** 在全部过滤和稳定排序完成后执行 ES 分页。 */
+    /**
+     * 在全部过滤和稳定排序完成后执行 ES 分页。
+     */
     private final AuditSearchRepository repository;
 
-    /** 判断首轮回填及故障恢复是否已经完成。 */
+    /**
+     * 判断首轮回填及故障恢复是否已经完成。
+     */
     private final AuditSearchSynchronizer synchronizer;
 
-    /** 在 ES 分页前应用当前姓名和工单编号筛选，回表后恢复 ES 的稳定次序。 */
+    /**
+     * 在 ES 分页前应用当前姓名和工单编号筛选，回表后恢复 ES 的稳定次序。
+     *
+     * @param source 待转换或读取的源数据
+     * @return 工单审计条目的分页结果
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public PageResult<TicketAuditItem> tickets(AuditQuery source) throws IOException {
         AuditQuery query = source.normalizedCopy();
         // 首轮回填/故障恢复未完成时拒绝搜索，避免将不完整索引当作空结果。
@@ -63,7 +79,13 @@ public class AuditSearchService {
         return new PageResult<>(currentItems, searchPage.getTotal(), query.getPage(), query.getPageSize());
     }
 
-    /** 配置关键词搜索保留原始 JSON 和版本字符串，操作人姓名取当前数据库值。 */
+    /**
+     * 配置关键词搜索保留原始 JSON 和版本字符串，操作人姓名取当前数据库值。
+     *
+     * @param source 待转换或读取的源数据
+     * @return 配置审计条目的分页结果
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public PageResult<ConfigurationAuditItem> configurations(AuditQuery source) throws IOException {
         AuditQuery query = source.normalizedCopy();
         requireIndexReady();
@@ -86,7 +108,13 @@ public class AuditSearchService {
         return new PageResult<>(currentItems, searchPage.getTotal(), query.getPage(), query.getPageSize());
     }
 
-    /** 按来源批量回表，再按 ES 当前页逐条取值；已经删除或不再符合条件的日志不返回。 */
+    /**
+     * 按来源批量回表，再按 ES 当前页逐条取值；已经删除或不再符合条件的日志不返回。
+     *
+     * @param query 审计查询条件
+     * @param documents 审计搜索文档列表，对应 documents
+     * @return 工单审计条目列表
+     */
     private List<TicketAuditItem> loadTicketItemsInSearchOrder(
             AuditQuery query, List<AuditSearchDocument> documents) {
 
@@ -110,7 +138,13 @@ public class AuditSearchService {
         return orderedItems;
     }
 
-    /** 一次读取配置日志的当前字段，再按 ES 当前页顺序组装，保留原始 JSON 和版本。 */
+    /**
+     * 一次读取配置日志的当前字段，再按 ES 当前页顺序组装，保留原始 JSON 和版本。
+     *
+     * @param query 审计查询条件
+     * @param documents 审计搜索文档列表，对应 documents
+     * @return 配置审计条目列表
+     */
     private List<ConfigurationAuditItem> loadConfigurationItemsInSearchOrder(
             AuditQuery query, List<AuditSearchDocument> documents) {
         List<Long> configurationIds = collectSourceIds(documents, "CONFIGURATION");
@@ -129,7 +163,13 @@ public class AuditSearchService {
         return orderedItems;
     }
 
-    /** 提取指定来源的数值主键，保持 ES 顺序，不把字符串 ID 用于数值排序。 */
+    /**
+     * 提取指定来源的数值主键，保持 ES 顺序，不把字符串 ID 用于数值排序。
+     *
+     * @param documents 审计搜索文档列表，对应 documents
+     * @param source 待转换或读取的源数据
+     * @return 长整型数值列表
+     */
     private List<Long> collectSourceIds(List<AuditSearchDocument> documents, String source) {
         return documents.stream()
                 .filter(document -> source.equals(document.getSource()))
@@ -137,14 +177,20 @@ public class AuditSearchService {
                 .collect(Collectors.toList());
     }
 
-    /** 首轮回填或故障恢复未完成时拒绝搜索，避免将不完整索引当作空结果。 */
+    /**
+     * 首轮回填或故障恢复未完成时拒绝搜索，避免将不完整索引当作空结果。
+     */
     private void requireIndexReady() {
         if (!synchronizer.isReady()) {
             throw new IllegalStateException("审计 ES 索引尚未完成同步，请稍后重试");
         }
     }
 
-    /** 校验跨表工单日志 ID，避免非法搜索响应被用于数据库回表。 */
+    /**
+     * 校验跨表工单日志 ID，避免非法搜索响应被用于数据库回表。
+     *
+     * @param document 文档
+     */
     private void validateTicketDocumentId(AuditSearchDocument document) {
         if (!hasConsistentDocumentId(document)) {
             throw new IllegalStateException("ES 返回了非法工单审计 ID");
@@ -159,7 +205,11 @@ public class AuditSearchService {
         }
     }
 
-    /** 校验配置日志类型和数值 ID，防止其他来源混入配置回表。 */
+    /**
+     * 校验配置日志类型和数值 ID，防止其他来源混入配置回表。
+     *
+     * @param document 文档
+     */
     private void validateConfigurationDocumentId(AuditSearchDocument document) {
         if (!hasConsistentDocumentId(document)) {
             throw new IllegalStateException("ES 返回了非法配置审计 ID");
@@ -172,7 +222,12 @@ public class AuditSearchService {
         }
     }
 
-    /** 文档 ID 必须与来源及正数主键一致；系统操作人 ID 不参与该校验。 */
+    /**
+     * 文档 ID 必须与来源及正数主键一致；系统操作人 ID 不参与该校验。
+     *
+     * @param document 文档
+     * @return 是否满足校验条件
+     */
     private boolean hasConsistentDocumentId(AuditSearchDocument document) {
         if (document == null || document.getSourceId() == null || document.getSourceId() <= 0) {
             return false;

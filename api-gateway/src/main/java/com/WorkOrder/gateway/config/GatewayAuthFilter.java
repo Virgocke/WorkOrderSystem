@@ -30,7 +30,7 @@ import java.util.Set;
 /**
  * @author Virgor
  * @date 2026年09月11日 01:10
- * @description
+ * @description 网关认证过滤器
  */
 @Component
 @Slf4j
@@ -56,6 +56,13 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
     @Autowired
     private TokenStore tokenStore;
 
+    /**
+     * 放行白名单请求，其余请求验证访问令牌后继续执行网关过滤器链。
+     *
+     * @param exchange 当前网关请求与响应上下文
+     * @param chain 后续网关过滤器链
+     * @return 请求放行或写入认证失败响应的异步完成信号
+     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String requestUrl = exchange.getRequest().getPath().value();
@@ -89,6 +96,13 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
         }
     }
 
+    /**
+     * 写入 HTTP 401 的 JSON 认证失败响应。
+     *
+     * @param error 返回给调用方的认证错误提示
+     * @param exchange 当前网关请求与响应上下文
+     * @return 认证失败响应写入完成的异步信号
+     */
     private Mono<Void> buildReturnMono(String error, ServerWebExchange exchange){
         ServerHttpResponse response = exchange.getResponse();
         String jsonString = JSON.toJSONString(new SystemException(error));
@@ -101,8 +115,9 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
 
     /**
      * 从请求头中获取token
-     * @param exchange
-     * @return token字符串
+     *
+     * @param exchange 当前网关请求与响应上下文
+     * @return Authorization 请求头中的访问令牌；请求头或令牌为空时为 null
      */
     private String getToken(ServerWebExchange exchange){
         String tokenStr = exchange.getRequest().getHeaders().getFirst("Authorization");
@@ -116,6 +131,11 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
         return token;
     }
 
+    /**
+     * 获取网关认证过滤器的执行顺序。
+     *
+     * @return 过滤器顺序值，当前为 0
+     */
     @Override
     public int getOrder() {
         return 0;

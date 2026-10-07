@@ -23,10 +23,14 @@ public class TicketCategory {
     @ApiModelProperty(value = "默认优先级")
     private int defaultPriority;
     @ApiModelProperty(value = "默认响应SLA")
-    /** 响应时限（分钟）；null 表示使用系统默认值。 */
+    /**
+     * 响应时限（分钟）；null 表示使用系统默认值。
+     */
     private Integer defaultResponseSla;
     @ApiModelProperty(value = "默认解决SLA")
-    /** 解决时限（分钟）；null 表示使用系统默认值。 */
+    /**
+     * 解决时限（分钟）；null 表示使用系统默认值。
+     */
     private Integer defaultResolutionSla;
     @ApiModelProperty(value = "描述")
     private String description;

@@ -7,16 +7,26 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** 批量写入部分失败；已成功的项目不会回滚，调用方可按失败 ID 重试。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 批量写入部分失败；已成功的项目不会回滚，调用方可按失败 ID 重试。
+ */
 public class TicketSearchBulkException extends IOException {
 
-    /** 异常对象序列化的版本标识。 */
+    /**
+     * 异常对象序列化的版本标识。
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 包含已写入、已覆盖及真正失败项的完整批次结果。 */
+    /**
+     * 包含已写入、已覆盖及真正失败项的完整批次结果。
+     */
     private final TicketSearchBulkResult result;
 
-    /** 失败文档 ID 与错误原因的只读映射，保留批量响应中的失败顺序。 */
+    /**
+     * 失败文档 ID 与错误原因的只读映射，保留批量响应中的失败顺序。
+     */
     private final Map<String, String> failures;
 
     /**
@@ -42,12 +52,20 @@ public class TicketSearchBulkException extends IOException {
         return result.getAppliedCount();
     }
 
-    /** @return 已被相同或更高版本覆盖的文档数量 */
+    /**
+     * 取得因目标已有相同或更高源版本而完成的数量。
+     *
+     * @return 已被相同或更高版本覆盖的文档数量
+     */
     public int getCoveredCount() {
         return result.getCoveredCount();
     }
 
-    /** @return 本次批量写入的完整逐项分类结果 */
+    /**
+     * 获取包含已写入、已覆盖及真正失败项的完整批次结果。
+     *
+     * @return 本次批量写入的完整逐项分类结果
+     */
     public TicketSearchBulkResult getResult() {
         return result;
     }

@@ -6,7 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 处理人技能响应项。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 处理人技能响应项。
  */
 @Data
 @Builder
@@ -14,12 +16,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class HandlerSkillItem {
 
-    /** 技能标签 ID。 */
+    /**
+     * 技能标签 ID。
+     */
     private Long skillId;
 
-    /** 技能名称。 */
+    /**
+     * 技能名称。
+     */
     private String skillName;
 
-    /** 熟练度，取值范围 1-5。 */
+    /**
+     * 熟练度，取值范围 1-5。
+     */
     private int proficiency;
 }

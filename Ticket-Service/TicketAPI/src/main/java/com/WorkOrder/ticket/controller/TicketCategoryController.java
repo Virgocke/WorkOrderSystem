@@ -26,6 +26,7 @@ public class TicketCategoryController {
 
     /**
      * 获取工单类别树
+     *
      * @return 工单类别树
      */
     @GetMapping("/tree")
@@ -35,7 +36,8 @@ public class TicketCategoryController {
 
     /**
      * 创建工单类别
-     * @param ticketCategoryDto
+     *
+     * @param ticketCategoryDto 工单分类请求数据
      * @return 创建的工单类别
      */
     @PreAuthorize("hasAuthority('category:manage')")
@@ -46,8 +48,9 @@ public class TicketCategoryController {
 
     /**
      * 更新工单类别
-     * @param id
-     * @param ticketCategoryDto
+     *
+     * @param id 工单 ID
+     * @param ticketCategoryDto 工单分类请求数据
      * @return 更新的工单类别
      */
     @PutMapping("/{id}")
@@ -58,7 +61,8 @@ public class TicketCategoryController {
 
     /**
      * 删除工单类别
-     * @param id
+     *
+     * @param id 工单 ID
      * @return 删除结果
      */
     @DeleteMapping("/{id}")

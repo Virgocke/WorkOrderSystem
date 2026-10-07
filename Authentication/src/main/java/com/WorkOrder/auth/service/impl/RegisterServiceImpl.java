@@ -67,7 +67,8 @@ public class RegisterServiceImpl implements RegisterService {
 
     /**
      * 注册功能
-     * @param registerUserDto
+     *
+     * @param registerUserDto register用户请求数据
      * @return UserResponse
      */
     @Override
@@ -121,7 +122,8 @@ public class RegisterServiceImpl implements RegisterService {
 
     /**
      * 重置密码
-     * @param request
+     *
+     * @param request Reset密码请求请求数据
      * @return 成功则返回true
      */
     @Override
@@ -146,7 +148,12 @@ public class RegisterServiceImpl implements RegisterService {
         return true;
     }
 
-    /** 为刚注册的用户建立与 password grant 一致的 OAuth2 认证上下文。 */
+    /**
+     * 为刚注册的用户建立与 password grant 一致的 OAuth2 认证上下文。
+     *
+     * @param userAuthentication 用户认证
+     * @return O认证2认证
+     */
     private OAuth2Authentication createOAuth2Authentication(Authentication userAuthentication) {
         Map<String, String> requestParameters = new HashMap<>();
         requestParameters.put("client_id", clientId);

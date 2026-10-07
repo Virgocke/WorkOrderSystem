@@ -7,14 +7,27 @@ import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
-/** 从主业务数据源一次读取已提交的完整工单字段与源版本。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 从主业务数据源一次读取已提交的完整工单字段与源版本。
+ */
 @Mapper
 public interface TicketIndexSourceMapper {
-    /** 每次回源重新读取，避免重复消息复用 MyBatis 缓存中的旧工单。 */
+    /**
+     * 每次回源重新读取，避免重复消息复用 MyBatis 缓存中的旧工单。
+     *
+     * @param ticketId 工单 ID
+     * @return 工单主库投影源记录
+     */
     @Options(useCache = false, flushCache = Options.FlushCachePolicy.TRUE)
     TicketIndexSource selectById(@Param("ticketId") Long ticketId);
 
-    /** 返回本轮扫描的有限主键上界；空表返回 0，不将它当作事务提交水位。 */
+    /**
+     * 返回本轮扫描的有限主键上界；空表返回 0，不将它当作事务提交水位。
+     *
+     * @return 长整型数值形式的处理结果
+     */
     @Options(useCache = false, flushCache = Options.FlushCachePolicy.TRUE)
     Long selectMaxId();
 

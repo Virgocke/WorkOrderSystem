@@ -22,7 +22,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-/** 智能分配服务的 OAuth2 资源服务器配置，在本地解析并验证 Bearer JWT。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 智能分配服务的 OAuth2 资源服务器配置，在本地解析并验证 Bearer JWT。
+ */
 @Configuration
 @RequiredArgsConstructor
 @EnableResourceServer
@@ -35,7 +39,11 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
     @Value("${security.oauth2.jwt.signing-key}")
     private String signingKey;
 
-    /** 创建 JWT 本地验签转换器。 */
+    /**
+     * 创建 JWT 本地验签转换器。
+     *
+     * @return JWT 令牌转换器
+     */
     @Bean
     public JwtAccessTokenConverter jwtAccessTokenConverter() {
         JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
@@ -43,13 +51,21 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
         return converter;
     }
 
-    /** 创建仅用于 JWT 本地解析的令牌存储器。 */
+    /**
+     * 创建仅用于 JWT 本地解析的令牌存储器。
+     *
+     * @return 令牌存储组件
+     */
     @Bean
     public TokenStore tokenStore() {
         return new JwtTokenStore(jwtAccessTokenConverter());
     }
 
-    /** 声明智能分配服务资源标识和认证失败响应。 */
+    /**
+     * 声明智能分配服务资源标识和认证失败响应。
+     *
+     * @param resources OAuth2 资源服务器配置构建器
+     */
     @Override
     public void configure(ResourceServerSecurityConfigurer resources) {
         resources.resourceId("Assign-Engine")
@@ -60,7 +76,12 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
                         writeError(response, HttpStatus.FORBIDDEN, SystemExceptionEnum.ACCESS_DENIED));
     }
 
-    /** 保护智能分配接口，调用方必须携带 OAuth2 Bearer JWT。 */
+    /**
+     * 保护智能分配接口，调用方必须携带 OAuth2 Bearer JWT。
+     *
+     * @param http HTTP 认证与访问控制配置构建器
+     * @throws Exception 处理过程中发生异常时
+     */
     @Override
     public void configure(HttpSecurity http) throws Exception {
         http.requestMatchers().antMatchers("/assign-engine/**", "/configurations/**", "/assignment-records/**")
@@ -72,10 +93,11 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
 
     /**
      * 向客户端写入错误响应。
+     *
      * @param response 响应对象
      * @param status 状态码
      * @param error 错误信息
-     * @throws IOException
+     * @throws IOException 写出 JSON 错误响应失败时
      */
     private void writeError(HttpServletResponse response, HttpStatus status,
                             SystemExceptionEnum error) throws IOException {

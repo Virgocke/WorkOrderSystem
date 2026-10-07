@@ -25,7 +25,7 @@ import javax.validation.Valid;
 /**
  * @author Virgor
  * @date 2026年09月23日 17:28
- * @description
+ * @description 提供技能变更申请的提交、查询与管理员审核接口。
  */
 @RestController
 @RequiredArgsConstructor
@@ -38,6 +38,7 @@ public class SkillApplicationController {
 
     /**
      * 处理人申请技能
+     *
      * @param skillApplicationDto 申请数据
      * @param authentication 当前用户认证信息
      * @return 处理结果
@@ -54,6 +55,7 @@ public class SkillApplicationController {
 
     /**
      * 按接口文档 16.4 分页查询申请；处理人只能看到本人数据。
+     *
      * @param page 页码
      * @param pageSize 每页大小
      * @param status 状态
@@ -73,7 +75,13 @@ public class SkillApplicationController {
                 page, pageSize, status, currentUserId, currentUserRole));
     }
 
-    /** 详情权限由服务再次限定为本人或管理员。 */
+    /**
+     * 详情权限由服务再次限定为本人或管理员。
+     *
+     * @param id 技能申请 ID
+     * @param authentication 当前已认证的登录信息
+     * @return 统一响应，包含技能申请
+     */
     @PreAuthorize("hasAnyRole('ADMIN', 'HANDLER')")
     @GetMapping("/{id}")
     public Result<SkillApplication> getApplication(@PathVariable Long id, Authentication authentication) {
@@ -81,7 +89,14 @@ public class SkillApplicationController {
                 currentUserIdProvider.get(authentication), currentUserRoleProvider.get(authentication)));
     }
 
-    /** 按接口文档 16.5 审核申请。 */
+    /**
+     * 按接口文档 16.5 审核申请。
+     *
+     * @param id 技能申请 ID
+     * @param request 审核技能申请请求数据
+     * @param authentication 当前已认证的登录信息
+     * @return 统一响应，包含技能申请
+     */
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Result<SkillApplication> reviewApplication(

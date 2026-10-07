@@ -37,6 +37,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
+ * @author Virgor
+ * @date 2026年10月07日
  * @description 推荐候选人服务实现，按技能、负载、SLA和历史评分计算综合分。
  */
 @Service
@@ -54,6 +56,7 @@ public class AssignEngineServiceImpl implements AssignEngineService {
 
     /**
      * 根据工单ID推荐处理人。
+     *
      * @param ticketId 待推荐工单ID
      * @param operatorRole 当前登录用户角色
      * @return 处理人推荐列表
@@ -81,7 +84,15 @@ public class AssignEngineServiceImpl implements AssignEngineService {
                 .findFirst().orElse(null);
     }
 
-    /** 按同一评分规则生成手动派单快照；批量派单可传入本事务内已分配的数量。 */
+    /**
+     * 按同一评分规则生成手动派单快照；批量派单可传入本事务内已分配的数量。
+     *
+     * @param ticketId 工单 ID
+     * @param handlerId 处理人用户 ID
+     * @param additionalLoad 本批次内额外分配的工单数量
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @return 分配Candidate
+     */
     @Override
     public AssignCandidate scoreForHandler(Long ticketId, Long handlerId,
                                            int additionalLoad, String operatorRole) {
@@ -104,6 +115,8 @@ public class AssignEngineServiceImpl implements AssignEngineService {
      * 查询并按当前权重给所有启用处理人评分。
      *
      * @param ticketId 工单 ID
+     * @param adjustedHandlerId adjusted处理人 ID
+     * @param additionalLoad 本批次内额外分配的工单数量
      * @return 按综合得分降序排列的候选人
      */
     private List<AssignCandidate> recommendCandidates(Long ticketId, Long adjustedHandlerId, int additionalLoad) {
@@ -139,12 +152,13 @@ public class AssignEngineServiceImpl implements AssignEngineService {
 
     /**
      * 获取工单分配记录。
+     *
      * @param page 页码
      * @param pageSize 每页大小
      * @param ticketId 工单ID
      * @param operatorRole 操作员角色
      * @param operatorId 操作员ID
-      * @return 分配记录分页结果
+     * @return 分配记录分页结果
      */
     @Override
     public PageResult<AssignmentRecordDto> getAssignmentRecords(int page,
@@ -212,6 +226,11 @@ public class AssignEngineServiceImpl implements AssignEngineService {
 
     /**
      * 构建候选人得分与推荐原因，分项及综合分均保留一位小数。
+     *
+     * @param handler 处理人
+     * @param requiredSkillIds required技能 ID 集合
+     * @param weights 权重
+     * @return 分配Candidate
      */
     private AssignCandidate buildCandidate(HandlerProfile handler, List<Long> requiredSkillIds,
                                            AssignmentWeightsSnapshot weights) {
@@ -251,7 +270,12 @@ public class AssignEngineServiceImpl implements AssignEngineService {
                 .build();
     }
 
-    /** 沿分类树向上寻找最近一层配置的技能要求，避免子分类重复配置。 */
+    /**
+     * 沿分类树向上寻找最近一层配置的技能要求，避免子分类重复配置。
+     *
+     * @param categoryId 工单分类 ID
+     * @return 长整型数值列表
+     */
     private List<Long> requiredSkillIds(Long categoryId) {
         Set<Long> visited = new HashSet<>();
         Long current = categoryId;
@@ -265,7 +289,13 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         return Collections.emptyList();
     }
 
-    /** 各项要求等权；单项熟练度 1 至 5 对应 20 至 100 分，缺项计 0 分。 */
+    /**
+     * 各项要求等权；单项熟练度 1 至 5 对应 20 至 100 分，缺项计 0 分。
+     *
+     * @param handler 处理人
+     * @param requiredSkillIds required技能 ID 集合
+     * @return 高精度数值
+     */
     private BigDecimal calculateSkillScore(HandlerProfile handler, List<Long> requiredSkillIds) {
         if (requiredSkillIds.isEmpty()) {
             return new BigDecimal("50");
@@ -282,7 +312,12 @@ public class AssignEngineServiceImpl implements AssignEngineService {
                 .divide(BigDecimal.valueOf(requiredSkillIds.size()), 1, RoundingMode.HALF_UP);
     }
 
-    /** 剩余容量比例越高，负载得分越高；无有效容量时计0分。 */
+    /**
+     * 剩余容量比例越高，负载得分越高；无有效容量时计0分。
+     *
+     * @param handler 处理人
+     * @return 高精度数值
+     */
     private BigDecimal calculateLoadScore(HandlerProfile handler) {
         if (handler.getMaxCapacity() <= 0) {
             return BigDecimal.ZERO;
@@ -294,13 +329,19 @@ public class AssignEngineServiceImpl implements AssignEngineService {
         return normalizeScore(HUNDRED.subtract(loadRate));
     }
 
-    /** 空数据计0分，异常数据限制在0-100范围内。 */
+    /**
+     * 空数据计0分，异常数据限制在0-100范围内。
+     *
+     * @param score 评分
+     * @return 高精度数值
+     */
     private BigDecimal normalizeScore(BigDecimal score) {
         return score == null ? BigDecimal.ZERO : score.max(BigDecimal.ZERO).min(HUNDRED);
     }
 
     /**
      * 四舍五入保留一位小数。
+     *
      * @param score 待四舍五入的分数
      * @return 四舍五入保留一位小数的分数
      */

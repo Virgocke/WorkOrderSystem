@@ -22,7 +22,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** 我的通知列表服务实现。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 我的通知列表服务实现。
+ */
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Notifications>
@@ -35,9 +39,10 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     /**
      * 获取当前用户的通知列表。
-     * @param receiverId 从认证信息读取的当前用户 ID
-     * @param myNotificationPageDto 分页及阅读状态
-     * @return 当前用户通知列表
+     *
+     * @param receiverId 从 JWT 读取的当前接收人用户 ID
+     * @param myNotificationPageDto 页码、每页条数及 UNREAD 或 READ 筛选条件
+     * @return 仅包含当前接收人 INTERNAL 通知及统一阅读状态的分页结果
      */
     @Override
     public PageResult<NotificationRecord> myNotifications(Long receiverId,
@@ -77,8 +82,9 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     /**
      * 获取当前用户的未读通知数，统计规则与通知列表一致。
-     * @param receiverId 从认证信息读取的当前用户 ID
-     * @return 未读通知数量
+     *
+     * @param receiverId 从 JWT 读取的当前接收人用户 ID
+     * @return 当前接收人尚未标记 READ 的 INTERNAL 通知数量
      */
     @Override
     public long unreadCount(Long receiverId) {
@@ -90,9 +96,10 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     /**
      * 标记通知为已读。
-     * @param markAsReadDto 标记已读 DTO
-     * @param receiverId 从认证信息读取的当前用户 ID
-     * @return 已读通知数量
+     *
+     * @param markAsReadDto 需要标记已读的站内通知 ID 集合
+     * @param receiverId 从 JWT 读取的当前接收人用户 ID
+     * @return 本次成功更新的通知条数；任何 ID 不属于当前接收人或不是 INTERNAL 时整笔操作失败
      */
     @Override
     @Transactional
@@ -117,8 +124,9 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     /**
      * 标记所有通知为已读。
-     * @param receiverId 从认证信息读取的当前用户 ID
-     * @return 已读通知数量
+     *
+     * @param receiverId 从 JWT 读取的当前接收人用户 ID
+     * @return 本次更新的当前接收人 INTERNAL 通知条数
      */
     @Override
     public long markAllAsRead(Long receiverId) {
@@ -132,8 +140,9 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     /**
      * 保留空工单字段，统一阅读状态及时间格式。
-     * @param notification 通知记录
-     * @return 通知记录
+     *
+     * @param notification 查询得到的 INTERNAL 通知记录及可空工单编号
+     * @return 对外通知记录，阅读状态统一为 READ 或 UNREAD，时间采用项目本地格式
      */
     private NotificationRecord toResponse(Notifications notification) {
         return NotificationRecord.builder()

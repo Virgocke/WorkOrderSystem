@@ -15,7 +15,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 给 JWT 增加当前登录用户的数据库主键。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 给 JWT 增加当前登录用户的数据库主键。
  */
 @Component
 @RequiredArgsConstructor
@@ -25,6 +27,13 @@ public class UserIdTokenEnhancer implements TokenEnhancer {
 
     private final UsersMapper usersMapper;
 
+    /**
+     * 将数据库用户 ID 加入访问令牌的 user_id 声明。
+     *
+     * @param accessToken 待补充用户 ID 的访问令牌
+     * @param authentication 本次 OAuth2 登录认证信息
+     * @return 已补充 user_id 声明的原访问令牌
+     */
     @Override
     public OAuth2AccessToken enhance(
             OAuth2AccessToken accessToken,

@@ -9,15 +9,24 @@ import org.apache.ibatis.annotations.Results;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-/** 工单编号规则与计数器的持久化操作。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 工单编号规则与计数器的持久化操作。
+ */
 @Mapper
 public interface TicketNumberMapper {
-    /** @return 数据库中的规则 JSON；尚未保存时为空 */
+    /**
+     * 查询规则JSON。
+     *
+     * @return 数据库中的规则 JSON；尚未保存时为空
+     */
     @Select("SELECT config_value FROM configurations WHERE config_key = 'ticketNoRule'")
     String selectRuleJson();
 
     /**
      * 首次使用计数范围时创建计数行；重复使用返回 0。
+     *
      * @param scopeKey 前缀与日期组成的计数范围键
      * @return 新建行数，0 或 1
      */
@@ -26,6 +35,7 @@ public interface TicketNumberMapper {
 
     /**
      * 读取历史同范围编号的最大尾号，只用于新计数范围初始化。
+     *
      * @param scopeKey 前缀与日期组成的计数范围键
      * @return 已有编号中 1 至 6 位纯数字尾号的最大值，没有时为 0
      */
@@ -36,6 +46,7 @@ public interface TicketNumberMapper {
 
     /**
      * 对首次创建的计数行写入已有编号的最大尾号。
+     *
      * @param scopeKey 前缀与日期组成的计数范围键
      * @param lastValue 已有编号的最大尾号
      * @return 修改行数
@@ -45,6 +56,7 @@ public interface TicketNumberMapper {
 
     /**
      * 锁定计数行，使并发建单依次获取序号。
+     *
      * @param scopeKey 前缀与日期组成的计数范围键
      * @return 当前最大序号
      */
@@ -60,6 +72,7 @@ public interface TicketNumberMapper {
 
     /**
      * 在持有行锁的建单事务内增加序号。
+     *
      * @param scopeKey 前缀与日期组成的计数范围键
      * @param expected 当前最大序号
      * @return 修改行数，成功为 1

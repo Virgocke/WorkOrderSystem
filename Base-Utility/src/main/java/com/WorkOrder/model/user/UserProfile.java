@@ -9,7 +9,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
-/** 对外暴露的用户资料，绝不包含密码字段。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 对外暴露的用户资料，绝不包含密码字段。
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

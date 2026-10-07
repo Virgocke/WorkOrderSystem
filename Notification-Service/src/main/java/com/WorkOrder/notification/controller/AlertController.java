@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * @author Virgor
  * @date 2026年09月19日 00:09
- * @description
+ * @description 告警接口控制器，封装对应的业务职责。
  */
 @RestController
 @RequiredArgsConstructor
@@ -33,6 +33,7 @@ public class AlertController {
 
     /**
      * 获取告警列表
+     *
      * @param authentication 当前用户认证信息
      * @param alertDto 告警查询条件
      * @return 告警列表
@@ -48,6 +49,7 @@ public class AlertController {
 
     /**
      * 处理告警，操作人及角色由 Token 确定。
+     *
      * @param id 告警ID
      * @param authentication 当前用户认证信息
      * @return 已处理的告警记录

@@ -27,14 +27,24 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 
-/** 管理审计索引的创建、别名和映射校验，由仓库内部使用。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理审计索引的创建、别名和映射校验，由仓库内部使用。
+ */
 final class AuditSearchIndexManager {
 
     private final RestHighLevelClient client;
     private final ElasticsearchProperties elasticsearchProperties;
     private final AuditSearchProperties auditProperties;
 
-    /** 复用共享客户端与现有配置，构造时不访问 ES。 */
+    /**
+     * 复用共享客户端与现有配置，构造时不访问 ES。
+     *
+     * @param client Elasticsearch 高级客户端
+     * @param elasticsearchProperties elasticsearch配置属性
+     * @param auditProperties 审计配置属性
+     */
     AuditSearchIndexManager(RestHighLevelClient client, ElasticsearchProperties elasticsearchProperties,
                             AuditSearchProperties auditProperties) {
         this.client = client;
@@ -42,7 +52,12 @@ final class AuditSearchIndexManager {
         this.auditProperties = auditProperties;
     }
 
-    /** 优先使用合法的已有别名，否则原子创建索引及别名；不接管或修改已有索引。 */
+    /**
+     * 优先使用合法的已有别名，否则原子创建索引及别名；不接管或修改已有索引。
+     *
+     * @return 已校验且由审计别名唯一指向的物理索引名称
+     * @throws IOException 处理过程中发生IO异常时
+     */
     String initializeIndex() throws IOException {
         Assert.isTrue(!auditProperties.getIndexName().equals(auditProperties.getIndexAlias()),
                 "审计物理索引名称不能与索引别名相同");
@@ -77,7 +92,11 @@ final class AuditSearchIndexManager {
         return initializedIndex;
     }
 
-    /** 从 V1 映射创建索引和写别名；并发创建冲突仅在别名合法时允许继续。 */
+    /**
+     * 从 V1 映射创建索引和写别名；并发创建冲突仅在别名合法时允许继续。
+     *
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void createIndex() throws IOException {
         CreateIndexRequest request = new CreateIndexRequest(auditProperties.getIndexName());
         try (InputStream input = new ClassPathResource("elasticsearch/audit-index-v1.json").getInputStream()) {
@@ -100,7 +119,12 @@ final class AuditSearchIndexManager {
         }
     }
 
-    /** 别名缺失时返回 null；存在时必须唯一、可写，并且不附带过滤或路由条件。 */
+    /**
+     * 别名缺失时返回 null；存在时必须唯一、可写，并且不附带过滤或路由条件。
+     *
+     * @return 审计别名唯一指向的合法物理索引名；别名不存在时为 null
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private String findIndexByAlias() throws IOException {
         String alias = auditProperties.getIndexAlias();
         GetAliasesResponse response = client.indices().getAlias(new GetAliasesRequest(alias), RequestOptions.DEFAULT);
@@ -124,7 +148,12 @@ final class AuditSearchIndexManager {
         return indexEntry.getKey();
     }
 
-    /** 校验严格映射、完整 _source 和各字段约定；不修改现有映射。 */
+    /**
+     * 校验严格映射、完整 _source 和各字段约定；不修改现有映射。
+     *
+     * @param indexName 索引名称
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void validateMapping(String indexName) throws IOException {
         MappingMetadata mapping = client.indices()
                 .getMapping(new GetMappingsRequest()
@@ -160,7 +189,16 @@ final class AuditSearchIndexManager {
         }
     }
 
-    /** 校验字段类型及查询、排序能力，拒绝改变字面值或截断内容的额外配置。 */
+    /**
+     * 校验字段类型及查询、排序能力，拒绝改变字面值或截断内容的额外配置。
+     *
+     * @param fields 服务端返回的全部字段映射
+     * @param field 待读取或校验的字段名
+     * @param expectedType 字段必须采用的 ES 映射类型
+     * @param needsDocValues 该字段是否需要排序或聚合所依赖的 doc_values
+     * @return 通过类型、索引、字面值及排序能力校验的实际字段映射
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private Map<?, ?> validateField(Map<?, ?> fields, String field, String expectedType, boolean needsDocValues)
             throws IOException {
         Object definition = fields.get(field);
@@ -179,7 +217,12 @@ final class AuditSearchIndexManager {
         return fieldMapping;
     }
 
-    /** 统一返回字段映射不兼容的错误，避免各校验分支重复错误文案。 */
+    /**
+     * 统一返回字段映射不兼容的错误，避免各校验分支重复错误文案。
+     *
+     * @param field 待读取或校验的字段名
+     * @return 明确指出字段映射不兼容并要求重建审计索引的 IOException
+     */
     private IOException incompatibleField(String field) {
         return new IOException("审计索引字段 " + field + " 映射不兼容，请使用审计 V1 映射重建");
     }

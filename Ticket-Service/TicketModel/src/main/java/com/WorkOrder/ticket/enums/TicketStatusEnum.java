@@ -38,6 +38,14 @@ public enum TicketStatusEnum {
     private final String description; // 状态描述
     private final List<Integer> nextStatusCodes; // 允许流转的下一个状态码列表
 
+    /**
+     * 定义工单状态及其允许转移到的后续状态。
+     *
+     * @param code 工单状态代码
+     * @param name 工单状态名称
+     * @param description 工单状态说明
+     * @param nextStatusCodes 允许转移到的后续状态代码
+     */
     TicketStatusEnum(int code, String name, String description, Integer... nextStatusCodes) {
         this.code = code;
         this.name = name;
@@ -47,6 +55,9 @@ public enum TicketStatusEnum {
 
     /**
      * 根据 code 获取枚举，用于数据库反序列化
+     *
+     * @param code 业务代码
+     * @return 工单状态Enum
      */
     public static TicketStatusEnum fromCode(Integer code) {
         if (code == null) {
@@ -62,6 +73,7 @@ public enum TicketStatusEnum {
 
     /**
      * 校验当前状态是否能流转到目标状态
+     *
      * @param target 目标状态
      * @return true 表示允许流转
      */
@@ -79,6 +91,8 @@ public enum TicketStatusEnum {
     /**
      * 获取允许流转的下一个状态。
      * 以状态码保存关系，避免枚举常量初始化阶段的非法前向引用。
+     *
+     * @return 工单状态Enum列表
      */
     public List<TicketStatusEnum> getNextStatuses() {
         if (nextStatusCodes.isEmpty()) {

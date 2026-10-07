@@ -28,10 +28,13 @@ public class MinioServiceImpl implements MinioService {
 
     /**
      * 上传文件
+     *
      * @param objectName 对象名
      * @param stream 文件流
      * @param size 文件大小
      * @param contentType 文件内容类型
+     * @return 对象写入响应
+     * @throws Exception 处理过程中发生异常时
      */
     @Override
     public ObjectWriteResponse upload(String objectName, InputStream stream, long size, String contentType) throws Exception{
@@ -47,8 +50,10 @@ public class MinioServiceImpl implements MinioService {
 
     /**
      * 下载文件
+     *
      * @param objectName 对象名
      * @return 文件流
+     * @throws Exception 处理过程中发生异常时
      */
     @Override
     public InputStream download(String objectName) throws Exception{
@@ -62,7 +67,9 @@ public class MinioServiceImpl implements MinioService {
 
     /**
      * 删除文件
+     *
      * @param objectName 对象名
+     * @throws Exception 处理过程中发生异常时
      */
     @Override
     public void remove(String objectName) throws Exception{
@@ -76,11 +83,13 @@ public class MinioServiceImpl implements MinioService {
 
     /**
      * 上传文件，用于文件上传控制类API
+     *
      * @param objectName 对象名
      * @param inputStream 文件流
      * @param size 文件大小
      * @param contentType 文件内容类型
-     * @throws Exception
+     * @return 对象写入响应
+     * @throws Exception 读取上传数据或请求 MinIO 失败时
      */
     @Override
     public ObjectWriteResponse uploadFile(String objectName, InputStream inputStream, long size, String contentType) throws Exception{
@@ -101,9 +110,11 @@ public class MinioServiceImpl implements MinioService {
 
     /**
      * 获取预签名 URL
+     *
      * @param objectName 对象名
      * @param expireSeconds 过期时间（秒）
      * @return 预签名 URL
+     * @throws Exception 处理过程中发生异常时
      */
     @Override
     public String getPresignedUrl(String objectName, int expireSeconds) throws Exception {

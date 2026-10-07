@@ -26,25 +26,45 @@ import static com.WorkOrder.search.repository.AuditSearchRepository.OPERATION_SO
 import static com.WorkOrder.search.repository.AuditSearchRepository.STATUS_SOURCE;
 import static com.WorkOrder.search.repository.AuditSearchRepository.TICKET_KIND;
 
-/** 执行审计分页并解析稳定来源标识，负责响应完整性和滚动游标的释放。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 执行审计分页并解析稳定来源标识，负责响应完整性和滚动游标的释放。
+ */
 final class AuditSearchPageReader {
 
-    /** ES 默认分页窗口，超过窗口时通过固定快照读取。 */
+    /**
+     * ES 默认分页窗口，超过窗口时通过固定快照读取。
+     */
     private static final int RESULT_WINDOW_SIZE = 10000;
 
-    /** 深分页逐批读取，避免把所有跳过的记录存入内存。 */
+    /**
+     * 深分页逐批读取，避免把所有跳过的记录存入内存。
+     */
     private static final int SCROLL_BATCH_SIZE = 1000;
 
     private static final TimeValue SCROLL_KEEP_ALIVE = TimeValue.timeValueMinutes(1);
 
     private final RestHighLevelClient client;
 
-    /** 复用仓库客户端，不创建或关闭连接。 */
+    /**
+     * 复用仓库客户端，不创建或关闭连接。
+     *
+     * @param client Elasticsearch 高级客户端
+     */
     AuditSearchPageReader(RestHighLevelClient client) {
         this.client = client;
     }
 
-    /** 在默认窗口内使用 from/size，超过窗口则用 scroll 保留任意有效页码。 */
+    /**
+     * 在默认窗口内使用 from/size，超过窗口则用 scroll 保留任意有效页码。
+     *
+     * @param indexAlias 已配置的审计搜索读别名
+     * @param searchSource 已完成筛选和稳定排序的 ES 查询请求体
+     * @param query 审计查询条件
+     * @return 审计搜索文档的分页结果
+     * @throws IOException 处理过程中发生IO异常时
+     */
     PageResult<AuditSearchDocument> readPage(String indexAlias, SearchSourceBuilder searchSource, AuditQuery query)
             throws IOException {
         long offset = query.getOffset();
@@ -61,7 +81,15 @@ final class AuditSearchPageReader {
         return new PageResult<>(readIdentifiers(response), total, query.getPage(), query.getPageSize());
     }
 
-    /** 用同一快照跳过前面的命中，只收集目标页，并在成功或失败后释放最后一个游标。 */
+    /**
+     * 用同一快照跳过前面的命中，只收集目标页，并在成功或失败后释放最后一个游标。
+     *
+     * @param indexAlias 已配置的审计搜索读别名
+     * @param searchSource 已完成筛选和稳定排序的 ES 查询请求体
+     * @param query 审计查询条件
+     * @return 审计搜索文档的分页结果
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private PageResult<AuditSearchDocument> readPageWithScroll(String indexAlias, SearchSourceBuilder searchSource,
                                                              AuditQuery query) throws IOException {
         searchSource.from(0).size(SCROLL_BATCH_SIZE);
@@ -116,7 +144,13 @@ final class AuditSearchPageReader {
         }
     }
 
-    /** 读取下一批快照命中，当前响应缺少游标时明确失败。 */
+    /**
+     * 读取下一批快照命中，当前响应缺少游标时明确失败。
+     *
+     * @param scrollId 上一次响应返回的 ES 滚动快照游标
+     * @return 搜索响应
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private SearchResponse readNextScrollBatch(String scrollId) throws IOException {
         if (!StringUtils.hasText(scrollId)) {
             throw new IOException("审计深分页响应缺少游标");
@@ -125,7 +159,13 @@ final class AuditSearchPageReader {
         return client.scroll(request, RequestOptions.DEFAULT);
     }
 
-    /** 清理失败不能掩盖原搜索错误；搜索成功时则直接报告清理失败。 */
+    /**
+     * 清理失败不能掩盖原搜索错误；搜索成功时则直接报告清理失败。
+     *
+     * @param scrollId 需要释放的最后一个 ES 滚动快照游标
+     * @param searchFailure 原搜索失败；搜索成功时为 null，清理错误不得掩盖原错误
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void clearScrollAfterSearch(String scrollId, Throwable searchFailure) throws IOException {
         if (!StringUtils.hasText(scrollId)) {
             return;
@@ -144,7 +184,13 @@ final class AuditSearchPageReader {
         }
     }
 
-    /** 拒绝超时、分片失败和截断总数，避免把不完整结果当作正常分页。 */
+    /**
+     * 拒绝超时、分片失败和截断总数，避免把不完整结果当作正常分页。
+     *
+     * @param response 搜索响应
+     * @return 所有分片完整返回且关系为 EQUAL_TO 的准确命中总数
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private long requireExactTotal(SearchResponse response) throws IOException {
         if (response.isTimedOut() || response.getFailedShards() > 0) {
             throw new IOException("审计 Elasticsearch 搜索超时或分片失败");
@@ -156,7 +202,13 @@ final class AuditSearchPageReader {
         return total.value;
     }
 
-    /** 保留 ES 命中顺序，仅返回回表需要的来源元数据。 */
+    /**
+     * 保留 ES 命中顺序，仅返回回表需要的来源元数据。
+     *
+     * @param response 搜索响应
+     * @return 按 ES 命中顺序排列、仅含回表来源身份的投影列表
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private List<AuditSearchDocument> readIdentifiers(SearchResponse response) throws IOException {
         List<AuditSearchDocument> identifiers = new ArrayList<>();
         for (SearchHit hit : response.getHits()) {
@@ -165,7 +217,13 @@ final class AuditSearchPageReader {
         return identifiers;
     }
 
-    /** 校验数值主键、文档 ID 与日志来源的一致性，不返回索引中的日志正文。 */
+    /**
+     * 校验数值主键、文档 ID 与日志来源的一致性，不返回索引中的日志正文。
+     *
+     * @param hit 一个包含稳定来源字段的 ES 命中
+     * @return 仅包含文档 ID、日志种类、来源表及来源主键的回表标识
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private AuditSearchDocument readIdentifier(SearchHit hit) throws IOException {
         Map<String, Object> fields = hit.getSourceAsMap();
         if (fields == null || !(fields.get("sourceId") instanceof Number)
@@ -190,7 +248,13 @@ final class AuditSearchPageReader {
         return identifier;
     }
 
-    /** 直接解析整数文本，避免雪花 ID 经 double 转换后丢失精度。 */
+    /**
+     * 直接解析整数文本，避免雪花 ID 经 double 转换后丢失精度。
+     *
+     * @param value ES _source 中的数值来源主键
+     * @return 无浮点转换精度损失的 64 位来源主键
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private long readSourceId(Object value) throws IOException {
         try {
             return Long.parseLong(value.toString());
@@ -199,7 +263,13 @@ final class AuditSearchPageReader {
         }
     }
 
-    /** 工单只允许操作/状态日志，配置审计只允许配置日志。 */
+    /**
+     * 工单只允许操作/状态日志，配置审计只允许配置日志。
+     *
+     * @param kind 审计种类：工单或配置
+     * @param source 文档登记的操作日志、状态历史或配置日志来源
+     * @return 审计种类与来源表符合统一约定时为 true
+     */
     private boolean isValidSource(String kind, String source) {
         if (TICKET_KIND.equals(kind)) {
             return OPERATION_SOURCE.equals(source) || STATUS_SOURCE.equals(source);

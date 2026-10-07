@@ -8,7 +8,9 @@ import javax.validation.constraints.Positive;
 import java.util.List;
 
 /**
- * 管理员批量分配工单DTO。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理员批量分配工单DTO。
  */
 @Data
 public class AssignTicketListDto {

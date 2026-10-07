@@ -6,11 +6,19 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 /**
- * 从当前认证信息读取登录角色，供操作日志保存角色快照。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 从当前认证信息读取登录角色，供操作日志保存角色快照。
  */
 @Component
 public class CurrentUserRoleProvider {
 
+    /**
+     * 从当前认证权限读取登录角色快照，供操作日志记录。
+     *
+     * @param authentication 携带 Spring Security 角色权限的当前认证信息
+     * @return 认证角色快照 ADMIN、HANDLER 或 USER；多个角色按 ADMIN、HANDLER、USER 的顺序优先返回
+     */
     public String get(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new SystemException(SystemExceptionEnum.ACCOUNT_OFFLINE);

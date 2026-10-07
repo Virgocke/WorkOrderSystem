@@ -11,7 +11,11 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.util.List;
 
-/** 管理员批量保存系统配置，版本号取自配置查询接口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理员批量保存系统配置，版本号取自配置查询接口。
+ */
 @Data
 public class SaveConfigurationsDto {
     @Valid
@@ -19,6 +23,11 @@ public class SaveConfigurationsDto {
     @Size(max = 5, message = "一次最多保存5项配置")
     private List<@NotNull(message = "配置项不能为空") Item> items;
 
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description 系统配置的单项修改请求，携带配置键、目标值和版本信息。
+     */
     @Data
     public static class Item {
         @NotBlank(message = "配置键不能为空")

@@ -22,7 +22,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-/** Search 服务的 OAuth2 资源服务器配置，在本地解析并验证 Bearer JWT。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description Search 服务的 OAuth2 资源服务器配置，在本地解析并验证 Bearer JWT。
+ */
 @Configuration
 @RequiredArgsConstructor
 @EnableResourceServer
@@ -30,10 +34,14 @@ import java.nio.charset.StandardCharsets;
 @SuppressWarnings("deprecation")
 public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerAdapter {
 
-    /** 用于输出统一 JSON 错误响应的序列化组件。 */
+    /**
+     * 用于输出统一 JSON 错误响应的序列化组件。
+     */
     private final ObjectMapper objectMapper;
 
-    /** OAuth2 JWT 对称签名密钥。 */
+    /**
+     * OAuth2 JWT 对称签名密钥。
+     */
     @Value("${security.oauth2.jwt.signing-key}")
     private String signingKey;
 

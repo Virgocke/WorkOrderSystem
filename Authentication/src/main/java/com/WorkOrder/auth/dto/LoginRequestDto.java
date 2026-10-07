@@ -5,6 +5,11 @@ import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
 
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 账号密码登录请求。
+ */
 @Data
 public class LoginRequestDto {
 

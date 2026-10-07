@@ -31,8 +31,9 @@ public class UserInfoUpdateServiceImpl implements UserInfoUpdateService {
 
     /**
      * 更新用户信息
-     * @param userId
-     * @param userUpdateDto
+     *
+     * @param userId 用户 ID
+     * @param userUpdateDto 用户Update请求数据
      * @return 更新后的用户信息
      */
     @Override
@@ -56,8 +57,9 @@ public class UserInfoUpdateServiceImpl implements UserInfoUpdateService {
 
     /**
      * 更新用户密码
-     * @param username
-     * @param passwordDto
+     *
+     * @param username 账号
+     * @param passwordDto 密码请求数据
      * @return 是否更新成功
      */
     @Override

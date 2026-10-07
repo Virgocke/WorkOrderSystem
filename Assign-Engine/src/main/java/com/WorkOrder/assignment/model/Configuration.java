@@ -4,7 +4,11 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 系统配置数据库记录。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 系统配置数据库记录。
+ */
 @Data
 public class Configuration {
     private String configKey;

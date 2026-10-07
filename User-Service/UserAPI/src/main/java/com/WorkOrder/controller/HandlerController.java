@@ -31,6 +31,11 @@ public class HandlerController {
 
     private final HandlerUserService handlerService;
 
+    /**
+     * 获取可供当前接口查询的处理人列表。
+     *
+     * @return 处理人资料列表的统一响应
+     */
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/options")
     public Result<List<HandlerProfile>> getHandler() {

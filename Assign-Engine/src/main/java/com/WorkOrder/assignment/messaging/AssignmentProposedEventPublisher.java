@@ -14,18 +14,34 @@ import org.springframework.stereotype.Component;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
-/** 在创建事件消费事务内发布自动派单提议。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在创建事件消费事务内发布自动派单提议。
+ */
 @Component
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 public class AssignmentProposedEventPublisher {
-    /** 事务性 Outbox 发布器。 */
+    /**
+     * 事务性 Outbox 发布器。
+     */
     private final DomainEventPublisher domainEventPublisher;
-    /** JSON 载荷构建器。 */
+    /**
+     * JSON 载荷构建器。
+     */
     private final ObjectMapper objectMapper;
-    /** 当前环境的工单事件 Topic。 */
+    /**
+     * 当前环境的工单事件 Topic。
+     */
     private final String topic;
 
-    /** 注入发布器和消息 Topic。 */
+    /**
+     * 注入发布器和消息 Topic。
+     *
+     * @param domainEventPublisher 事务性 Outbox 发布器
+     * @param objectMapper JSON 载荷构建器
+     * @param topic 当前环境的工单事件 Topic
+     */
     public AssignmentProposedEventPublisher(
             DomainEventPublisher domainEventPublisher,
             ObjectMapper objectMapper,

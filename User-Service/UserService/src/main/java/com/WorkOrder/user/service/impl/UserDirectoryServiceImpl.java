@@ -41,7 +41,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
- * 用于接口联调的临时存储实现。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 用于接口联调的临时存储实现。
  * 接入 MySQL 后请新增 Mapper 实现并替换本类，不要将密码或会话状态放在这里。
  */
 @Service
@@ -321,7 +323,11 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
         return user;
     }
 
-    /** 校验只有在 JSON 中显式出现时才要求非空的字段。 */
+    /**
+     * 校验只有在 JSON 中显式出现时才要求非空的字段。
+     *
+     * @param request 管理员Update用户请求数据
+     */
     private void validatePresentValues(AdminUpdateUserDto request) {
         if (request.isRealNamePresent() && !StringUtils.hasText(request.getRealName())) {
             throw new SystemException("姓名不能为空");
@@ -334,12 +340,22 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
         }
     }
 
-    /** 空白联系方式按清空字段处理，避免唯一索引中保存多个空字符串。 */
+    /**
+     * 空白联系方式按清空字段处理，避免唯一索引中保存多个空字符串。
+     *
+     * @param value 待更新的联系方式文本
+     * @return 去掉两端空白后的联系方式；空白时为 null，表示清空字段
+     */
     private String nullableText(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
-    /** 同步 users.role 对应的 RBAC 显式角色，保证权限查询与角色字段一致。 */
+    /**
+     * 同步 users.role 对应的 RBAC 显式角色，保证权限查询与角色字段一致。
+     *
+     * @param userId 用户 ID
+     * @param role 角色筛选或校验值
+     */
     private void synchronizeUserRole(Long userId, int role) {
         usersMapper.deleteUserRoles(userId);
         if (usersMapper.insertUserRole(userId, roleCode(role)) != 1) {
@@ -347,7 +363,11 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
         }
     }
 
-    /** 为首次成为处理人的用户创建默认档案；历史档案存在时直接复用。 */
+    /**
+     * 为首次成为处理人的用户创建默认档案；历史档案存在时直接复用。
+     *
+     * @param userId 用户 ID
+     */
     private void ensureHandlerProfile(Long userId) {
         Integer count = handlerProfileMapper.selectCount(
                 new LambdaQueryWrapper<HandlerProfiles>()
@@ -369,7 +389,12 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
         }
     }
 
-    /** 将数值角色转换为 roles.code。 */
+    /**
+     * 将数值角色转换为 roles.code。
+     *
+     * @param role 角色代码：0 普通用户、1 处理人、2 管理员
+     * @return USER、HANDLER 或 ADMIN 角色标识
+     */
     private String roleCode(int role) {
         switch (role) {
             case 2:
@@ -383,6 +408,7 @@ public class UserDirectoryServiceImpl implements UserDirectoryService {
 
     /**
      * 将用户实体转换为用户响应对象。
+     *
      * @param user 用户实体
      * @param userResponse 用户响应对象
      * @return 用户响应对象

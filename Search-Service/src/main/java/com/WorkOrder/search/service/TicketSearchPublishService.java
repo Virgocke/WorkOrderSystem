@@ -16,7 +16,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** 独立发布操作；数据库令牌不冒充 ES 栅栏，结果不确定时保持同任务暂停。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 独立发布操作；数据库令牌不冒充 ES 栅栏，结果不确定时保持同任务暂停。
+ */
 @Service
 @ConditionalOnProperty(prefix="work-order.elasticsearch.ticket-sync", name="enabled", havingValue="true")
 public class TicketSearchPublishService {
@@ -28,14 +32,30 @@ public class TicketSearchPublishService {
     private final TicketSearchRuntimeStatusService runtime;
     private final ElasticsearchProperties properties;
 
-    /** 注入既有索引和运行观测服务；不在构造时访问网络。 */
+    /**
+     * 注入既有索引和运行观测服务；不在构造时访问网络。
+     *
+     * @param store 存储服务
+     * @param indexes 工单搜索索引服务，对应 indexes
+     * @param repository 工单搜索仓储
+     * @param runtime 运行状态
+     * @param properties Elasticsearch配置属性
+     */
     public TicketSearchPublishService(TicketSearchTaskStore store, TicketSearchIndexService indexes,
                                       TicketSearchRepository repository, TicketSearchRuntimeStatusService runtime,
                                       ElasticsearchProperties properties) {
         this.store=store; this.indexes=indexes; this.repository=repository; this.runtime=runtime; this.properties=properties;
     }
 
-    /** 主库登记发布身份，事务外 refresh 和原子换别名，确认后补记 READY。 */
+    /**
+     * 主库登记发布身份，事务外 refresh 和原子换别名，确认后补记 READY。
+     *
+     * @param id 待发布的导入任务 ID
+     * @param adminId 管理员用户 ID
+     * @param manifest 已核对的源服务实例部署确认清单 JSON
+     * @return 工单索引导入任务
+     * @throws IOException 处理过程中发生IO异常时
+     */
     @Transactional(propagation=Propagation.NOT_SUPPORTED)
     public TicketSearchImportTask publish(Long id, Long adminId, String manifest) throws IOException {
         if (!active.add(id)) { conflict(); }
@@ -75,7 +95,15 @@ public class TicketSearchPublishService {
         } finally { active.remove(id); }
     }
 
-    /** 先确认原发布进程停止，再按实际别名恢复同一任务；没有自动超时接管。 */
+    /**
+     * 先确认原发布进程停止，再按实际别名恢复同一任务；没有自动超时接管。
+     *
+     * @param id 需要人工恢复的原导入任务 ID
+     * @param request 包含原发布进程停止确认依据的恢复请求
+     * @param adminId 管理员用户 ID
+     * @return 工单索引导入任务
+     * @throws IOException 处理过程中发生IO异常时
+     */
     @Transactional(propagation=Propagation.NOT_SUPPORTED)
     public TicketSearchImportTask recover(Long id, TicketSearchResumeRequest request, Long adminId) throws IOException {
         if (!active.add(id)) { conflict(); }
@@ -102,7 +130,12 @@ public class TicketSearchPublishService {
         } finally { active.remove(id); }
     }
 
-    /** 首次仅接管明确配置的旧入口；后续仅接管数据库登记的已发布代次。 */
+    /**
+     * 首次仅接管明确配置的旧入口；后续仅接管数据库登记的已发布代次。
+     *
+     * @return 允许原子替换的精确旧读目标物理索引集合；首次无读别名时为空
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private Set<String> expectedPrevious() throws IOException {
         TicketSearchControlState state=store.state();
         if (state.getPublishedGeneration() == null) {
@@ -114,5 +147,8 @@ public class TicketSearchPublishService {
         return Collections.singleton(store.task(state.getPublishedGeneration()).getTargetIndex());
     }
 
+    /**
+     * 处理 conflict 对应的工单搜索发布服务操作。
+     */
     private static void conflict() { throw new SystemException(SystemExceptionEnum.TICKET_SEARCH_JOB_CONFLICT); }
 }

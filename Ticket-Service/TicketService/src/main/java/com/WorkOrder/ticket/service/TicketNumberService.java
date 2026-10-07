@@ -14,7 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/** 在工单创建事务中按规则分配连续的编号序号。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在工单创建事务中按规则分配连续的编号序号。
+ */
 @Service
 @RequiredArgsConstructor
 public class TicketNumberService {
@@ -23,6 +27,7 @@ public class TicketNumberService {
 
     /**
      * 分配新工单编号。计数器更新与工单写入同事务提交或回滚。
+     *
      * @param createdAt 亚洲上海时区的本次工单创建时间
      * @return 包含前缀、日期和补零序号的工单编号
      */
@@ -56,7 +61,11 @@ public class TicketNumberService {
         return rule.format(scopeKey, lastValue + 1);
     }
 
-    /** @return 已校验的当前规则；数据库缺失时返回系统默认规则 */
+    /**
+     * 处理 currentRule 对应的工单编号服务操作。
+     *
+     * @return 已校验的当前规则；数据库缺失时返回系统默认规则
+     */
     private TicketNumberRule currentRule() {
         String raw = ticketNumberMapper.selectRuleJson();
         if (raw == null) {

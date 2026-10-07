@@ -13,6 +13,11 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @EnableFeignClients
 @org.springframework.scheduling.annotation.EnableScheduling
 public class NotificationApplication {
+    /**
+     * 启动服务。
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(NotificationApplication.class, args);
     }

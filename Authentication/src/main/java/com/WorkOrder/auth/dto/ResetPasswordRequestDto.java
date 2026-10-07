@@ -7,6 +7,11 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 通过邮箱验证码重置密码的请求。
+ */
 @Data
 public class ResetPasswordRequestDto {
 

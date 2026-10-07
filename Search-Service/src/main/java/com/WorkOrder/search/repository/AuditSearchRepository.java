@@ -32,28 +32,46 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** 审计 ES 访问入口：组装搜索条件和写入投影，索引管理与分页读取交给内部组件。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 审计 ES 访问入口：组装搜索条件和写入投影，索引管理与分页读取交给内部组件。
+ */
 public class AuditSearchRepository {
 
-    /** 工单类审计投影标识。 */
+    /**
+     * 工单类审计投影标识。
+     */
     public static final String TICKET_KIND = "TICKET";
 
-    /** 配置类审计投影标识及来源。 */
+    /**
+     * 配置类审计投影标识及来源。
+     */
     public static final String CONFIGURATION_KIND = "CONFIGURATION";
 
-    /** 操作日志来源。 */
+    /**
+     * 操作日志来源。
+     */
     public static final String OPERATION_SOURCE = "OPERATION";
 
-    /** 状态变更日志来源。 */
+    /**
+     * 状态变更日志来源。
+     */
     public static final String STATUS_SOURCE = "STATUS";
 
-    /** 源库本地时间采用上海时区，不依赖服务进程默认时区。 */
+    /**
+     * 源库本地时间采用上海时区，不依赖服务进程默认时区。
+     */
     private static final ZoneId SOURCE_ZONE = ZoneId.of("Asia/Shanghai");
 
-    /** ES 单个 terms 条件的默认条数上限，大集合拆分成 OR 条件。 */
+    /**
+     * ES 单个 terms 条件的默认条数上限，大集合拆分成 OR 条件。
+     */
     private static final int TERMS_CHUNK_SIZE = 65536;
 
-    /** 7.12.1 高层客户端需显式添加此 HTTP 参数，确保批量写入目标是别名。 */
+    /**
+     * 7.12.1 高层客户端需显式添加此 HTTP 参数，确保批量写入目标是别名。
+     */
     private static final RequestOptions ALIAS_WRITE_OPTIONS = RequestOptions.DEFAULT.toBuilder()
             .addParameter("require_alias", "true")
             .build();
@@ -63,7 +81,13 @@ public class AuditSearchRepository {
     private final AuditSearchIndexManager indexManager;
     private final AuditSearchPageReader pageReader;
 
-    /** 创建内部组件，复用共享客户端；构造时不访问 ES 或导入源数据。 */
+    /**
+     * 创建内部组件，复用共享客户端；构造时不访问 ES 或导入源数据。
+     *
+     * @param client Elasticsearch 高级客户端
+     * @param elasticsearchProperties elasticsearch配置属性
+     * @param properties 审计搜索配置属性
+     */
     public AuditSearchRepository(RestHighLevelClient client, ElasticsearchProperties elasticsearchProperties,
                                  AuditSearchProperties properties) {
         this.client = client;
@@ -72,12 +96,22 @@ public class AuditSearchRepository {
         this.pageReader = new AuditSearchPageReader(client);
     }
 
-    /** 创建缺失索引，或校验已有别名和映射；不重建索引或切换已有别名。 */
+    /**
+     * 创建缺失索引，或校验已有别名和映射；不重建索引或切换已有别名。
+     *
+     * @return 已校验且由审计别名唯一指向的物理索引名称
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public String initializeIndex() throws IOException {
         return indexManager.initializeIndex();
     }
 
-    /** 全批校验后幂等写入并立即刷新；写入或刷新未确认时，不允许同步器推进游标。 */
+    /**
+     * 全批校验后幂等写入并立即刷新；写入或刷新未确认时，不允许同步器推进游标。
+     *
+     * @param documents 审计搜索文档列表，对应 documents
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public void bulkSave(List<AuditSearchDocument> documents) throws IOException {
         Assert.notNull(documents, "审计投影批次不能为空");
         Assert.isTrue(documents.size() <= properties.getBatchSize(), "审计投影批次超过配置上限");
@@ -93,7 +127,12 @@ public class AuditSearchRepository {
         requireCompleteBulkWrite(response, documents.size());
     }
 
-    /** 校验全部文档及批内 ID 唯一性，写入后立即刷新以保证本批可被搜索。 */
+    /**
+     * 校验全部文档及批内 ID 唯一性，写入后立即刷新以保证本批可被搜索。
+     *
+     * @param documents 审计搜索文档列表，对应 documents
+     * @return 批量请求
+     */
     private BulkRequest buildBulkRequest(List<AuditSearchDocument> documents) {
         BulkRequest request = new BulkRequest().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         Set<String> documentIds = new HashSet<>();
@@ -106,7 +145,13 @@ public class AuditSearchRepository {
         return request;
     }
 
-    /** 检查每条写入及刷新结果，异常只包含来源 ID 和计数，不回显审计正文。 */
+    /**
+     * 检查每条写入及刷新结果，异常只包含来源 ID 和计数，不回显审计正文。
+     *
+     * @param response 批量响应
+     * @param expectedCount 提交的文档数量，必须与逐项响应数量一致
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void requireCompleteBulkWrite(BulkResponse response, int expectedCount) throws IOException {
         if (response.getItems().length != expectedCount) {
             throw new IOException("审计批量写入的响应数量不完整");
@@ -124,7 +169,12 @@ public class AuditSearchRepository {
         }
     }
 
-    /** 只有写入成功、至少一个分片成功且强制刷新已确认，才认为该条记录可见。 */
+    /**
+     * 只有写入成功、至少一个分片成功且强制刷新已确认，才认为该条记录可见。
+     *
+     * @param item 单条审计文档的 Bulk 写入响应
+     * @return 该条写入成功、分片无失败且强制刷新已确认时为 true
+     */
     private boolean isWriteVisible(BulkItemResponse item) {
         if (item.isFailed()) {
             return false;
@@ -144,6 +194,7 @@ public class AuditSearchRepository {
      * @param operatorIds 数据库按当前姓名筛出的操作人 ID；null 不限制，空集合不匹配
      * @param scopeIds 工单查询为工单 ID，配置查询为日志 ID；配置键比较以数据库排序规则为准
      * @return 搜索结果仅包含来源标识和准确总数
+     * @throws IOException 处理过程中发生IO异常时
      */
     public PageResult<AuditSearchDocument> search(boolean configurations, AuditQuery query,
                                                 List<Long> operatorIds, List<Long> scopeIds) throws IOException {
@@ -156,7 +207,15 @@ public class AuditSearchRepository {
         return pageReader.readPage(properties.getIndexAlias(), searchSource, query);
     }
 
-    /** 按种类、字面关键字、可信 ID 集合和时间范围构造筛选条件。 */
+    /**
+     * 按种类、字面关键字、可信 ID 集合和时间范围构造筛选条件。
+     *
+     * @param configurations true 查询配置审计，false 查询工单操作与状态日志
+     * @param query 审计查询条件
+     * @param operatorIds 主库姓名条件筛出的操作人 ID；null 不限制，空列表无匹配
+     * @param scopeIds 工单查询为工单 ID，配置查询为日志 ID；null 不限制，空列表无匹配
+     * @return 包含种类、字面关键词、可信 ID 和时间范围的筛选条件
+     */
     private BoolQueryBuilder buildFilters(boolean configurations, AuditQuery query,
                                          List<Long> operatorIds, List<Long> scopeIds) {
         String kind = configurations ? CONFIGURATION_KIND : TICKET_KIND;
@@ -173,7 +232,13 @@ public class AuditSearchRepository {
         return filters;
     }
 
-    /** 工单匹配动作或正文，配置匹配键或前后值；通配符按字面值转义。 */
+    /**
+     * 工单匹配动作或正文，配置匹配键或前后值；通配符按字面值转义。
+     *
+     * @param filters 正在累积的 ES 布尔筛选条件
+     * @param configurations true 匹配配置键及前后值，false 匹配工单动作及正文
+     * @param keyword 查询关键词
+     */
     private void addKeywordFilter(BoolQueryBuilder filters, boolean configurations, String keyword) {
         if (!StringUtils.hasText(keyword)) {
             return;
@@ -189,7 +254,12 @@ public class AuditSearchRepository {
         filters.filter(keywordMatches);
     }
 
-    /** 时间采用上海时区，开始时间包含边界，结束时间使用规范化后的排他边界。 */
+    /**
+     * 时间采用上海时区，开始时间包含边界，结束时间使用规范化后的排他边界。
+     *
+     * @param filters 正在累积的 ES 布尔筛选条件
+     * @param query 审计查询条件
+     */
     private void addTimeFilter(BoolQueryBuilder filters, AuditQuery query) {
         if (query.getStartAt() == null && query.getEndBefore() == null) {
             return;
@@ -204,7 +274,12 @@ public class AuditSearchRepository {
         filters.filter(createdAtRange);
     }
 
-    /** 只读取来源元数据，并与源库保持相同的稳定排序和 NULL 时间位置。 */
+    /**
+     * 只读取来源元数据，并与源库保持相同的稳定排序和 NULL 时间位置。
+     *
+     * @param filters Bool查询条件构建器，对应 filters
+     * @return 搜索源数据构建器
+     */
     private SearchSourceBuilder buildSearchSource(BoolQueryBuilder filters) {
         return new SearchSourceBuilder()
                 .query(filters)
@@ -215,7 +290,13 @@ public class AuditSearchRepository {
                 .sort("sourceId", SortOrder.DESC);
     }
 
-    /** null 表示不限制，空集合表示无匹配；大集合拆分以满足 ES terms 条数限制。 */
+    /**
+     * null 表示不限制，空集合表示无匹配；大集合拆分以满足 ES terms 条数限制。
+     *
+     * @param filters 正在累积的 ES 布尔筛选条件
+     * @param field 由仓库内部指定的数值 ID 映射字段
+     * @param ids 可信主库候选 ID；null 不限制，空列表明确无匹配
+     */
     private void addIdFilter(BoolQueryBuilder filters, String field, List<Long> ids) {
         if (ids == null) {
             return;
@@ -235,12 +316,22 @@ public class AuditSearchRepository {
         filters.filter(idMatches);
     }
 
-    /** 只转义 ES 的星号、问号和反斜杠，百分号、下划线和叹号保持字面值。 */
+    /**
+     * 只转义 ES 的星号、问号和反斜杠，百分号、下划线和叹号保持字面值。
+     *
+     * @param keyword 查询关键词
+     * @return 已转义 ES 通配符的字面关键词，保留 SQL 字符 %、_ 和 !
+     */
     private String escapeWildcard(String keyword) {
         return keyword.replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?");
     }
 
-    /** 校验来源后组装完整投影，稳定 ID 使重复同步成为覆盖写入。 */
+    /**
+     * 校验来源后组装完整投影，稳定 ID 使重复同步成为覆盖写入。
+     *
+     * @param document 文档
+     * @return 索引请求
+     */
     private IndexRequest toIndexRequest(AuditSearchDocument document) {
         validateDocument(document);
         Map<String, Object> fields = buildDocumentFields(document);
@@ -248,7 +339,11 @@ public class AuditSearchRepository {
         return new IndexRequest(properties.getIndexAlias()).id(documentId).source(fields);
     }
 
-    /** 校验日志种类、主键、工单 ID 和操作人 ID，拒绝不一致的来源标识。 */
+    /**
+     * 校验日志种类、主键、工单 ID 和操作人 ID，拒绝不一致的来源标识。
+     *
+     * @param document 文档
+     */
     private void validateDocument(AuditSearchDocument document) {
         Assert.notNull(document, "审计投影不能为空");
         Assert.isTrue(document.getSourceId() != null && document.getSourceId() > 0, "审计来源 ID 无效");
@@ -268,7 +363,12 @@ public class AuditSearchRepository {
         Assert.isTrue(document.getId() == null || documentId.equals(document.getId()), "审计文档 ID 与来源不一致");
     }
 
-    /** 共用身份和时间字段，按日志种类写入对应正文；NULL 时间不写入日期字段。 */
+    /**
+     * 共用身份和时间字段，按日志种类写入对应正文；NULL 时间不写入日期字段。
+     *
+     * @param document 文档
+     * @return 对应日志种类的完整索引字段映射，不包含 null 日期
+     */
     private Map<String, Object> buildDocumentFields(AuditSearchDocument document) {
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("id", document.getSource() + ":" + document.getSourceId());

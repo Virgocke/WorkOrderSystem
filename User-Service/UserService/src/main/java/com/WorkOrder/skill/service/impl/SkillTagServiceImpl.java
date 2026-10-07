@@ -17,14 +17,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-/** 技能标签目录服务实现。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 技能标签目录服务实现。
+ */
 @Service
 @RequiredArgsConstructor
 public class SkillTagServiceImpl implements SkillTagService {
 
     private final SkillTagMapper skillTagMapper;
 
-    /** 按接口文档 16.1 查询技能标签列表。 */
+    /**
+     * 按接口文档 16.1 查询技能标签列表。
+     *
+     * @return 技能Tag列表
+     */
     @Override
     @Transactional(readOnly = true)
     public List<SkillTag> listSkillTags() {
@@ -32,7 +40,12 @@ public class SkillTagServiceImpl implements SkillTagService {
         return skills == null ? Collections.emptyList() : skills;
     }
 
-    /** 按接口文档 16.2 新增技能标签。 */
+    /**
+     * 按接口文档 16.2 新增技能标签。
+     *
+     * @param request Create技能Tag请求
+     * @return 技能Tag
+     */
     @Override
     @Transactional
     public SkillTag createSkillTag(CreateSkillTagRequest request) {
@@ -53,7 +66,13 @@ public class SkillTagServiceImpl implements SkillTagService {
         return getRequiredSkillTag(skillTag.getId());
     }
 
-    /** 按接口文档 16.2 部分更新技能标签。 */
+    /**
+     * 按接口文档 16.2 部分更新技能标签。
+     *
+     * @param id 技能标签 ID
+     * @param request Update技能Tag请求
+     * @return 技能Tag
+     */
     @Override
     @Transactional
     public SkillTag updateSkillTag(Long id, UpdateSkillTagRequest request) {
@@ -79,7 +98,12 @@ public class SkillTagServiceImpl implements SkillTagService {
         return getRequiredSkillTag(id);
     }
 
-    /** 按接口文档 16.2 删除未被处理人引用的技能标签。 */
+    /**
+     * 按接口文档 16.2 删除未被处理人引用的技能标签。
+     *
+     * @param id 技能标签 ID
+     * @return 操作是否成功
+     */
     @Override
     @Transactional
     public boolean deleteSkillTag(Long id) {
@@ -98,7 +122,12 @@ public class SkillTagServiceImpl implements SkillTagService {
         return true;
     }
 
-    /** 去除技能名称首尾空白并校验名称非空。 */
+    /**
+     * 去除技能名称首尾空白并校验名称非空。
+     *
+     * @param name 原始技能名称
+     * @return 去掉两端空白后的非空技能名称
+     */
     private String normalizeName(String name) {
         String normalized = name == null ? null : name.trim();
         if (!StringUtils.hasText(normalized)) {
@@ -107,14 +136,24 @@ public class SkillTagServiceImpl implements SkillTagService {
         return normalized;
     }
 
-    /** 校验技能名称在数据库中唯一。 */
+    /**
+     * 校验技能名称在数据库中唯一。
+     *
+     * @param name 名称
+     * @param excludeId exclude ID
+     */
     private void ensureUniqueName(String name, Long excludeId) {
         if (skillTagMapper.countByNameExcludingId(name, excludeId) > 0) {
             throw new SystemException("技能名称已存在");
         }
     }
 
-    /** 查询指定技能；不存在时抛出可转换为 404 的异常。 */
+    /**
+     * 查询指定技能；不存在时抛出可转换为 404 的异常。
+     *
+     * @param id 技能标签 ID
+     * @return 技能Tag
+     */
     private SkillTag getRequiredSkillTag(Long id) {
         SkillTag skillTag = skillTagMapper.selectSkillTagById(id);
         if (skillTag == null) {
@@ -123,7 +162,11 @@ public class SkillTagServiceImpl implements SkillTagService {
         return skillTag;
     }
 
-    /** 校验技能 ID 为正整数。 */
+    /**
+     * 校验技能 ID 为正整数。
+     *
+     * @param id 技能标签 ID
+     */
     private void requireValidId(Long id) {
         if (id == null || id <= 0) {
             throw new SystemException(SystemExceptionEnum.ILLEGAL_ARGUMENT);

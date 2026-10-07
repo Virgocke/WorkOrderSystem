@@ -33,7 +33,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** 系统配置保存在数据库中；每次推荐只读取一次，不使用本地缓存。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 系统配置保存在数据库中；每次推荐只读取一次，不使用本地缓存。
+ */
 @Service
 @RequiredArgsConstructor
 public class ConfigurationServiceImpl implements ConfigurationService {
@@ -46,6 +50,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
     /**
      * 列出所有配置项。
+     *
      * @param operatorRole 操作员角色
      * @return 配置项列表
      */
@@ -86,7 +91,14 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         return new ArrayList<>(items.values());
     }
 
-    /** 整批校验后保存，版本冲突或日志失败时回滚整批修改。 */
+    /**
+     * 整批校验后保存，版本冲突或日志失败时回滚整批修改。
+     *
+     * @param dto 请求数据
+     * @param operatorId 当前操作员的用户 ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @return 操作是否成功
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean save(SaveConfigurationsDto dto, Long operatorId, String operatorRole) {
@@ -175,7 +187,11 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         return true;
     }
 
-    /** 只有记录不存在时使用默认值，数据库失败及非法存量配置不静默降级。 */
+    /**
+     * 只有记录不存在时使用默认值，数据库失败及非法存量配置不静默降级。
+     *
+     * @return 分配权重快照
+     */
     @Override
     public AssignmentWeightsSnapshot getCurrentWeights() {
         Configuration row = configurationMapper.selectByKey(WEIGHTS_KEY);
@@ -184,6 +200,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
     /**
      * 配置项保存时使用，数据库中的非法存量数据不会被静默降级。
+     *
      * @param value 权重值
      * @param version 版本号
      * @return 权重快照
@@ -196,7 +213,12 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         }
     }
 
-    /** 数据库中的非法 SLA 配置不静默降级为默认值。 */
+    /**
+     * 数据库中的非法 SLA 配置不静默降级为默认值。
+     *
+     * @param value 待处理的值
+     * @return SLA默认值
+     */
     private SlaDefaults storedSlaDefaults(JsonNode value) {
         try {
             return SlaDefaults.fromJson(value);
@@ -205,7 +227,12 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         }
     }
 
-    /** 数据库中的非法编号规则不静默降级为默认值。 */
+    /**
+     * 数据库中的非法编号规则不静默降级为默认值。
+     *
+     * @param value 待处理的值
+     * @return 工单编号规则
+     */
     private TicketNumberRule storedTicketNumberRule(JsonNode value) {
         try {
             return TicketNumberRule.fromJson(value);
@@ -216,6 +243,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
     /**
      * 配置项持久化时使用，数据库中的非法存量数据不会被静默降级。
+     *
      * @return 默认权重快照
      */
     private AssignmentWeightsSnapshot defaultWeights() {
@@ -223,7 +251,11 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 defaults.getSla(), defaults.getRating(), 0L);
     }
 
-    /** 配置缺失时返回页面原有默认值，版本0表示尚未持久化。 */
+    /**
+     * 配置缺失时返回页面原有默认值，版本0表示尚未持久化。
+     *
+     * @return 键值映射
+     */
     private Map<String, ConfigurationItem> defaultItems() {
         Map<String, ConfigurationItem> items = new LinkedHashMap<>();
         // 工单编号规则配置
@@ -253,6 +285,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
     /**
      * 创建一个配置项。
+     *
      * @param key 配置项键
      * @param value 配置项值
      * @param description 配置项描述
@@ -262,6 +295,12 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         return new ConfigurationItem(key, value, description, 0L, null, null);
     }
 
+    /**
+     * 解析数据库中的 JSON 配置，空值或非法 JSON 直接抛出异常。
+     *
+     * @param raw 数据库中保存的原始 JSON 配置文本
+     * @return 解析后的非空 JSON 节点
+     */
     private JsonNode parse(String raw) {
         try {
             JsonNode value = objectMapper.readTree(raw);
@@ -274,7 +313,13 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         }
     }
 
-    /** 四项权重均为数字、非负、最多两位小数，且总和大于零。 */
+    /**
+     * 四项权重均为数字、非负、最多两位小数，且总和大于零。
+     *
+     * @param value 待处理的值
+     * @param version 当前数据版本
+     * @return 分配权重快照
+     */
     private AssignmentWeightsSnapshot weightsSnapshot(JsonNode value, Long version) {
         if (!value.isObject() || value.size() != WEIGHT_FIELDS.size()) {
             throw new IllegalArgumentException("分配权重必须包含skill、load、sla、rating四项");
@@ -302,6 +347,7 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
     /**
      * 要求管理员权限。
+     *
      * @param operatorRole 操作员角色
      */
     private void requireAdministrator(String operatorRole) {

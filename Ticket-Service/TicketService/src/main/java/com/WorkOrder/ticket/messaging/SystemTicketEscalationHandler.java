@@ -22,28 +22,47 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** 在消费事务内重新判定升级，固定接收人并保存升级事实，禁止使用扫描时的陈旧状态。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在消费事务内重新判定升级，固定接收人并保存升级事实，禁止使用扫描时的陈旧状态。
+ */
 @Component
 @RequiredArgsConstructor
 public class SystemTicketEscalationHandler {
-    /** 源工单锁和更新入口。 */
+    /**
+     * 源工单锁和更新入口。
+     */
     private final TicketMapper ticketMapper;
-    /** 执行时最新规则读取入口。 */
+    /**
+     * 执行时最新规则读取入口。
+     */
     private final TicketSlaConfigurationMapper configurationMapper;
-    /** 配置 JSON 解析器。 */
+    /**
+     * 配置 JSON 解析器。
+     */
     private final ObjectMapper objectMapper;
-    /** 状态历史入口。 */
+    /**
+     * 状态历史入口。
+     */
     private final TicketStatusHistoryMapper historyMapper;
-    /** 操作日志入口。 */
+    /**
+     * 操作日志入口。
+     */
     private final TicketOperationLogMapper operationLogMapper;
-    /** 同事务升级事件发布器。 */
+    /**
+     * 同事务升级事件发布器。
+     */
     private final TicketEscalatedEventPublisher publisher;
-    /** 同事务登记最终源版本的搜索变更事件。 */
+    /**
+     * 同事务登记最终源版本的搜索变更事件。
+     */
     private final TicketSearchChangePublisher searchChangePublisher;
 
     /**
      * 自动升至当前满足的最高级别；同级重复请求、已解决工单和已停用规则均无副作用。
      * 无可通知的启用用户时抛错回滚，由消息重试，避免形成无人接收的升级。
+     *
      * @param ticketId 需要重新检查的工单 ID
      * @return 是否发生升级
      */

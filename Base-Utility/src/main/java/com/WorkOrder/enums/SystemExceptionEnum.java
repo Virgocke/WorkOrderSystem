@@ -58,20 +58,36 @@ public enum SystemExceptionEnum {
     TICKET_SEARCH_NOT_READY(1090, "关键词搜索暂不可用，可清空关键词查看工单"),
     TICKET_SEARCH_JOB_CONFLICT(1091, "工单搜索任务状态已变化，请刷新后重试"),
 
+    // === 邮件投递管理相关 (1100~1109) ===
+    EMAIL_RETRY_CONFLICT(1100, "邮件任务状态或重发请求已变化，请刷新后重试"),
+
     // === 服务内部错误 ===
     INTERNAL_SERVER_ERROR(5000, "系统内部错误，请稍后重试"),
     ;
-    /** 返回给调用方的错误说明。 */
+    /**
+     * 返回给调用方的错误说明。
+     */
     private final String errMessage;
-    /** 稳定的业务错误码。 */
+    /**
+     * 稳定的业务错误码。
+     */
     private final int code;
 
-    /** @return 错误说明 */
+    /**
+     * 获取返回给调用方的错误说明。
+     *
+     * @return 错误说明
+     */
     public String getErrMessage() {
         return errMessage;
     }
 
-    /** 保存错误码与对应的错误说明。 */
+    /**
+     * 保存错误码与对应的错误说明。
+     *
+     * @param code 稳定的业务错误码
+     * @param errmessage 业务错误的默认提示
+     */
     SystemExceptionEnum(int code, String errmessage) {
         this.code = code;
         this.errMessage = errmessage;

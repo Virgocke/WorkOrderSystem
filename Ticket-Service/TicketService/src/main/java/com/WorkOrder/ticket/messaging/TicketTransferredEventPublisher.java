@@ -17,22 +17,38 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-/** 组装并发布工单转派事件。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 组装并发布工单转派事件。
+ */
 @Component
 public class TicketTransferredEventPublisher {
 
-    /** 默认工单事件 Topic。 */
+    /**
+     * 默认工单事件 Topic。
+     */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
-    /** 转派事件标签。 */
+    /**
+     * 转派事件标签。
+     */
     static final String TAG = "TRANSFERRED";
 
-    /** 与工单事务共用数据库事务的 Outbox 发布器。 */
+    /**
+     * 与工单事务共用数据库事务的 Outbox 发布器。
+     */
     private final Optional<DomainEventPublisher> domainEventPublisher;
-    /** 当前工单事件 Topic。 */
+    /**
+     * 当前工单事件 Topic。
+     */
     private final String topic;
-    /** 消息底座是否启用。 */
+    /**
+     * 消息底座是否启用。
+     */
     private final boolean messagingEnabled;
-    /** 事件载荷构建器。 */
+    /**
+     * 事件载荷构建器。
+     */
     private final ObjectMapper objectMapper;
 
     /**
@@ -111,7 +127,13 @@ public class TicketTransferredEventPublisher {
         publisher.publish(event, topic, TAG);
     }
 
-    /** 将可空的本地时间转换为带时区的事件字段。 */
+    /**
+     * 将可空的本地时间转换为带时区的事件字段。
+     *
+     * @param payload 事件载荷
+     * @param fieldName 字段名称
+     * @param value 待处理的值
+     */
     private void putDateTime(ObjectNode payload, String fieldName, LocalDateTime value) {
         if (value == null) {
             payload.putNull(fieldName);

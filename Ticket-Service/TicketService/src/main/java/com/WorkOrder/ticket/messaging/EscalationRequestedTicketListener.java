@@ -10,7 +10,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** SLA 请求的独立消费组，消费日志、工单变更和最终事件共用事务。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description SLA 请求的独立消费组，消费日志、工单变更和最终事件共用事务。
+ */
 @Component
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 @RocketMQMessageListener(
@@ -19,16 +23,31 @@ import org.springframework.stereotype.Component;
         selectorExpression = "ESCALATION_REQUESTED", consumeMode = ConsumeMode.CONCURRENTLY,
         maxReconsumeTimes = 16)
 public class EscalationRequestedTicketListener implements RocketMQListener<WorkOrderEvent> {
-    /** 同事务幂等执行器。 */
+    /**
+     * 同事务幂等执行器。
+     */
     private final IdempotentConsumerExecutor executor;
-    /** 自动升级事务处理器。 */
+    /**
+     * 自动升级事务处理器。
+     */
     private final SystemTicketEscalationHandler handler;
-    /** 独立消费组。 */
+    /**
+     * 独立消费组。
+     */
     private final String group;
-    /** 事件主题。 */
+    /**
+     * 事件主题。
+     */
     private final String topic;
 
-    /** 注入事务处理器及消息路由。 */
+    /**
+     * 注入事务处理器及消息路由。
+     *
+     * @param executor 同事务幂等执行器
+     * @param handler 自动升级事务处理器
+     * @param group 独立消费组
+     * @param topic 事件主题
+     */
     public EscalationRequestedTicketListener(IdempotentConsumerExecutor executor,
             SystemTicketEscalationHandler handler,
             @Value("${work-order.messaging.escalation-requested.consumer-group:ticket-escalation-requested-v1}") String group,
@@ -39,7 +58,11 @@ public class EscalationRequestedTicketListener implements RocketMQListener<WorkO
         this.topic = topic;
     }
 
-    /** 拒绝非 SLA 服务请求；重复事件或重复扫描都不会重复升级。 */
+    /**
+     * 拒绝非 SLA 服务请求；重复事件或重复扫描都不会重复升级。
+     *
+     * @param event 待处理的领域事件
+     */
     @Override
     public void onMessage(WorkOrderEvent event) {
         if (event == null || event.getEventId() == null || !event.getEventId().matches("[0-9a-fA-F]{32}")

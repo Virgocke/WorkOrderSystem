@@ -18,7 +18,11 @@ import java.util.Collections;
 import java.util.Map;
 
 
-/** 用户认证、注册及 OAuth2 登录态接口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 用户认证、注册及 OAuth2 登录态接口。
+ */
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -30,7 +34,10 @@ public class AuthController {
 
     /**
      * 构建用户认证、注册及 OAuth2 登录态接口。
+     *
      * @param authenticationService 认证用户资料服务
+     * @param registerService Register服务
+     * @param sendCodeService Send代码服务
      */
     public AuthController(AuthenticationService authenticationService,
                           RegisterService registerService,
@@ -53,7 +60,8 @@ public class AuthController {
 
     /**
      * 注册并直接建立登录态，避免浏览器在注册后再额外请求 OAuth2 令牌端点。
-     * @param user
+     *
+     * @param user 用户
      * @return 返回注册用户信息
      */
     @PostMapping("/register")
@@ -63,8 +71,9 @@ public class AuthController {
 
     /**
      * 发送验证码
-     * @param body
-     * @return 邮箱
+     *
+     * @param body 包含 email 字段的验证码发送请求
+     * @return 发送成功后返回邮箱地址的统一响应
      */
     @PostMapping("/forgot-password")
     public Result<Map<String,String>> sendCode(@RequestBody Map<String,String> body){
@@ -79,7 +88,8 @@ public class AuthController {
 
     /**
      * 重置密码
-     * @param request
+     *
+     * @param request Reset密码请求请求数据
      * @return 是否重置成功
      */
     @PostMapping("/reset-password")

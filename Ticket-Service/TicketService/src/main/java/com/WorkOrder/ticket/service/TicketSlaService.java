@@ -11,7 +11,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
-/** 仅在创建时确定 SLA 截止时间，配置变更不更新历史工单。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 仅在创建时确定 SLA 截止时间，配置变更不更新历史工单。
+ */
 @Service
 @RequiredArgsConstructor
 public class TicketSlaService {
@@ -21,6 +25,7 @@ public class TicketSlaService {
     /**
      * 按分类覆盖值、系统配置、内置默认值的顺序确定新工单截止时间。
      * 两项时限独立继承系统配置，不继承父分类，也不随优先级缩放。
+     *
      * @param ticket 尚未保存的新工单
      * @param category 所选分类，null SLA 表示使用系统默认值
      * @param createdAt 本次工单创建时间，两项截止时间共用同一起点
@@ -37,7 +42,11 @@ public class TicketSlaService {
         ticket.setResolutionDeadline(createdAt.plusMinutes(resolution));
     }
 
-    /** @return 本次创建读取的默认值；数据库错误或非法配置不会静默降级 */
+    /**
+     * 处理 currentDefaults 对应的工单SLA服务操作。
+     *
+     * @return 本次创建读取的默认值；数据库错误或非法配置不会静默降级
+     */
     private SlaDefaults currentDefaults() {
         String raw = configurationMapper.selectDefaultsJson();
         if (raw == null) {

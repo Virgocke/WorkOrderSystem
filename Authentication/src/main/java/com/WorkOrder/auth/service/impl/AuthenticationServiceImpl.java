@@ -12,15 +12,19 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 
-/** 根据 OAuth2 认证主体查询并组装前端登录态所需的用户资料与权限。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 根据 OAuth2 认证主体查询并组装前端登录态所需的用户资料与权限。
+ */
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
     private final UsersMapper usersMapper;
 
     /**
-     * 创建认证用户资料服务。
+     * 注入当前用户资料与权限的数据库读取组件。
      *
-     * @param usersMapper 登录与权限数据访问接口
+     * @param usersMapper 用户账号、资料与权限数据访问器
      */
     public AuthenticationServiceImpl(UsersMapper usersMapper) {
         this.usersMapper = usersMapper;

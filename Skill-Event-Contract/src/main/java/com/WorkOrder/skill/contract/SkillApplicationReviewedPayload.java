@@ -4,12 +4,23 @@ import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
 
-/** 技能审核 V1 快照契约，生产端和消费端使用相同校验。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 技能审核 V1 快照契约，生产端和消费端使用相同校验。
+ */
 public final class SkillApplicationReviewedPayload {
-    /** 工具契约类不允许实例化。 */
+    /**
+     * 工具契约类不允许实例化。
+     */
     private SkillApplicationReviewedPayload() { }
 
-    /** 校验业务身份、状态、类型和时间；返回不依赖当前申请状态的快照。 */
+    /**
+     * 校验业务身份、状态、类型和时间；返回不依赖当前申请状态的快照。
+     *
+     * @param event SKILL_APPLICATION_REVIEWED V1 事件，携带审核时的申请快照
+     * @return 通过申请身份、审核人、状态、类型及时间校验的原始 payload 节点
+     */
     public static JsonNode from(WorkOrderEvent event) {
         if (event == null || !"SKILL_APPLICATION_REVIEWED".equals(event.getEventType())
                 || event.getEventVersion() != 1 || !"SKILL_APPLICATION".equals(event.getAggregateType())

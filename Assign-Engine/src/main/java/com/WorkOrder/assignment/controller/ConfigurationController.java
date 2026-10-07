@@ -18,7 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.validation.Valid;
 import java.util.List;
 
-/** 沿用系统配置接口契约，操作人由后端认证信息取得。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 沿用系统配置接口契约，操作人由后端认证信息取得。
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/configurations")
@@ -27,14 +31,25 @@ public class ConfigurationController {
     private final CurrentUserIdProvider currentUserIdProvider;
     private final CurrentUserRoleProvider currentUserRoleProvider;
 
-    /** 获取配置列表及保存时所需的版本号。 */
+    /**
+     * 获取配置列表及保存时所需的版本号。
+     *
+     * @param authentication 当前已认证的登录信息
+     * @return 统一响应，包含配置条目列表
+     */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public Result<List<ConfigurationItem>> list(Authentication authentication) {
         return Result.success(configurationService.list(currentUserRoleProvider.get(authentication)));
     }
 
-    /** 在一个事务中保存配置并记录修改前后的值。 */
+    /**
+     * 在一个事务中保存配置并记录修改前后的值。
+     *
+     * @param dto 请求数据
+     * @param authentication 当前已认证的登录信息
+     * @return 统一响应，包含布尔值
+     */
     @PutMapping
     @PreAuthorize("hasRole('ADMIN')")
     public Result<Boolean> save(@Valid @RequestBody SaveConfigurationsDto dto,

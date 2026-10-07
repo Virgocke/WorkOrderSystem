@@ -26,9 +26,13 @@ import static org.springframework.util.StringUtils.hasText;
  */
 @Component
 public class TicketRepliedEventPublisher {
-    /** 默认工单事件 Topic。 */
+    /**
+     * 默认工单事件 Topic。
+     */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
-    /** 回复事件标签。 */
+    /**
+     * 回复事件标签。
+     */
     static final String TAG = "REPLIED";
 
     // 事务性 Outbox 发布器

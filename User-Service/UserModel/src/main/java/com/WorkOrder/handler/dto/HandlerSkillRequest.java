@@ -6,7 +6,11 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
-/** 管理员直接配置处理人技能时提交的单个技能项。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理员直接配置处理人技能时提交的单个技能项。
+ */
 @Data
 public class HandlerSkillRequest {
 

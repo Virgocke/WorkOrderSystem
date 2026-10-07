@@ -5,7 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-/** 工单编号规则；前端日期格式由这里显式映射，避免 Java 的 YYYY 周年含义。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 工单编号规则；前端日期格式由这里显式映射，避免 Java 的 YYYY 周年含义。
+ */
 public final class TicketNumberRule {
     public static final String DEFAULT_JSON = "{\"prefix\":\"WO\",\"dateFormat\":\"YYYYMMDD\",\"seqLength\":4}";
 
@@ -13,6 +17,13 @@ public final class TicketNumberRule {
     private final String dateFormat;
     private final int seqLength;
 
+    /**
+     * 构造工单编号规则。
+     *
+     * @param prefix 工单编号前缀
+     * @param dateFormat 配置中的日期格式标识
+     * @param seqLength 序号部分的位数
+     */
     private TicketNumberRule(String prefix, String dateFormat, int seqLength) {
         this.prefix = prefix;
         this.dateFormat = dateFormat;
@@ -21,6 +32,7 @@ public final class TicketNumberRule {
 
     /**
      * 校验管理员保存或数据库读取的完整规则。
+     *
      * @param value 包含 prefix、dateFormat、seqLength 的 JSON 对象
      * @return 已校验的编号规则
      */
@@ -46,13 +58,18 @@ public final class TicketNumberRule {
         return new TicketNumberRule(prefixNode.textValue(), formatNode.textValue(), lengthNode.intValue());
     }
 
-    /** @return 尚未持久化配置时采用的默认规则 */
+    /**
+     * 处理 defaults 对应的工单编号规则操作。
+     *
+     * @return 尚未持久化配置时采用的默认规则
+     */
     public static TicketNumberRule defaults() {
         return new TicketNumberRule("WO", "YYYYMMDD", 4);
     }
 
     /**
      * 生成计数范围，同一前缀和日期部分始终沿用一个递增计数器。
+     *
      * @param date 亚洲上海时区的工单创建日期
      * @return 前缀与日期组成的计数范围键
      */
@@ -71,7 +88,11 @@ public final class TicketNumberRule {
         return prefix + date.format(DateTimeFormatter.ofPattern(javaPattern));
     }
 
-    /** @return 当前序号位数允许的最大值 */
+    /**
+     * 处理 maxSequence 对应的工单编号规则操作。
+     *
+     * @return 当前序号位数允许的最大值
+     */
     public int maxSequence() {
         int limit = 1;
         for (int index = 0; index < seqLength; index++) {
@@ -82,6 +103,7 @@ public final class TicketNumberRule {
 
     /**
      * 生成带补零序号的完整编号，达到位数上限时拒绝扩位。
+     *
      * @param scopeKey 前缀与日期组成的计数范围键
      * @param sequence 已分配的正整数序号
      * @return 最终工单编号

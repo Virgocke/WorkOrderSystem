@@ -17,15 +17,27 @@ public class TicketCategoryTreeDto {
     private String name;
     private Long parentId;
     private int defaultPriority;
-    /** 响应时限（分钟）；null 表示使用系统默认值。 */
+    /**
+     * 响应时限（分钟）；null 表示使用系统默认值。
+     */
     private Integer defaultResponseSla;
-    /** 解决时限（分钟）；null 表示使用系统默认值。 */
+    /**
+     * 解决时限（分钟）；null 表示使用系统默认值。
+     */
     private Integer defaultResolutionSla;
     private String description;
-    /** 当前分类直接配置的技能标签 ID；空列表表示继承最近祖先分类。 */
+    /**
+     * 当前分类直接配置的技能标签 ID；空列表表示继承最近祖先分类。
+     */
     private List<Long> requiredSkillIds = new ArrayList<>();
     private List<TicketCategoryTreeDto> children = new ArrayList<>();
 
+    /**
+     * 将分类记录转换为分类树节点，子节点由调用方组装。
+     *
+     * @param entity 待转换的工单分类记录
+     * @return 包含分类基础信息的树节点
+     */
     public static TicketCategoryTreeDto from(TicketCategory entity) {
         TicketCategoryTreeDto response = new TicketCategoryTreeDto();
         response.setId(entity.getId());

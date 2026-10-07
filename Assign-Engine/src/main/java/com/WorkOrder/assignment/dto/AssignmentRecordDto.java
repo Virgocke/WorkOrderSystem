@@ -11,7 +11,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 分配记录响应 DTO。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 分配记录响应 DTO。
  */
 @Data
 @ApiModel(description = "分配记录响应")

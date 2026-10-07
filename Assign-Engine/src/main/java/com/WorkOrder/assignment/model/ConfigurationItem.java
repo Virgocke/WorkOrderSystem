@@ -6,7 +6,11 @@ import lombok.Value;
 
 import java.time.LocalDateTime;
 
-/** 系统配置响应，value为解析后的JSON，Long字段由公共配置序列化为字符串。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 系统配置响应，value为解析后的JSON，Long字段由公共配置序列化为字符串。
+ */
 @Value
 public class ConfigurationItem {
     String configKey;

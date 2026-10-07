@@ -18,24 +18,47 @@ import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Optional;
 
-/** 组装并发布工单升级事实。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 组装并发布工单升级事实。
+ */
 @Component
 public class TicketEscalatedEventPublisher {
-    /** 默认工单事件 Topic。 */
+    /**
+     * 默认工单事件 Topic。
+     */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
-    /** 升级事件标签。 */
+    /**
+     * 升级事件标签。
+     */
     static final String TAG = "ESCALATED";
 
-    /** 与工单事务共用数据库事务的 Outbox 发布器。 */
+    /**
+     * 与工单事务共用数据库事务的 Outbox 发布器。
+     */
     private final Optional<DomainEventPublisher> domainEventPublisher;
-    /** 当前工单事件 Topic。 */
+    /**
+     * 当前工单事件 Topic。
+     */
     private final String topic;
-    /** 消息底座是否启用。 */
+    /**
+     * 消息底座是否启用。
+     */
     private final boolean messagingEnabled;
-    /** 事件载荷构建器。 */
+    /**
+     * 事件载荷构建器。
+     */
     private final ObjectMapper objectMapper;
 
-    /** 创建事务性升级事件发布器。 */
+    /**
+     * 创建事务性升级事件发布器。
+     *
+     * @param domainEventPublisher 与工单事务共用数据库事务的 Outbox 发布器
+     * @param topic 当前工单事件 Topic
+     * @param messagingEnabled 消息底座是否启用
+     * @param objectMapper 事件载荷构建器
+     */
     public TicketEscalatedEventPublisher(
             Optional<DomainEventPublisher> domainEventPublisher,
             @Value("${work-order.messaging.ticket-topic:wo-ticket-event}") String topic,
@@ -63,14 +86,33 @@ public class TicketEscalatedEventPublisher {
         publishEvent(ticket, fromLevel, reason, escalatedAt, escalationLog, receiverIds, false);
     }
 
-    /** 发布系统升级，允许跳到最高满足级别；系统操作人为空，接收人可包含当前处理人。 */
+    /**
+     * 发布系统升级，允许跳到最高满足级别；系统操作人为空，接收人可包含当前处理人。
+     *
+     * @param ticket 工单
+     * @param fromLevel from级别
+     * @param reason 本次操作的原因
+     * @param escalatedAt 已升级时间
+     * @param escalationLog escalation日志
+     * @param receiverIds 接收人用户 ID 集合
+     */
     public void publishSystem(Tickets ticket, int fromLevel, String reason,
                               LocalDateTime escalatedAt, TicketOperationLog escalationLog,
                               Collection<Long> receiverIds) {
         publishEvent(ticket, fromLevel, reason, escalatedAt, escalationLog, receiverIds, true);
     }
 
-    /** 人工与自动升级共用事件组装和事务性 Outbox 写入。 */
+    /**
+     * 人工与自动升级共用事件组装和事务性 Outbox 写入。
+     *
+     * @param ticket 工单
+     * @param fromLevel from级别
+     * @param reason 本次操作的原因
+     * @param escalatedAt 已升级时间
+     * @param escalationLog escalation日志
+     * @param receiverIds 接收人用户 ID 集合
+     * @param automatic 是否为系统自动升级；false 表示手动升级
+     */
     private void publishEvent(Tickets ticket, int fromLevel, String reason,
                               LocalDateTime escalatedAt, TicketOperationLog escalationLog,
                               Collection<Long> receiverIds, boolean automatic) {
@@ -115,7 +157,13 @@ public class TicketEscalatedEventPublisher {
         publisher.publish(event, topic, TAG);
     }
 
-    /** 将工单的本地截止时间固化为带时区的事件字段。 */
+    /**
+     * 将工单的本地截止时间固化为带时区的事件字段。
+     *
+     * @param payload 事件载荷
+     * @param name 名称
+     * @param value 待处理的值
+     */
     private void putDateTime(ObjectNode payload, String name, LocalDateTime value) {
         if (value == null) {
             payload.putNull(name);

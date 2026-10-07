@@ -13,23 +13,42 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
-/** 技能审核独立订阅，通知和消费日志同事务提交。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 技能审核独立订阅，通知和消费日志同事务提交。
+ */
 @Component
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 @RocketMQMessageListener(consumerGroup = "${work-order.messaging.skill-consumer-group:notification-skill-review-v1}",
         topic = "${work-order.messaging.skill-topic:wo-skill-event}", selectorExpression = "REVIEWED",
         maxReconsumeTimes = 16)
 public class SkillApplicationNotificationListener implements RocketMQListener<WorkOrderEvent> {
-    /** 将消费记录与通知写入同一事务的幂等执行器。 */
+    /**
+     * 将消费记录与通知写入同一事务的幂等执行器。
+     */
     private final IdempotentConsumerExecutor executor;
-    /** 站内信与邮件统一分发服务。 */
+    /**
+     * 站内信与邮件统一分发服务。
+     */
     private final NotificationDeliveryService delivery;
-    /** 独立的技能审核消费组。 */
+    /**
+     * 独立的技能审核消费组。
+     */
     private final String group;
-    /** 技能审核事件 Topic。 */
+    /**
+     * 技能审核事件 Topic。
+     */
     private final String topic;
 
-    /** 注入幂等执行器、统一分发服务及独立订阅配置。 */
+    /**
+     * 注入幂等执行器、统一分发服务及独立订阅配置。
+     *
+     * @param executor 将消费记录与通知写入同一事务的幂等执行器
+     * @param delivery 站内信与邮件统一分发服务
+     * @param group 独立的技能审核消费组
+     * @param topic 技能审核事件 Topic
+     */
     public SkillApplicationNotificationListener(IdempotentConsumerExecutor executor, NotificationDeliveryService delivery,
             @Value("${work-order.messaging.skill-consumer-group:notification-skill-review-v1}") String group,
             @Value("${work-order.messaging.skill-topic:wo-skill-event}") String topic) {
@@ -39,7 +58,11 @@ public class SkillApplicationNotificationListener implements RocketMQListener<Wo
         this.topic = topic;
     }
 
-    /** 校验结果快照后幂等通知原申请人；异常交给 RocketMQ 重试。 */
+    /**
+     * 校验结果快照后幂等通知原申请人；异常交给 RocketMQ 重试。
+     *
+     * @param event 技能申请审核完成事件，包含原申请人及审核结果快照
+     */
     @Override
     public void onMessage(WorkOrderEvent event) {
         JsonNode p = SkillApplicationReviewedPayload.from(event);

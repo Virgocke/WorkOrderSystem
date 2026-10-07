@@ -25,6 +25,7 @@ public class SlaRecordServiceImpl implements SlaRecordService {
 
     /**
      * 获取实时SLA记录
+     *
      * @param slaRecordBoardDto SLA记录看板DTO
      * @return SLA记录分页结果
      */
@@ -42,6 +43,12 @@ public class SlaRecordServiceImpl implements SlaRecordService {
         return ticketResult.getData();
     }
 
+    /**
+     * 去掉筛选值两端空白，空值或纯空白转换为 null。
+     *
+     * @param value 原始筛选值
+     * @return 规范化后的筛选值；原值为空或纯空白时为 null
+     */
     private String normalize(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;

@@ -51,6 +51,15 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
     private final TicketOperationLogMapper ticketOperationLogMapper;
 
     // 构造器，用于依赖注入
+    /**
+     * 注入附件持久化、对象存储和工单权限校验所需的组件。
+     *
+     * @param attachmentMapper 附件数据访问器
+     * @param minioService MinIO服务
+     * @param minioProperties MinIO配置属性
+     * @param ticketMapper 工单数据访问器
+     * @param ticketOperationLogMapper 工单Operation日志数据访问器
+     */
     public AttachmentServiceImpl(AttachmentMapper attachmentMapper,
                                  MinioService minioService,
                                  MinioProperties minioProperties,
@@ -65,6 +74,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 上传图片附件
+     *
      * @param uploaderId 上传者ID
      * @param file 文件
      * @return 附件信息
@@ -145,10 +155,11 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 绑定附件到工单
+     *
      * @param uploaderId 上传者ID
      * @param ticketId 工单ID
      * @param attachmentIds 附件ID列表
-    */
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void bindToTicket(Long uploaderId, Long ticketId, List<Long> attachmentIds) {
@@ -188,7 +199,12 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
         }
     }
 
-    /** 根据工单 ID 批量获取直接绑定到工单的附件短期预览地址。 */
+    /**
+     * 根据工单 ID 批量获取直接绑定到工单的附件短期预览地址。
+     *
+     * @param ticketIds 工单 ID 集合
+     * @return 键值映射
+     */
     @Override
     public Map<Long, List<String>> getAttachmentUrlsByTicketIds(Collection<Long> ticketIds) {
         if (ticketIds == null || ticketIds.isEmpty()) {
@@ -227,7 +243,12 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
         return urlsByTicketId;
     }
 
-    /** 根据操作日志 ID 批量获取附件短期预览地址。 */
+    /**
+     * 根据操作日志 ID 批量获取附件短期预览地址。
+     *
+     * @param operationLogIds operation日志 ID 集合
+     * @return 键值映射
+     */
     @Override
     public Map<Long, List<String>> getAttachmentUrlsByOperationLogIds(Collection<Long> operationLogIds) {
         if (operationLogIds == null || operationLogIds.isEmpty()) {
@@ -267,6 +288,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 绑定附件到操作日志
+     *
      * @param uploaderId 上传者ID
      * @param ticketId 工单ID
      * @param operationLogId 操作日志ID
@@ -314,10 +336,11 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 获取附件预览信息
+     *
      * @param attachmentId 附件ID
      * @param userId 用户ID
      * @param currentUserRole 当前用户角色
-     * @return
+     * @return 文件Preview请求数据
      */
     @Override
     public FilePreviewDto getPreview(Long attachmentId, Long userId, String currentUserRole) {
@@ -370,6 +393,12 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
         }
     }
 
+    /**
+     * 校验内部备注附件的访问权限，普通用户不能读取内部备注附件。
+     *
+     * @param attachment 待访问的附件记录
+     * @param currentUserRole 当前登录角色，使用 USER、HANDLER 或 ADMIN 标识
+     */
     private void checkInternalNotePermission(Attachment attachment, String currentUserRole) {
         if (attachment.getOperationLogId() == null) {
             return;
@@ -387,6 +416,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 批量更新附件信息
+     *
      * @param entityList 附件列表
      * @return 是否更新成功
      */
@@ -399,6 +429,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 构建对象名
+     *
      * @param uploaderId 上传者ID
      * @param extension 文件扩展名
      * @return 对象名
@@ -411,6 +442,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 规范化原始文件名
+     *
      * @param originalName 原始文件名
      * @param defaultExtension 默认扩展名
      * @return 规范化后的文件名
@@ -432,6 +464,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 补偿 MinIO 对象
+     *
      * @param objectName 对象名
      * @param originalException 原始异常
      */
@@ -446,6 +479,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 检测文件类型
+     *
      * @param file 文件
      * @return 文件类型
      */
@@ -478,6 +512,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 读取文件头
+     *
      * @param inputStream 输入流
      * @param header 文件头
      * @return 读取的字节数
@@ -497,6 +532,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 检查字节数组是否匹配给定的值
+     *
      * @param bytes 要检查的字节数组
      * @param offset 偏移量
      * @param expected 要匹配的值
@@ -516,6 +552,7 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
 
     /**
      * 检查字节数组是否与给定的 ASCII 字符串匹配
+     *
      * @param bytes 要检查的字节数组
      * @param offset 偏移量
      * @param expected 要匹配的 ASCII 字符串
@@ -535,7 +572,9 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
     }
 
     /**
-     * 枚举类，表示图片类型
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description 枚举类，表示图片类型
      */
     private enum ImageType {
         JPEG(".jpg", "image/jpeg"),
@@ -547,6 +586,12 @@ public class AttachmentServiceImpl extends ServiceImpl<AttachmentMapper, Attachm
         private final String extension;
         private final String contentType;
 
+        /**
+         * 定义图片扩展名与对应的媒体类型。
+         *
+         * @param extension 文件扩展名
+         * @param contentType 图片对应的 MIME 类型
+         */
         ImageType(String extension, String contentType) {
             this.extension = extension.toLowerCase(Locale.ROOT);
             this.contentType = contentType;

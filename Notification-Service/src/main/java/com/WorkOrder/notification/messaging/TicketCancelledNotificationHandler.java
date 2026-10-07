@@ -8,18 +8,32 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-/** 根据撤销事件通知相关创建人和处理人。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 根据撤销事件通知相关创建人和处理人。
+ */
 @Component
 public class TicketCancelledNotificationHandler {
-    /** 站内通知写入入口。 */
+    /**
+     * 站内通知写入入口。
+     */
     private final NotificationDeliveryService deliveryService;
 
-    /** 注入站内通知写入入口。 */
+    /**
+     * 注入站内通知写入入口。
+     *
+     * @param deliveryService 在消费事务内同时写入站内信、EMAIL 通知和邮件快照任务的渠道分发服务
+     */
     public TicketCancelledNotificationHandler(NotificationDeliveryService deliveryService) {
         this.deliveryService = deliveryService;
     }
 
-    /** 使用事件内的接收人快照生成站内通知，写入失败则重试消息。 */
+    /**
+     * 使用事件内的接收人快照生成站内通知，写入失败则重试消息。
+     *
+     * @param event 已通过信封校验的工单撤销事件，载荷保存本次动作的业务与接收人快照
+     */
     public void handle(WorkOrderEvent event) {
         TicketCancelledPayload payload = TicketCancelledPayload.from(event);
         String content = "工单 " + payload.getTicketNo() + " 已撤销。";

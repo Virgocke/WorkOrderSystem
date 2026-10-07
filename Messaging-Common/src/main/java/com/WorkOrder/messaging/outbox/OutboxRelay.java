@@ -10,7 +10,11 @@ import java.net.UnknownHostException;
 import java.util.List;
 import java.util.UUID;
 
-/** 周期性认领并投递 Outbox 消息。数据库认领事务在网络发送前已提交。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 周期性认领并投递 Outbox 消息。数据库认领事务在网络发送前已提交。
+ */
 public class OutboxRelay {
     private static final Logger LOGGER = LoggerFactory.getLogger(OutboxRelay.class);
 

@@ -20,6 +20,12 @@ public class MailService {
     @Value("${spring.mail.username}")
     private String from;
 
+    /**
+     * 向指定邮箱发送验证码邮件。
+     *
+     * @param to 验证码邮件的收件邮箱
+     * @param code 待发送的邮箱验证码
+     */
     public void sendVerificationCode(String to, String code){
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);

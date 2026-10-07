@@ -16,7 +16,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;
 
-/** 工单创建后计算候选人并幂等地产生自动派单提议。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 工单创建后计算候选人并幂等地产生自动派单提议。
+ */
 @Component
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 @RocketMQMessageListener(
@@ -26,23 +30,45 @@ import java.util.regex.Pattern;
         consumeMode = ConsumeMode.CONCURRENTLY,
         maxReconsumeTimes = 16)
 public class TicketCreatedAssignmentListener implements RocketMQListener<WorkOrderEvent> {
-    /** 事件 ID 的固定格式。 */
+    /**
+     * 事件 ID 的固定格式。
+     */
     private static final Pattern EVENT_ID = Pattern.compile("[0-9a-fA-F]{32}");
-    /** 服务日志。 */
+    /**
+     * 服务日志。
+     */
     private static final Logger LOGGER = LoggerFactory.getLogger(TicketCreatedAssignmentListener.class);
 
-    /** 消费日志和提议 Outbox 的同事务执行器。 */
+    /**
+     * 消费日志和提议 Outbox 的同事务执行器。
+     */
     private final IdempotentConsumerExecutor executor;
-    /** 现有的处理人评分算法。 */
+    /**
+     * 现有的处理人评分算法。
+     */
     private final AssignEngineService assignEngineService;
-    /** 自动派单提议发布器。 */
+    /**
+     * 自动派单提议发布器。
+     */
     private final AssignmentProposedEventPublisher proposalPublisher;
-    /** 独立消费组。 */
+    /**
+     * 独立消费组。
+     */
     private final String consumerGroup;
-    /** 工单事件 Topic。 */
+    /**
+     * 工单事件 Topic。
+     */
     private final String topic;
 
-    /** 注入评分、发布和幂等组件。 */
+    /**
+     * 注入评分、发布和幂等组件。
+     *
+     * @param executor 消费日志和提议 Outbox 的同事务执行器
+     * @param assignEngineService 现有的处理人评分算法
+     * @param proposalPublisher 自动派单提议发布器
+     * @param consumerGroup 独立消费组
+     * @param topic 工单事件 Topic
+     */
     public TicketCreatedAssignmentListener(
             IdempotentConsumerExecutor executor,
             AssignEngineService assignEngineService,
@@ -57,7 +83,11 @@ public class TicketCreatedAssignmentListener implements RocketMQListener<WorkOrd
         this.topic = topic;
     }
 
-    /** 消费创建事实；无可用候选人时工单保留待分配状态，供管理员处理。 */
+    /**
+     * 消费创建事实；无可用候选人时工单保留待分配状态，供管理员处理。
+     *
+     * @param event 待处理的领域事件
+     */
     @Override
     public void onMessage(WorkOrderEvent event) {
         if (event == null || event.getEventId() == null

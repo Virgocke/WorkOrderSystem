@@ -18,22 +18,38 @@ import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Optional;
 
-/** 组装并发布工单催办事件。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 组装并发布工单催办事件。
+ */
 @Component
 public class TicketRemindedEventPublisher {
 
-    /** 默认工单事件 Topic。 */
+    /**
+     * 默认工单事件 Topic。
+     */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
-    /** 催办事件标签。 */
+    /**
+     * 催办事件标签。
+     */
     static final String TAG = "REMINDED";
 
-    /** 与工单事务共用数据库事务的 Outbox 发布器。 */
+    /**
+     * 与工单事务共用数据库事务的 Outbox 发布器。
+     */
     private final Optional<DomainEventPublisher> domainEventPublisher;
-    /** 当前工单事件 Topic。 */
+    /**
+     * 当前工单事件 Topic。
+     */
     private final String topic;
-    /** 消息底座是否启用。 */
+    /**
+     * 消息底座是否启用。
+     */
     private final boolean messagingEnabled;
-    /** 事件载荷构建器。 */
+    /**
+     * 事件载荷构建器。
+     */
     private final ObjectMapper objectMapper;
 
     /**

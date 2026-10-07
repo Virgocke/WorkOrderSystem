@@ -3,7 +3,11 @@ package com.WorkOrder.messaging.consumer;
 import com.WorkOrder.messaging.contract.WorkOrderEvent;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 保证消费日志和业务写入位于同一个本地事务。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 保证消费日志和业务写入位于同一个本地事务。
+ */
 public class IdempotentConsumerExecutor {
     private final ConsumeLogMapper consumeLogMapper;
 
@@ -20,12 +24,12 @@ public class IdempotentConsumerExecutor {
      * 在同一个本地事务中登记消费日志并执行业务动作。
      * 业务动作抛出异常时，消费日志和业务数据会一起回滚，异常继续交给监听器触发重试。
      *
-     * @param consumerGroup 业务消费组
-     * @param event 统一事件信封
+     * @param consumerGroup 参与消费幂等唯一键的业务消费组
+     * @param event 包含稳定 eventId 和事件类型的统一信封
      * @param topic 消息来源 Topic
      * @param tag 消息 Tag
-     * @param businessAction 需要幂等保护的业务动作
-     * @return 首次消费并执行了业务动作时返回 true，重复事件返回 false
+     * @param businessAction 首次消费时在同一本地事务执行的业务写入动作
+     * @return 首次登记并完成业务动作时为 true；同消费组重复 eventId 时为 false 且不执行业务动作
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean execute(String consumerGroup, WorkOrderEvent event, String topic,

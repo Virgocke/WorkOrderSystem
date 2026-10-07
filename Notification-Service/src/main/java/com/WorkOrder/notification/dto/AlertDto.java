@@ -7,7 +7,7 @@ import lombok.Data;
 /**
  * @author Virgor
  * @date 2026年09月19日 00:10
- * @description
+ * @description 告警请求数据，封装对应的业务职责。
  */
 @Data
 public class AlertDto extends PageParams {

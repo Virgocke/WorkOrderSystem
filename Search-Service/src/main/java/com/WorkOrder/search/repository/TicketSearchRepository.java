@@ -60,15 +60,21 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * 内部搜索存储能力；不访问 MySQL、不发布消息、不承担业务授权。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 内部搜索存储能力；不访问 MySQL、不发布消息、不承担业务授权。
  * 写入只接受服务端解析的受管目标，以源版本原子拒绝重复或乱序旧投影。
  */
 public class TicketSearchRepository {
 
-    /** 基础分页允许的最大每页记录数。 */
+    /**
+     * 基础分页允许的最大每页记录数。
+     */
     private static final int MAX_PAGE_SIZE = 100;
 
-    /** 基础 from/size 分页窗口上限，页码与每页数量的乘积不能超过此值。 */
+    /**
+     * 基础 from/size 分页窗口上限，页码与每页数量的乘积不能超过此值。
+     */
     private static final int MAX_RESULT_WINDOW = 10000;
 
     /**
@@ -78,10 +84,14 @@ public class TicketSearchRepository {
     private static final RequestOptions ALIAS_WRITE_OPTIONS = RequestOptions.DEFAULT.toBuilder()
             .addParameter("require_alias", "true").build();
 
-    /** Spring 容器管理的共享客户端，执行索引、文档和搜索 HTTP 请求。 */
+    /**
+     * Spring 容器管理的共享客户端，执行索引、文档和搜索 HTTP 请求。
+     */
     private final RestHighLevelClient client;
 
-    /** 仓库使用的索引别名和批量写入数量上限配置。 */
+    /**
+     * 仓库使用的索引别名和批量写入数量上限配置。
+     */
     private final ElasticsearchProperties properties;
 
     /**
@@ -203,7 +213,14 @@ public class TicketSearchRepository {
         return Collections.unmodifiableMap(versions);
     }
 
-    /** 只承认完整投影协议中的数值版本和稳定字符串 ID，不掩盖内部版本写入造成的错配。 */
+    /**
+     * 只承认完整投影协议中的数值版本和稳定字符串 ID，不掩盖内部版本写入造成的错配。
+     *
+     * @param ticketId 本次实时读取的正整数工单 ID
+     * @param document ES 实时 GET 响应，包含 _id、_version 与 _source
+     * @return 已核对文档身份及外部版本协议的存储版本记录
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private TicketSearchStoredVersion readStoredVersion(Long ticketId, GetResponse document) throws IOException {
         String source = document.getSourceAsString();
         JsonNode fields = source == null ? null : documentMapper.readTree(source);
@@ -374,7 +391,7 @@ public class TicketSearchRepository {
      * 在 ES 分页前添加业务排序及稳定次序；截止时间空值在前，与 MySQL 升序一致。
      * 映射升级前的空字段采用 date 兜底，正常索引初始化会补齐截止时间映射。
      *
-     * @param source 搜索源
+     * @param source 正在构建的 ES 分页查询请求体
      * @param sort 排序字段
      */
     private void addSort(SearchSourceBuilder source, String sort) {
@@ -449,7 +466,11 @@ public class TicketSearchRepository {
                 .source(documentMapper.writeValueAsString(document), XContentType.JSON);
     }
 
-    /** 校验固定写目标，禁止把业务读别名或物理索引当作增量写入入口。 */
+    /**
+     * 校验固定写目标，禁止把业务读别名或物理索引当作增量写入入口。
+     *
+     * @param target 系统登记的不可变任务代次、物理索引与专属写别名
+     */
     private void validateTarget(TicketSearchWriteTarget target) {
         Assert.notNull(target, "工单搜索写目标不能为空");
         Assert.hasText(target.getWriteAlias(), "工单搜索写别名不能为空");
@@ -457,7 +478,13 @@ public class TicketSearchRepository {
         Assert.isTrue(!target.getWriteAlias().equals(target.getPhysicalIndex()), "工单投影必须使用受管写别名");
     }
 
-    /** 409 本身不足以表示完成，只接受明确的版本冲突类型。 */
+    /**
+     * 409 本身不足以表示完成，只接受明确的版本冲突类型。
+     *
+     * @param status 该单项写入的 HTTP 状态码
+     * @param failure 该单项的顶层 ES 异常
+     * @return 状态为 409 且顶层错误类型明确为版本冲突时为 true
+     */
     private boolean isVersionConflict(RestStatus status, Throwable failure) {
         return status == RestStatus.CONFLICT
                 && ElasticsearchFailureClassifier.hasType(failure, "version_conflict_engine_exception");

@@ -12,7 +12,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 在环境准备和应用上下文初始化两个阶段，将项目统一配置映射到
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在环境准备和应用上下文初始化两个阶段，将项目统一配置映射到
  * RocketMQ Spring Starter 的原生配置名。
  * {@code bootstrap.yaml} 可能晚于环境后处理器加载，因此上下文初始化阶段会再次桥接。
  * 显式配置的 rocketmq.* 始终拥有更高优先级。

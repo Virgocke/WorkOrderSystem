@@ -34,6 +34,7 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
 
     /**
      * 获取工单类别树
+     *
      * @return 工单类别树
      */
     @Override
@@ -76,7 +77,8 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
 
     /**
      * 创建工单类别
-     * @param ticketCategoryDto
+     *
+     * @param ticketCategoryDto 工单分类请求数据
      * @return 创建的工单类别
      */
     @Transactional
@@ -114,8 +116,9 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
 
     /**
      * 更新工单类别
-     * @param id
-     * @param ticketCategoryDto
+     *
+     * @param id 工单 ID
+     * @param ticketCategoryDto 工单分类请求数据
      * @return 更新的工单类别
      */
     @Override
@@ -140,7 +143,8 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
 
     /**
      * 删除工单类别
-     * @param id
+     *
+     * @param id 工单 ID
      * @return 是否删除成功
      */
     @Override
@@ -158,7 +162,11 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
         return true;
     }
 
-    /** 验证技能 ID 均为已存在且不重复的标签。 */
+    /**
+     * 验证技能 ID 均为已存在且不重复的标签。
+     *
+     * @param skillIds 技能 ID 集合
+     */
     private void validateSkills(List<Long> skillIds) {
         if (skillIds == null) {
             return;
@@ -171,7 +179,12 @@ public class TicketCategoryServiceImpl implements TicketCategoryService {
         }
     }
 
-    /** 仅在请求显式给出 requiredSkillIds 时覆盖分类技能配置。 */
+    /**
+     * 仅在请求显式给出 requiredSkillIds 时覆盖分类技能配置。
+     *
+     * @param categoryId 工单分类 ID
+     * @param skillIds 技能 ID 集合
+     */
     private void replaceSkills(Long categoryId, List<Long> skillIds) {
         if (skillIds == null) {
             return;

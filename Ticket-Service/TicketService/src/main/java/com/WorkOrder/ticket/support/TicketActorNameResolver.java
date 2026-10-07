@@ -16,7 +16,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** 统一解析工单操作人显示名称，避免时间线和操作日志分别调用用户服务。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 统一解析工单操作人显示名称，避免时间线和操作日志分别调用用户服务。
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

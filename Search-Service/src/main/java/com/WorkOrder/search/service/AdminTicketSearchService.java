@@ -36,6 +36,7 @@ public class AdminTicketSearchService {
 
     /**
      * 创建管理员工单搜索服务，仅保存依赖，不主动连接节点或创建索引。
+     *
      * @param ticketSearchRepository ES 关闭时允许缺失的工单搜索仓库
      * @param readinessService 基于主库及真实别名的查询就绪门禁
      */
@@ -52,6 +53,7 @@ public class AdminTicketSearchService {
      * @return ES 投影的当前页及准确命中总数
      * @throws IllegalArgumentException 条件为空、优先级或仓库查询参数不合法
      * @throws SystemException 同步未就绪、ES 查询失败或查询期间已发布目标发生变化
+     * @throws IOException 处理过程中发生IO异常时
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TicketSearchPage search(TicketSearchQuery source) throws IOException {
@@ -80,7 +82,12 @@ public class AdminTicketSearchService {
         return result;
     }
 
-    /** 复制请求，将空白、all 状态及优先级 0 转换为不限制对应条件。 */
+    /**
+     * 复制请求，将空白、all 状态及优先级 0 转换为不限制对应条件。
+     *
+     * @param source 待转换或读取的源数据
+     * @return 工单搜索查询条件
+     */
     private TicketSearchQuery normalizeQuery(TicketSearchQuery source) {
 
         Assert.notNull(source, "搜索条件不能为空");
@@ -109,6 +116,7 @@ public class AdminTicketSearchService {
 
     /**
      * 验证查询参数
+     *
      * @param query 查询参数
      */
     private void validateQuery(TicketSearchQuery query) {
@@ -119,6 +127,7 @@ public class AdminTicketSearchService {
 
     /**
      * 去除字符串两端的空格，如果结果为空则返回null
+     *
      * @param value 要转换的值
      * @return 若值为空或仅包含空格则返回null，否则返回去除两端空格的字符串
      */

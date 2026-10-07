@@ -23,7 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** 部门目录查询服务实现。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 部门目录查询服务实现。
+ */
 @Service
 @RequiredArgsConstructor
 public class DepartmentDirectoryServiceImpl implements DepartmentDirectoryService {

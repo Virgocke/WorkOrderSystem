@@ -27,7 +27,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import javax.sql.DataSource;
 
-/** 消息底座自动配置；只有 work-order.messaging.enabled=true 时生效。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 消息底座自动配置；只有 work-order.messaging.enabled=true 时生效。
+ */
 @Configuration
 @ConditionalOnClass({DataSource.class, NamedParameterJdbcTemplate.class})
 @ConditionalOnBean(DataSource.class)
@@ -102,6 +106,11 @@ public class MessagingAutoConfiguration {
         return new IdempotentConsumerExecutor(consumeLogMapper);
     }
 
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description RocketMQ发送器配置，封装对应的业务职责。
+     */
     @Configuration
     @ConditionalOnClass(RocketMQTemplate.class)
     @ConditionalOnProperty(prefix = "work-order.messaging", name = {"enabled", "outbox.enabled"},
@@ -124,6 +133,11 @@ public class MessagingAutoConfiguration {
         }
     }
 
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description OutboxScheduling配置，封装对应的业务职责。
+     */
     @Configuration
     @EnableScheduling
     @ConditionalOnProperty(prefix = "work-order.messaging", name = {"enabled", "outbox.enabled"},
@@ -156,6 +170,11 @@ public class MessagingAutoConfiguration {
         }
     }
 
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description 指标配置，封装对应的业务职责。
+     */
     @Configuration
     @ConditionalOnClass(MeterRegistry.class)
     @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")

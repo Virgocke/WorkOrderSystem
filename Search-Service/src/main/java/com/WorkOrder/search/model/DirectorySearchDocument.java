@@ -7,7 +7,11 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 目录搜索投影仅保存可搜索字段，用户 ID 与处理人档案 ID 严格区分，不读取密码。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 目录搜索投影仅保存可搜索字段，用户 ID 与处理人档案 ID 严格区分，不读取密码。
+ */
 @Getter
 @Setter
 @EqualsAndHashCode

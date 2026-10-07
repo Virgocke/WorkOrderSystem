@@ -10,33 +10,37 @@ import java.util.List;
 /**
  * @author Virgor
  * @date 2026年09月13日 03:43
- * @description
+ * @description 管理工单分类及其分类树。
  */
 public interface TicketCategoryService {
     /**
      * 获取工单类别树
+     *
      * @return 工单类别树
      */
     List<TicketCategoryTreeDto> getTicketCategoryTree();
 
     /**
      * 创建工单类别
-     * @param ticketCategoryDto
+     *
+     * @param ticketCategoryDto 工单分类请求数据
      * @return 创建的工单类别
      */
     TicketCategory createTicketCategory(TicketCategoryDto ticketCategoryDto);
 
     /**
      * 更新工单类别
-     * @param id
-     * @param ticketCategoryDto
+     *
+     * @param id 工单 ID
+     * @param ticketCategoryDto 工单分类请求数据
      * @return 更新的工单类别
      */
     TicketCategory updateTicketCategory(Long id, TicketCategoryDto ticketCategoryDto);
 
     /**
      * 删除工单类别
-     * @param id
+     *
+     * @param id 工单 ID
      * @return 删除结果
      */
     Boolean deleteTicketCategory(Long id);

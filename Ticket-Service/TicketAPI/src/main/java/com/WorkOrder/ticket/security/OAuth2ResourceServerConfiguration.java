@@ -12,7 +12,11 @@ import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
 
-/** 用户服务的 OAuth2 资源服务器配置，在本地解析并验证 Bearer JWT。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 用户服务的 OAuth2 资源服务器配置，在本地解析并验证 Bearer JWT。
+ */
 @Configuration
 @EnableResourceServer
 @EnableGlobalMethodSecurity(prePostEnabled = true)
@@ -46,7 +50,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
     /**
      * 声明用户服务资源标识和本地 JWT 令牌存储方式。
      *
-     * @param resources 资源服务器配置器
+     * @param resources OAuth2 资源服务器配置构建器
      */
     @Override
     public void configure(ResourceServerSecurityConfigurer resources) {
@@ -56,7 +60,7 @@ public class OAuth2ResourceServerConfiguration extends ResourceServerConfigurerA
     /**
      * 保护用户和处理人资料接口，调用方必须携带 OAuth2 Bearer JWT。
      *
-     * @param http HTTP 安全配置器
+     * @param http HTTP 认证与访问控制配置构建器
      * @throws Exception 配置资源权限失败时抛出
      */
     @Override

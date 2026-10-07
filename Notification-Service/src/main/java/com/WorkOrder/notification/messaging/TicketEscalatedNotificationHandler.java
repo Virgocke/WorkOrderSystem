@@ -10,15 +10,28 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-/** 将工单升级事件转换为接收人站内通知，并为自动升级创建告警记录。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 将工单升级事件转换为接收人站内通知，并为自动升级创建告警记录。
+ */
 @Component
 public class TicketEscalatedNotificationHandler {
-    /** 统一通知渠道分发入口。 */
+    /**
+     * 统一通知渠道分发入口。
+     */
     private final NotificationDeliveryService deliveryService;
-    /** 自动升级告警记录，与站内通知同事务写入。 */
+    /**
+     * 自动升级告警记录，与站内通知同事务写入。
+     */
     private final AlertRecordMapper alertRecordMapper;
 
-    /** 创建升级事件通知处理器。 */
+    /**
+     * 创建升级事件通知处理器。
+     *
+     * @param deliveryService 统一通知渠道分发入口
+     * @param alertRecordMapper 自动升级告警记录，与站内通知同事务写入
+     */
     public TicketEscalatedNotificationHandler(NotificationDeliveryService deliveryService, AlertRecordMapper alertRecordMapper) {
         this.deliveryService = deliveryService;
         this.alertRecordMapper = alertRecordMapper;

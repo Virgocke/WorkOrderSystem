@@ -3,29 +3,58 @@ package com.WorkOrder.model.notification;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Getter;
 
-/** 工单通知渠道；站内信固定开启，邮件由管理员控制，不提供短信投递。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 工单通知渠道；站内信固定开启，邮件由管理员控制，不提供短信投递。
+ */
 @Getter
 public final class NotificationChannels {
-    /** 未保存配置时沿用页面默认值。 */
+    /**
+     * 未保存配置时沿用页面默认值。
+     */
     public static final String DEFAULT_JSON = "{\"internal\":true,\"email\":true}";
-    /** 是否为新消费的工单事件创建邮件任务。 */
+    /**
+     * 是否为新消费的工单事件创建邮件任务。
+     */
     private final boolean email;
 
+    /**
+     * 构造通知渠道配置。
+     *
+     * @param email 是否为新消费的工单事件创建邮件任务
+     */
     private NotificationChannels(boolean email) {
         this.email = email;
     }
 
-    /** 校验新提交的完整配置；拒绝关闭站内信、非布尔值及额外字段。 */
+    /**
+     * 校验新提交的完整配置；拒绝关闭站内信、非布尔值及额外字段。
+     *
+     * @param value 待处理的值
+     * @return 通知Channels
+     */
     public static NotificationChannels fromJson(JsonNode value) {
         return parse(value, false);
     }
 
-    /** 兼容旧库中的布尔 sms 字段，忽略其值；下一次保存时移除该字段。 */
+    /**
+     * 兼容旧库中的布尔 sms 字段，忽略其值；下一次保存时移除该字段。
+     *
+     * @param value 待处理的值
+     * @return 通知Channels
+     */
     public static NotificationChannels fromStoredJson(JsonNode value) {
         return parse(value, true);
     }
 
-    /** 统一保存和读取约束，存量兼容只限于已废弃的短信字段。 */
+    /**
+     * 统一保存和读取约束，存量兼容只限于已废弃的短信字段。
+     *
+     * @param value 通知渠道的 JSON 配置
+     * @param stored 是否为读取存量配置；仅此时兼容已废弃的 sms 字段
+     * @return 校验后的通知渠道配置
+     */
     private static NotificationChannels parse(JsonNode value, boolean stored) {
         boolean legacy = stored && value != null && value.has("sms") && value.get("sms").isBoolean();
         if (value == null || !value.isObject() || value.size() != (legacy ? 3 : 2)

@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Virgor
  * @date 2026年09月12日 00:33
- * @description
+ * @description 生成邮箱验证码并保存到 Redis，限制重复发送并在验证成功后消费验证码。
  */
 @Service
 @RequiredArgsConstructor
@@ -33,7 +33,8 @@ public class SendCodeServiceImpl implements SendCodeService {
 
     /**
      * 发送验证码
-     * @param email
+     *
+     * @param email 邮箱地址
      */
     @Async
     @Override
@@ -60,8 +61,9 @@ public class SendCodeServiceImpl implements SendCodeService {
 
     /**
      * 验证验证码
-     * @param email
-     * @param code
+     *
+     * @param email 邮箱地址
+     * @param code 业务代码
      * @return 验证结果
      */
     @Override

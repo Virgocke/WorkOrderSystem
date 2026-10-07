@@ -10,7 +10,9 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * 创建用户请求
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 创建用户请求
  */
 @Data
 public class CreateUserRequest {

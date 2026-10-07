@@ -12,24 +12,38 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
 import java.time.LocalDateTime;
 
-/** 所有工单事件共用的渠道分发；通知、邮件任务和消费日志在同一事务提交。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 所有工单事件共用的渠道分发；通知、邮件任务和消费日志在同一事务提交。
+ */
 @Service
 @RequiredArgsConstructor
 public class NotificationDeliveryService {
-    /** 站内信和邮件通知记录。 */
+    /**
+     * 站内信和邮件通知记录。
+     */
     private final NotificationMapper notificationMapper;
-    /** 实时配置与收件邮箱查询。 */
+    /**
+     * 实时配置与收件邮箱查询。
+     */
     private final NotificationChannelMapper channelMapper;
-    /** 独立邮件投递队列。 */
+    /**
+     * 独立邮件投递队列。
+     */
     private final EmailDeliveryMapper emailMapper;
-    /** 复用项目 JSON 解析器。 */
+    /**
+     * 复用项目 JSON 解析器。
+     */
     private final ObjectMapper objectMapper;
 
-    /** 保存站内信，并按本次消费读取的配置创建邮件任务；禁止脱离消费事务调用。 */
+    /**
+     * 在调用方消费事务中保存站内信，并按当前渠道配置生成 EMAIL 通知及邮件快照任务。
+     *
+     * @param internal 尚未持久化的 INTERNAL 通知，包含事件 ID、原接收人及通知内容
+     */
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public void deliver(Notifications internal) {
         NotificationChannels channels = currentChannels();
@@ -41,7 +55,7 @@ public class NotificationDeliveryService {
         }
         String recipient = channelMapper.selectEmail(internal.getReceiverId());
         recipient = recipient == null ? null : recipient.trim();
-        boolean valid = validRecipient(recipient);
+        boolean valid = EmailRecipientValidator.isValid(recipient);
         Notifications email = new Notifications();
         email.setSourceEventId(internal.getSourceEventId());
         email.setTicketId(internal.getTicketId());
@@ -61,6 +75,8 @@ public class NotificationDeliveryService {
         task.setContent(email.getContent());
         task.setStatus(valid ? "PENDING" : "FAILED");
         task.setAttempts(0);
+        task.setRetryRound(0);
+        task.setTotalAttempts(0L);
         task.setNextAttemptAt(now);
         task.setLastError(valid ? null : "接收人未启用或邮箱缺失、不合法");
         task.setCreatedAt(now);
@@ -70,7 +86,11 @@ public class NotificationDeliveryService {
         }
     }
 
-    /** 仅缺少配置时采用默认值；数据库异常和损坏 JSON 交给消息重试处理。 */
+    /**
+     * 仅缺少配置时采用默认值；数据库异常和损坏 JSON 交给消息重试处理。
+     *
+     * @return 本次消费读取并校验后的渠道配置；仅数据库无配置记录时采用默认值
+     */
     private NotificationChannels currentChannels() {
         String raw = channelMapper.selectChannels();
         try {
@@ -81,18 +101,4 @@ public class NotificationDeliveryService {
         }
     }
 
-    /** 只接受单个标准邮箱，不接受地址列表、显示名或换行。 */
-    private boolean validRecipient(String recipient) {
-        if (recipient == null || recipient.isEmpty() || recipient.length() > 254
-                || recipient.contains("\r") || recipient.contains("\n")) {
-            return false;
-        }
-        try {
-            InternetAddress address = new InternetAddress(recipient, true);
-            address.validate();
-            return recipient.equals(address.getAddress()) && recipient.contains("@");
-        } catch (AddressException exception) {
-            return false;
-        }
-    }
 }

@@ -24,7 +24,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
- * OAuth2 授权服务器：负责签发带签名的 JWT 访问令牌与刷新令牌。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description OAuth2 授权服务器：负责签发带签名的 JWT 访问令牌与刷新令牌。
  * 当前保留 password grant 供内部前端联调；对第三方登录应切换到 authorization_code + PKCE。
  */
 @Configuration
@@ -50,6 +52,7 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
      * @param authenticationManager 用户名密码认证管理器
      * @param userDetailsService 用户资料查询服务
      * @param passwordEncoder 客户端密钥编码器
+     * @param userIdTokenEnhancer 用户ID令牌Enhancer
      */
     public OAuth2AuthorizationServerConfiguration(AuthenticationManager authenticationManager,
                                                   UserDetailsService userDetailsService,
@@ -63,6 +66,7 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
 
     /**
      * 创建令牌服务，并设置令牌服务参数。
+     *
      * @return 令牌服务
      */
     @Bean(name = "authorizationServerTokenServices")
@@ -113,7 +117,11 @@ public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerC
         return new JwtTokenStore(jwtAccessTokenConverter());
     }
 
-    /** 统一 OAuth2 登录失败提示，避免泄露账号是否存在。 */
+    /**
+     * 统一 OAuth2 登录失败提示，避免泄露账号是否存在。
+     *
+     * @return Web响应异常TranslatorO认证2异常
+     */
     @Bean
     public WebResponseExceptionTranslator<OAuth2Exception> oauth2ExceptionTranslator() {
         return new OAuth2ErrorResponseTranslator();

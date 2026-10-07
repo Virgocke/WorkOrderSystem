@@ -11,7 +11,11 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/** OAuth2 密码模式使用的用户认证配置。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description OAuth2 密码模式使用的用户认证配置。
+ */
 @Configuration
 @EnableWebSecurity
 @SuppressWarnings("deprecation")

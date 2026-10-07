@@ -2,13 +2,21 @@ package com.WorkOrder.search.support;
 
 import org.elasticsearch.ElasticsearchException;
 
-/** 精确读取 Elasticsearch 高层客户端返回的顶层错误类型，不以状态码或原因文本代替类型。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 精确读取 Elasticsearch 高层客户端返回的顶层错误类型，不以状态码或原因文本代替类型。
+ */
 public final class ElasticsearchFailureClassifier {
 
-    /** HLRC 7.12.1 解析 error.type 后生成的固定消息前缀。 */
+    /**
+     * HLRC 7.12.1 解析 error.type 后生成的固定消息前缀。
+     */
     private static final String PARSED_TYPE_PREFIX = "Elasticsearch exception [type=";
 
-    /** 工具类不允许实例化。 */
+    /**
+     * 工具类不允许实例化。
+     */
     private ElasticsearchFailureClassifier() {
     }
 

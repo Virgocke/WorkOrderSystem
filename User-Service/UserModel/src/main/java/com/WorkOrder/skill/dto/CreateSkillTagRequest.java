@@ -5,7 +5,11 @@ import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
 
-/** 新增技能标签请求。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 新增技能标签请求。
+ */
 @Data
 public class CreateSkillTagRequest {
 

@@ -36,6 +36,7 @@ public class TicketRatingServiceImpl implements TicketRatingService {
 
     /**
      * 获取工单评价
+     *
      * @param ticketId 工单id
      * @param userId 用户id
      * @return 工单评价响应对象
@@ -78,7 +79,9 @@ public class TicketRatingServiceImpl implements TicketRatingService {
 
     /**
      * 提交工单评价
+     *
      * @param ticketId 工单编号
+     * @param userId 用户 ID
      * @param ticketRatingDto 工单评价DTO
      * @return 是否成功
      */

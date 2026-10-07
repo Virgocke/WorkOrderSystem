@@ -22,6 +22,7 @@ public class TicketReplyDto {
 
     /**
      * 检查内容或附件是否至少有一个
+     *
      * @return true 如果内容或附件至少有一个非空且非空字符串
      */
     @JsonIgnore

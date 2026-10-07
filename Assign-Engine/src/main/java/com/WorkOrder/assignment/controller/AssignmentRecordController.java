@@ -28,6 +28,15 @@ public class AssignmentRecordController {
     private final CurrentUserRoleProvider currentUserRoleProvider;
     private final CurrentUserIdProvider currentUserIdProvider;
 
+    /**
+     * 分页查询指定工单的分配记录，调用人身份由认证信息取得。
+     *
+     * @param page 页码，从 1 开始
+     * @param pageSize 每页条数
+     * @param ticketId 工单 ID
+     * @param authentication 当前已认证的登录信息
+     * @return 按当前查询条件返回的分配记录分页响应
+     */
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public Result<PageResult<AssignmentRecordDto>> getAssignmentRecords(

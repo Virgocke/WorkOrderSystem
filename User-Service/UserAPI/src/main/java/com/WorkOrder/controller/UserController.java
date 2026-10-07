@@ -31,7 +31,11 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.validation.Valid;
 import java.util.List;
 
-/** 用户、处理人及其派单基础资料接口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 用户、处理人及其派单基础资料接口。
+ */
 @Validated
 @RestController
 @RequestMapping("/users")
@@ -67,7 +71,8 @@ public class UserController {
 
     /**
      * 获取当前登录用户资料。
-     * @param authentication
+     *
+     * @param authentication 当前已认证的登录信息
      * @return 当前登录用户资料
      */
     @GetMapping("/me")
@@ -77,7 +82,9 @@ public class UserController {
 
     /**
      * 更新当前登录用户资料。
-     * @param userUpdateDto
+     *
+     * @param authentication 当前已认证的登录信息
+     * @param userUpdateDto 用户Update请求数据
      * @return 更新后的用户资料
      */
     @PutMapping("/me")
@@ -94,6 +101,7 @@ public class UserController {
 
     /**
      * 更新当前登录用户密码。
+     *
      * @param authentication 当前登录用户认证信息
      * @param passwordDto 密码更新信息
      * @return 更新结果

@@ -456,7 +456,9 @@ CREATE TABLE `notification_email_deliveries` (
     `subject` VARCHAR(200) NOT NULL COMMENT '邮件主题快照',
     `content` TEXT NOT NULL COMMENT '纯文本正文快照',
     `status` VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/SENDING/RETRY/SENT/FAILED',
-    `attempts` INT NOT NULL DEFAULT 0 COMMENT '已领取次数',
+    `retry_round` INT NOT NULL DEFAULT 0 COMMENT '管理员重试轮次，初次为0',
+    `attempts` INT NOT NULL DEFAULT 0 COMMENT '当前轮已领取次数',
+    `total_attempts` BIGINT NOT NULL DEFAULT 0 COMMENT '跨轮累计领取次数',
     `next_attempt_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下次可领取时间',
     `lease_until` DATETIME NULL COMMENT '领取租约到期时间',
     `claim_token` CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL COMMENT '当前领取令牌',
@@ -469,6 +471,24 @@ CREATE TABLE `notification_email_deliveries` (
     KEY `idx_email_ready` (`status`, `next_attempt_at`, `id`),
     KEY `idx_email_lease` (`status`, `lease_until`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知邮件投递队列';
+
+CREATE TABLE `notification_email_retry_logs` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '邮件重试审计ID',
+    `delivery_id` BIGINT NOT NULL COMMENT '原邮件任务ID',
+    `notification_id` BIGINT NOT NULL COMMENT '原EMAIL通知ID',
+    `request_id` CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '客户端幂等操作ID',
+    `from_round` INT NOT NULL COMMENT '重试前轮次',
+    `to_round` INT NOT NULL COMMENT '接受的新轮次',
+    `previous_attempts` INT NOT NULL COMMENT '上一轮领取次数',
+    `previous_total_attempts` BIGINT NOT NULL COMMENT '接受前累计领取次数',
+    `previous_error` VARCHAR(255) NULL COMMENT '上一轮脱敏错误',
+    `operator_id` BIGINT NOT NULL COMMENT '启用的管理员ID',
+    `reason` VARCHAR(200) NOT NULL COMMENT '管理员填写的重试原因',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_email_retry_request` (`delivery_id`, `request_id`),
+    UNIQUE KEY `uk_email_retry_round` (`delivery_id`, `to_round`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='管理员邮件重试审计';
 
 -- =============================================================
 -- 7. 系统配置

@@ -16,22 +16,43 @@ import java.time.ZoneId;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
-/** 在解决工单事务内发布解决事实。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在解决工单事务内发布解决事实。
+ */
 @Component
 public class TicketResolvedEventPublisher {
-    /** 解决事件标签。 */
+    /**
+     * 解决事件标签。
+     */
     static final String TAG = "RESOLVED";
 
-    /** 与工单事务共用数据库事务的 Outbox 发布器。 */
+    /**
+     * 与工单事务共用数据库事务的 Outbox 发布器。
+     */
     private final Optional<DomainEventPublisher> domainEventPublisher;
-    /** 当前工单事件 Topic。 */
+    /**
+     * 当前工单事件 Topic。
+     */
     private final String topic;
-    /** 消息底座是否启用。 */
+    /**
+     * 消息底座是否启用。
+     */
     private final boolean messagingEnabled;
-    /** 事件载荷构建器。 */
+    /**
+     * 事件载荷构建器。
+     */
     private final ObjectMapper objectMapper;
 
-    /** 创建解决事件发布器；关闭消息底座时允许缺少 Outbox 发布器。 */
+    /**
+     * 创建解决事件发布器；关闭消息底座时允许缺少 Outbox 发布器。
+     *
+     * @param domainEventPublisher 与工单事务共用数据库事务的 Outbox 发布器
+     * @param topic 当前工单事件 Topic
+     * @param messagingEnabled 消息底座是否启用
+     * @param objectMapper 事件载荷构建器
+     */
     public TicketResolvedEventPublisher(
             Optional<DomainEventPublisher> domainEventPublisher,
             @Value("${work-order.messaging.ticket-topic:wo-ticket-event}") String topic,
@@ -43,7 +64,13 @@ public class TicketResolvedEventPublisher {
         this.objectMapper = objectMapper;
     }
 
-    /** 校验解决快照并在当前业务事务中写入 Outbox，方案正文不进入事件。 */
+    /**
+     * 校验解决快照并在当前业务事务中写入 Outbox，方案正文不进入事件。
+     *
+     * @param ticket 工单
+     * @param fromStatus from状态
+     * @param resolutionLog 解决日志
+     */
     public void publish(Tickets ticket, String fromStatus, TicketOperationLog resolutionLog) {
         DomainEventPublisher publisher = domainEventPublisher.orElse(null);
         if (publisher == null) {
@@ -83,7 +110,13 @@ public class TicketResolvedEventPublisher {
         publisher.publish(event, topic, TAG);
     }
 
-    /** 将本地截止时间固化为带时区偏移量的事件字段。 */
+    /**
+     * 将本地截止时间固化为带时区偏移量的事件字段。
+     *
+     * @param payload 事件载荷
+     * @param field 待读取或校验的字段名
+     * @param value 待处理的值
+     */
     private void putTime(ObjectNode payload, String field, LocalDateTime value) {
         if (value == null) {
             payload.putNull(field);

@@ -14,7 +14,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** 从业务数据库加载 OAuth2 password grant 所需的账号信息。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 从业务数据库加载 OAuth2 password grant 所需的账号信息。
+ */
 @Service
 public class LoginUserDetailsService implements UserDetailsService {
     private final UsersMapper usersMapper;

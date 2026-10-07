@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * @author Virgor
  * @date 2026年09月09日 23:23
- * @description
+ * @description 查询和维护用户账号、资料与权限。
  */
 @Mapper
 public interface UsersMapper extends BaseMapper<Users> {
@@ -39,10 +39,21 @@ public interface UsersMapper extends BaseMapper<Users> {
      */
     UserResponse selectUserResponseById(@Param("userId") Long userId);
 
-    /** 删除用户已有的显式角色关联。 */
+    /**
+     * 删除用户已有的显式角色关联。
+     *
+     * @param userId 用户 ID
+     * @return 本次操作影响的记录行数
+     */
     int deleteUserRoles(@Param("userId") Long userId);
 
-    /** 按角色编码写入用户的唯一显式角色。 */
+    /**
+     * 按角色编码写入用户的唯一显式角色。
+     *
+     * @param userId 用户 ID
+     * @param roleCode 角色代码
+     * @return 本次操作影响的记录行数
+     */
     int insertUserRole(@Param("userId") Long userId, @Param("roleCode") String roleCode);
 
     /**

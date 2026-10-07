@@ -7,7 +7,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 /**
  * @author Virgor
  * @date 2026年09月06日 18:47
- * @description
+ * @description 用户服务启动入口。
  */
 @SpringBootApplication
 @EnableFeignClients(basePackages = "com.WorkOrder.user.feignclient")

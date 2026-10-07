@@ -12,6 +12,7 @@ public class CodeUtil {
 
     /**
      * 生成6位验证码
+     *
      * @return 6位验证码
      */
     public static String generate6DigitCode() {

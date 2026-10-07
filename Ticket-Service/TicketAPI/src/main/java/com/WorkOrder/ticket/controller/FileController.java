@@ -29,6 +29,7 @@ public class FileController {
 
     /**
      * 上传文件
+     *
      * @param file 文件
      * @param authentication 认证信息
      * @return 文件信息
@@ -43,6 +44,7 @@ public class FileController {
 
     /**
      * 文件预览
+     *
      * @param id 文件ID
      * @param authentication 认证信息
      * @return 文件预览信息

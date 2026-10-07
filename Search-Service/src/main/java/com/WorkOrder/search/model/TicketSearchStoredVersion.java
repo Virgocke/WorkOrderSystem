@@ -2,7 +2,11 @@ package com.WorkOrder.search.model;
 
 import org.springframework.util.Assert;
 
-/** 单张受管投影的实时版本；缺失与请求失败不同，失败不得转换为缺失。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 单张受管投影的实时版本；缺失与请求失败不同，失败不得转换为缺失。
+ */
 public final class TicketSearchStoredVersion {
 
     private final long version;
@@ -24,17 +28,29 @@ public final class TicketSearchStoredVersion {
         this.found = found;
     }
 
-    /** @return 实时读取的 ES 外部版本，缺失时为 0 */
+    /**
+     * 获取版本。
+     *
+     * @return 实时读取的 ES 外部版本，缺失时为 0
+     */
     public long getVersion() {
         return version;
     }
 
-    /** @return 文档中的源版本，缺失时为 null */
+    /**
+     * 获取源数据版本。
+     *
+     * @return 文档中的源版本，缺失时为 null
+     */
     public Long getSourceVersion() {
         return sourceVersion;
     }
 
-    /** @return 文档是否存在；网络和分片失败不会生成此记录 */
+    /**
+     * 判断Found。
+     *
+     * @return 文档是否存在；网络和分片失败不会生成此记录
+     */
     public boolean isFound() {
         return found;
     }

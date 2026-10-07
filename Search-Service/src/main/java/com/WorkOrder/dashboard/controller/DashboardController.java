@@ -9,13 +9,19 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 管理端全局仪表盘控制器。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理端全局仪表盘控制器。
+ */
 @RestController
 @RequestMapping("/dashboard")
 @RequiredArgsConstructor
 public class DashboardController {
 
-    /** 管理端全局仪表盘服务。 */
+    /**
+     * 管理端全局仪表盘服务。
+     */
     private final DashboardService dashboardService;
 
     /**

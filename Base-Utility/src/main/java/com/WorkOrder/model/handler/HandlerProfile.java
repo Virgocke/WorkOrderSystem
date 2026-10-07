@@ -20,46 +20,74 @@ import java.util.List;
 @AllArgsConstructor
 public class HandlerProfile {
 
-    /** 用户 ID。为兼容前端通用列表，同时返回 id 和 userId。 */
+    /**
+     * 用户 ID。为兼容前端通用列表，同时返回 id 和 userId。
+     */
     private Long id;
 
-    /** 用户 ID，不是 handler_profiles 表的自增主键。 */
+    /**
+     * 用户 ID，不是 handler_profiles 表的自增主键。
+     */
     private Long userId;
 
-    /** 处理人姓名。 */
+    /**
+     * 处理人姓名。
+     */
     private String realName;
 
-    /** 登录账号。 */
+    /**
+     * 登录账号。
+     */
     private String username;
 
-    /** 所属部门 ID，未分配部门时为 null。 */
+    /**
+     * 所属部门 ID，未分配部门时为 null。
+     */
     private Long departmentId;
 
-    /** 所属部门名称，未分配部门时为 null。 */
+    /**
+     * 所属部门名称，未分配部门时为 null。
+     */
     private String departmentName;
 
-    /** 最大同时处理工单数。 */
+    /**
+     * 最大同时处理工单数。
+     */
     private int maxCapacity;
 
-    /** 当前在办工单数。 */
+    /**
+     * 当前在办工单数。
+     */
     private int currentLoad;
 
-    /** 平均响应时长，单位：分钟。 */
+    /**
+     * 平均响应时长，单位：分钟。
+     */
     private int avgResponseMinutes;
 
-    /** 平均解决时长，单位：分钟。 */
+    /**
+     * 平均解决时长，单位：分钟。
+     */
     private int avgResolutionMinutes;
 
-    /** SLA 达成率，取值范围 0-100。 */
+    /**
+     * SLA 达成率，取值范围 0-100。
+     */
     private BigDecimal slaComplianceRate;
 
-    /** 平均用户评分，取值范围 1-5。 */
+    /**
+     * 平均用户评分，取值范围 1-5。
+     */
     private BigDecimal ratingScore;
 
-    /** 处理人技能列表。 */
+    /**
+     * 处理人技能列表。
+     */
     @Builder.Default
     private List<HandlerSkillItem> skills = new ArrayList<>();
 
-    /** 状态：0-停用，1-启用。 */
+    /**
+     * 状态：0-停用，1-启用。
+     */
     private int status;
 }

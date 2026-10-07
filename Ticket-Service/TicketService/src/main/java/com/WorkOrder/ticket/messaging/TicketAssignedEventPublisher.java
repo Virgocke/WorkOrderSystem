@@ -15,12 +15,20 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-/** 组装并发布管理员或系统派单事件。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 组装并发布管理员或系统派单事件。
+ */
 @Component
 public class TicketAssignedEventPublisher {
-    /** 默认工单事件 Topic。 */
+    /**
+     * 默认工单事件 Topic。
+     */
     static final String DEFAULT_TOPIC = "wo-ticket-event";
-    /** 派单事件标签。 */
+    /**
+     * 派单事件标签。
+     */
     static final String TAG = "ASSIGNED";
 
     // 事务性 Outbox 发布器

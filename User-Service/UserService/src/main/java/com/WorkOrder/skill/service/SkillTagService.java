@@ -6,7 +6,11 @@ import com.WorkOrder.skill.dto.UpdateSkillTagRequest;
 
 import java.util.List;
 
-/** 技能标签目录服务。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 技能标签目录服务。
+ */
 public interface SkillTagService {
 
     /**

@@ -23,6 +23,7 @@ public class TicketAuthorization {
 
     /**
      * 判断当前用户是否有权限查看工单
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @return 是否有权限查看工单
@@ -41,6 +42,7 @@ public class TicketAuthorization {
 
     /**
      * 判断当前用户是否是工单创建者
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @return 是否是工单创建者
@@ -58,6 +60,7 @@ public class TicketAuthorization {
 
     /**
      * 判断当前用户是否是工单处理者
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @return 是否是工单处理者

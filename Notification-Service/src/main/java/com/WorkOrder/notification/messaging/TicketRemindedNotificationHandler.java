@@ -8,18 +8,32 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-/** 将催办事件中的接收人快照转换为站内通知。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 将催办事件中的接收人快照转换为站内通知。
+ */
 @Component
 public class TicketRemindedNotificationHandler {
-    /** 统一通知渠道分发入口。 */
+    /**
+     * 统一通知渠道分发入口。
+     */
     private final NotificationDeliveryService deliveryService;
 
-    /** 注入统一通知渠道分发入口。 */
+    /**
+     * 注入统一通知渠道分发入口。
+     *
+     * @param deliveryService 在消费事务内同时写入站内信、EMAIL 通知和邮件快照任务的渠道分发服务
+     */
     public TicketRemindedNotificationHandler(NotificationDeliveryService deliveryService) {
         this.deliveryService = deliveryService;
     }
 
-    /** 调用方保证全部通知与消费日志在同一本地事务中写入。 */
+    /**
+     * 调用方保证全部通知与消费日志在同一本地事务中写入。
+     *
+     * @param event 已通过信封校验的工单催办事件，载荷保存本次动作的业务与接收人快照
+     */
     public void handle(WorkOrderEvent event) {
         TicketRemindedPayload payload = TicketRemindedPayload.from(event);
         String ticket = payload.getTicketTitle() == null ? payload.getTicketNo()

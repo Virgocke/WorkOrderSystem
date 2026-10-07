@@ -11,16 +11,24 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 处理人工作台控制器。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 处理人工作台控制器。
+ */
 @RestController
 @RequestMapping("/handler")
 @RequiredArgsConstructor
 public class HandlerWorkbenchController {
 
-    /** 仪表盘与工作台服务。 */
+    /**
+     * 仪表盘与工作台服务。
+     */
     private final DashboardService dashboardService;
 
-    /** 当前登录用户 ID 解析组件。 */
+    /**
+     * 当前登录用户 ID 解析组件。
+     */
     private final CurrentUserIdProvider currentUserIdProvider;
 
     /**

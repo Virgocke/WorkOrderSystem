@@ -14,19 +14,38 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 
-/** 在审核事务中固化结果并写入 Outbox。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在审核事务中固化结果并写入 Outbox。
+ */
 @Component
 public class SkillApplicationReviewedPublisher {
-    /** 当前服务的事务 Outbox 发布器，消息关闭时可为空。 */
+    /**
+     * 当前服务的事务 Outbox 发布器，消息关闭时可为空。
+     */
     private final Optional<DomainEventPublisher> publisher;
-    /** 查询或序列化所用组件。 */
+    /**
+     * 查询或序列化所用组件。
+     */
     private final ObjectMapper mapper;
-    /** 技能审核事件 Topic。 */
+    /**
+     * 技能审核事件 Topic。
+     */
     private final String topic;
-    /** 消息底座是否开启。 */
+    /**
+     * 消息底座是否开启。
+     */
     private final boolean enabled;
 
-    /** 注入发布器、JSON 组件、消息 Topic 和启用状态。 */
+    /**
+     * 注入发布器、JSON 组件、消息 Topic 和启用状态。
+     *
+     * @param publisher 当前服务的事务 Outbox 发布器，消息关闭时可为空
+     * @param mapper 查询或序列化所用组件
+     * @param topic 技能审核事件 Topic
+     * @param enabled 消息底座是否开启
+     */
     public SkillApplicationReviewedPublisher(Optional<DomainEventPublisher> publisher, ObjectMapper mapper,
             @Value("${work-order.messaging.skill-topic:wo-skill-event}") String topic,
             @Value("${work-order.messaging.enabled:false}") boolean enabled) {
@@ -36,7 +55,11 @@ public class SkillApplicationReviewedPublisher {
         this.enabled = enabled;
     }
 
-    /** 消息关闭时遵循项目现有行为；启用但发布器缺失时使审核回滚。 */
+    /**
+     * 消息关闭时遵循项目现有行为；启用但发布器缺失时使审核回滚。
+     *
+     * @param application 申请
+     */
     public void publish(SkillApplication application) {
         if (!publisher.isPresent()) {
             if (enabled) { throw new IllegalStateException("技能审核消息发布器未创建"); }

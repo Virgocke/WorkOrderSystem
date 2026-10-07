@@ -30,42 +30,66 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** 管理端全局仪表盘服务实现。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理端全局仪表盘服务实现。
+ */
 @Service
 @RequiredArgsConstructor
 public class DashboardServiceImpl implements DashboardService {
 
-    /** 工单趋势统计的天数。 */
+    /**
+     * 工单趋势统计的天数。
+     */
     private static final int TREND_DAYS = 14;
 
-    /** 处理人负载热力图统计的天数。 */
+    /**
+     * 处理人负载热力图统计的天数。
+     */
     private static final int HANDLER_HEAT_DAYS = 7;
 
-    /** 仪表盘日期统计使用的业务时区。 */
+    /**
+     * 仪表盘日期统计使用的业务时区。
+     */
     private static final ZoneId DASHBOARD_ZONE = ZoneId.of("Asia/Shanghai");
 
-    /** 趋势与热力图日期标签格式。 */
+    /**
+     * 趋势与热力图日期标签格式。
+     */
     private static final DateTimeFormatter DATE_LABEL_FORMATTER =
             DateTimeFormatter.ofPattern("MM-dd");
 
-    /** 工单响应中的日期时间格式。 */
+    /**
+     * 工单响应中的日期时间格式。
+     */
     private static final DateTimeFormatter TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    /** 工单状态编码与中文展示名称的映射。 */
+    /**
+     * 工单状态编码与中文展示名称的映射。
+     */
     private static final Map<String, String> STATUS_LABELS = createStatusLabels();
 
-    /** 工单优先级编码与中文展示名称的映射。 */
+    /**
+     * 工单优先级编码与中文展示名称的映射。
+     */
     private static final Map<String, String> PRIORITY_LABELS = createPriorityLabels();
 
-    /** 处理人工作台需要固定返回的未终结状态顺序。 */
+    /**
+     * 处理人工作台需要固定返回的未终结状态顺序。
+     */
     private static final List<String> WORKBENCH_STATUSES = Collections.unmodifiableList(
             Arrays.asList("PENDING_RESPONSE", "PROCESSING", "RESOLVED"));
 
-    /** 仪表盘数据库查询组件。 */
+    /**
+     * 仪表盘数据库查询组件。
+     */
     private final DashboardMapper dashboardMapper;
 
-    /** 附件 URL JSON 反序列化组件。 */
+    /**
+     * 附件 URL JSON 反序列化组件。
+     */
     private final ObjectMapper objectMapper;
 
     /**
@@ -159,6 +183,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     /**
      * 获取处理人报表性能数据。
+     *
      * @return 处理人报表性能数据列表
      */
     @Override
@@ -169,6 +194,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     /**
      * 获取分类报表数据。
+     *
      * @return 分类报表数据列表
      */
     @Override
@@ -179,9 +205,10 @@ public class DashboardServiceImpl implements DashboardService {
 
     /**
      * 获取工单趋势数据。
+     *
      * @param days 趋势天数
      * @return 工单趋势数据列表
-    */
+     */
     @Override
     @Transactional(readOnly = true)
     public List<DashboardTrendDto> getTicketTrend(int days) {
@@ -255,8 +282,8 @@ public class DashboardServiceImpl implements DashboardService {
     /**
      * 将可空列表转换为空安全列表。
      *
-     * @param values 可空列表
      * @param <T> 元素类型
+     * @param values 可空列表
      * @return 原列表或空列表
      */
     private <T> List<T> defaultList(List<T> values) {
@@ -440,6 +467,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     /**
      * 创建一个空的统计信息对象。
+     *
      * @return 空的统计信息对象
      */
     private DashboardSummaryDto emptySummary() {

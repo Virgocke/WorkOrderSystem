@@ -10,22 +10,38 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 管理员全局审计，只提供查询入口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理员全局审计，只提供查询入口。
+ */
 @RestController
 @RequestMapping("/audit-logs")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AuditController {
-    /** 管理员审计查询服务。 */
+    /**
+     * 管理员审计查询服务。
+     */
     private final AuditService service;
 
-    /** 管理员查询跨工单的操作日志和状态变更历史。 */
+    /**
+     * 管理员查询跨工单的操作日志和状态变更历史。
+     *
+     * @param query 审计查询条件
+     * @return 统一响应，包含工单审计条目的分页结果
+     */
     @GetMapping
     public Result<PageResult<TicketAuditItem>> tickets(AuditQuery query) {
         return Result.success(service.tickets(query));
     }
 
-    /** 管理员查询配置修改记录及前后值。 */
+    /**
+     * 管理员查询配置修改记录及前后值。
+     *
+     * @param query 审计查询条件
+     * @return 统一响应，包含配置审计条目的分页结果
+     */
     @GetMapping("/configurations")
     public Result<PageResult<ConfigurationAuditItem>> configurations(AuditQuery query) {
         return Result.success(service.configurations(query));

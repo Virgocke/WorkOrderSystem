@@ -15,7 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.PostConstruct;
 import java.util.Optional;
 
-/** 在工单业务事务中登记搜索变更，版本始终取自本次更新后的数据库行。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在工单业务事务中登记搜索变更，版本始终取自本次更新后的数据库行。
+ */
 @Component
 public class TicketSearchChangePublisher {
     public static final String TAG = "CHANGED";
@@ -29,6 +33,17 @@ public class TicketSearchChangePublisher {
     private final boolean messagingEnabled;
     private final String sourceService;
 
+    /**
+     * 注入事务事件发布器、工单源数据读取组件与发布开关。
+     *
+     * @param domainEventPublisher domain事件发布器
+     * @param ticketMapper 工单数据访问器
+     * @param objectMapper JSON 序列化与反序列化组件
+     * @param topic 消息主题
+     * @param publishEnabled 工单搜索变更事件发布开关
+     * @param messagingEnabled 公共消息功能开关
+     * @param sourceService 事件来源服务名
+     */
     public TicketSearchChangePublisher(
             Optional<DomainEventPublisher> domainEventPublisher,
             TicketMapper ticketMapper,
@@ -46,7 +61,9 @@ public class TicketSearchChangePublisher {
         this.sourceService = sourceService;
     }
 
-    /** 依赖注入完成后检查配置，避免启用发布却静默丢弃搜索事件。 */
+    /**
+     * 依赖注入完成后检查配置，避免启用发布却静默丢弃搜索事件。
+     */
     @PostConstruct
     public void validateConfiguration() {
         if (!publishEnabled) {

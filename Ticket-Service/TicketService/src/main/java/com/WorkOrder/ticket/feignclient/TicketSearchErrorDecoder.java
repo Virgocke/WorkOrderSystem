@@ -11,13 +11,21 @@ import org.springframework.util.StreamUtils;
 import java.io.IOException;
 import java.io.InputStream;
 
-/** 搜索专属错误解码；只传播明确的未就绪业务码，其他 HTTP 错误沿用 Feign 规则。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 搜索专属错误解码；只传播明确的未就绪业务码，其他 HTTP 错误沿用 Feign 规则。
+ */
 public class TicketSearchErrorDecoder implements ErrorDecoder {
 
     private final ObjectMapper objectMapper;
     private final ErrorDecoder fallback = new ErrorDecoder.Default();
 
-    /** 复用应用 JSON 解析器，不向外部响应透传远端错误正文。 */
+    /**
+     * 复用应用 JSON 解析器，不向外部响应透传远端错误正文。
+     *
+     * @param objectMapper JSON 序列化与反序列化组件
+     */
     public TicketSearchErrorDecoder(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }

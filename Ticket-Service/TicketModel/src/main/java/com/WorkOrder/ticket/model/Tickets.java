@@ -29,7 +29,9 @@ public class Tickets {
     private Long creatorId;
     // 处理人ID
     private Long handlerId;
-    /** 提交解决时负责该工单的处理人用户 ID，转派后记入接手人。 */
+    /**
+     * 提交解决时负责该工单的处理人用户 ID，转派后记入接手人。
+     */
     private Long resolvedByHandlerId;
 
     private LocalDateTime createdAt;
@@ -54,7 +56,9 @@ public class Tickets {
     // 来源
     private String source;
 
-    /** 工单已提交状态的源版本，由业务 UPDATE 原子递增。 */
+    /**
+     * 工单已提交状态的源版本，由业务 UPDATE 原子递增。
+     */
     private Long sourceVersion;
 
     private LocalDateTime updatedAt;

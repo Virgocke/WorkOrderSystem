@@ -5,7 +5,11 @@ import com.WorkOrder.model.page.PageResult;
 
 import java.util.List;
 
-/** 管理端全局仪表盘服务。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理端全局仪表盘服务。
+ */
 public interface DashboardService {
 
     /**

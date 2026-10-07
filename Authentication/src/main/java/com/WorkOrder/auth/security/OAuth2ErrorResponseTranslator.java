@@ -9,7 +9,11 @@ import org.springframework.security.oauth2.provider.error.WebResponseExceptionTr
 
 import java.util.Locale;
 
-/** 将 OAuth2 登录失败转换为前端可直接展示且不会泄露账号信息的提示。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 将 OAuth2 登录失败转换为前端可直接展示且不会泄露账号信息的提示。
+ */
 public class OAuth2ErrorResponseTranslator implements WebResponseExceptionTranslator<OAuth2Exception> {
     private final DefaultWebResponseExceptionTranslator delegate = new DefaultWebResponseExceptionTranslator();
 

@@ -14,7 +14,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 智能分配接口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 智能分配接口。
+ */
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/assign-engine")
@@ -39,7 +43,15 @@ public class AssignEngineController {
         return Result.success(assignEngineService.recommend(ticketId, operatorRole));
     }
 
-    /** 手动派单和转派读取与系统推荐一致的分项分数。 */
+    /**
+     * 手动派单和转派读取与系统推荐一致的分项分数。
+     *
+     * @param ticketId 工单 ID
+     * @param handlerId 处理人用户 ID
+     * @param additionalLoad 本批次内额外分配的工单数量
+     * @param authentication 当前已认证的登录信息
+     * @return 统一响应，包含分配Candidate
+     */
     @PreAuthorize("hasAnyRole('ADMIN', 'HANDLER')")
     @GetMapping("/score")
     public Result<AssignCandidate> score(

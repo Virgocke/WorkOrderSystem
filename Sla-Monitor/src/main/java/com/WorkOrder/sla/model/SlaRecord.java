@@ -35,9 +35,13 @@ public class SlaRecord {
     private int isResolutionTimeout;
     @ApiModelProperty(value = "当前 escalation 级别")
     private int currentEscalationLevel;
-    /** 工单首次进入的终态，CLOSED 或 CANCELLED。 */
+    /**
+     * 工单首次进入的终态，CLOSED 或 CANCELLED。
+     */
     private String terminalStatus;
-    /** 工单首次进入终态的时间。 */
+    /**
+     * 工单首次进入终态的时间。
+     */
     private LocalDateTime terminalAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

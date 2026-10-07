@@ -21,11 +21,21 @@ public class TokenConfig {
     @Autowired
     private JwtAccessTokenConverter accessTokenConverter;
 
+    /**
+     * 创建使用 JWT 本地解析访问令牌的存储组件。
+     *
+     * @return 使用 JWT 转换器解析令牌的令牌存储组件
+     */
     @Bean
     public TokenStore tokenStore() {
         return new JwtTokenStore(accessTokenConverter);
     }
 
+    /**
+     * 创建并配置 JWT 访问令牌转换器。
+     *
+     * @return 配置完成的 JWT 访问令牌转换器
+     */
     @Bean
     public JwtAccessTokenConverter accessTokenConverter(){
         JwtAccessTokenConverter converter = new JwtAccessTokenConverter();

@@ -6,6 +6,11 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 文件预览接口的响应数据。
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

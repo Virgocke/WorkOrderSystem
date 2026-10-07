@@ -10,13 +10,23 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
-/** 统一校验搜索响应，避免搜索故障或非法 ID 被误当成无条件查询。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 统一校验搜索响应，避免搜索故障或非法 ID 被误当成无条件查询。
+ */
 @Service
 @RequiredArgsConstructor
 public class DirectoryKeywordSearch {
     private final DirectorySearchFeignClient client;
 
-    /** 返回去重后的候选用户 ID；无匹配是空集合，异常明确失败。 */
+    /**
+     * 返回去重后的候选用户 ID；无匹配是空集合，异常明确失败。
+     *
+     * @param keyword 查询关键词
+     * @param handlers true 查询处理人目录，false 查询用户目录
+     * @return 保持搜索顺序并去重的用户 ID；无匹配时为空列表
+     */
     public List<Long> findUserIds(String keyword, boolean handlers) {
         Result<List<Long>> result;
         try {

@@ -12,7 +12,11 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.util.List;
 
-/** 目录搜索内部接口，搜索字段由服务端选择，权限由搜索服务方法再次校验。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 目录搜索内部接口，搜索字段由服务端选择，权限由搜索服务方法再次校验。
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/internal/search/directory")
@@ -20,13 +24,25 @@ import java.util.List;
 public class DirectorySearchController {
     private final DirectorySearchService service;
 
-    /** 搜索账号、姓名、邮箱、手机号，返回用户主键。 */
+    /**
+     * 搜索账号、姓名、邮箱、手机号，返回用户主键。
+     *
+     * @param keyword 查询关键词
+     * @return 统一响应，包含长整型数值列表
+     * @throws IOException 处理过程中发生IO异常时
+     */
     @PostMapping("/users")
     public Result<List<Long>> users(@RequestParam("keyword") String keyword) throws IOException {
         return Result.success(service.search(keyword, false));
     }
 
-    /** 搜索账号、姓名、技能名称，返回用户主键而不是处理人档案主键。 */
+    /**
+     * 搜索账号、姓名、技能名称，返回用户主键而不是处理人档案主键。
+     *
+     * @param keyword 查询关键词
+     * @return 统一响应，包含长整型数值列表
+     * @throws IOException 处理过程中发生IO异常时
+     */
     @PostMapping("/handlers")
     public Result<List<Long>> handlers(@RequestParam("keyword") String keyword) throws IOException {
         return Result.success(service.search(keyword, true));

@@ -18,15 +18,31 @@ public enum TicketPriorityEnum {
 
 
 
+    /**
+     * 定义工单优先级及其说明。
+     *
+     * @param code 优先级代码
+     * @param description 优先级说明
+     */
     TicketPriorityEnum(int code, String description) {
         this.code = code;
         this.description = description;
     }
 
+    /**
+     * 获取优先级代码。
+     *
+     * @return 当前优先级对应的整数代码
+     */
     public int getCode() {
         return code;
     }
 
+    /**
+     * 获取优先级说明。
+     *
+     * @return 当前优先级的说明
+     */
     public String getDescription() {
         return description;
     }

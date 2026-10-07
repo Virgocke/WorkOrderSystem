@@ -53,6 +53,7 @@ public class TicketController {
 
     /**
      * 创建工单
+     *
      * @param createTicketDto 创建工单的DTO
      * @param authentication 当前用户认证信息
      * @return 创建的工单信息
@@ -68,6 +69,7 @@ public class TicketController {
 
     /**
      * 获取当前用户工单列表
+     *
      * @param authentication 当前用户认证信息
      * @param myTicketPageDto 工单分页查询DTO
      * @return 工单列表
@@ -88,8 +90,9 @@ public class TicketController {
 
     /**
      * 获取当前用户工单统计信息
-      * @param authentication 当前用户认证信息
-      * @return 工单统计信息
+     *
+     * @param authentication 当前用户认证信息
+     * @return 工单统计信息
      */
     @GetMapping("/me/stats")
     public Result<TicketHistoryStatisticsDto> ticketHistoryStatistics(Authentication authentication) {
@@ -99,6 +102,7 @@ public class TicketController {
 
     /**
      * 获取工单信息
+     *
      * @param ticketId 工单ID
      * @return 工单信息
      */
@@ -112,6 +116,7 @@ public class TicketController {
 
     /**
      * 获取工单状态时间线
+     *
      * @param ticketId 工单ID
      * @return 工单状态时间线
      */
@@ -125,6 +130,7 @@ public class TicketController {
 
     /**
      * 获取工单操作日志
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @return 工单操作日志
@@ -154,9 +160,10 @@ public class TicketController {
 
     /**
      * 获取工单评分
-      * @param ticketId 工单ID
-      * @param authentication 当前用户认证信息
-      * @return 工单评分
+     *
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @return 工单评分
      */
     @PreAuthorize(
         "hasRole('ADMIN') or @ticketAuthorization.canView(#ticketId, authentication)"
@@ -169,10 +176,11 @@ public class TicketController {
 
     /**
      * 获取工单回复信息
-      * @param ticketId 工单ID
-      * @param authentication 当前用户认证信息
-      * @param ticketReplyDto 工单回复信息DTO
-      * @return 工单回复信息
+     *
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @param ticketReplyDto 工单回复信息DTO
+     * @return 工单回复信息
      */
     @PreAuthorize(
             "hasRole('ADMIN') or @ticketAuthorization.canView(#ticketId, authentication)"
@@ -190,6 +198,7 @@ public class TicketController {
 
     /**
      * 工单催办
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @return 是否成功
@@ -206,6 +215,7 @@ public class TicketController {
 
     /**
      * 撤销工单
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @return 取消后的工单信息
@@ -221,9 +231,10 @@ public class TicketController {
 
     /**
      * 确认工单
-      * @param ticketId 工单ID
-      * @param authentication 当前用户认证信息
-      * @return 确认后的工单信息
+     *
+     * @param ticketId 工单ID
+     * @param authentication 当前用户认证信息
+     * @return 确认后的工单信息
      */
     @PreAuthorize(
             "hasRole('ADMIN') or @ticketAuthorization.isCreator(#ticketId, authentication)"
@@ -236,6 +247,7 @@ public class TicketController {
 
     /**
      * 提交工单评分
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @param ticketRatingDto 工单评分DTO
@@ -254,9 +266,12 @@ public class TicketController {
     }
 
 
-    /**=======================================================处理人端=======================================================*/
+    /**
+     * =======================================================处理人端=======================================================
+     */
     /**
      * 从认证信息取得处理人身份，返回带查询总数的工单分页。
+     *
      * @param authentication 当前用户认证信息
      * @param handlerTicketPageDto 处理人工单分页查询DTO
      * @return 处理人工单分页，保留 MySQL 或 ES 的查询总数
@@ -273,6 +288,7 @@ public class TicketController {
 
     /**
      * 处理人响应工单
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @return 响应后的工单信息
@@ -292,8 +308,10 @@ public class TicketController {
 
     /**
      * 处理人解决工单
+     *
      * @param ticketId 工单ID
      * @param dto 工单解决DTO
+     * @param authentication 当前已认证的登录信息
      * @return 是否成功
      */
     @PreAuthorize("hasRole('ADMIN') or @ticketAuthorization.isHandler(#ticketId, authentication)")
@@ -315,6 +333,7 @@ public class TicketController {
 
     /**
      * 处理人转交工单
+     *
      * @param ticketId 工单ID
      * @param transferTicketDto 转交工单DTO
      * @param authentication 当前用户认证信息
@@ -337,10 +356,11 @@ public class TicketController {
 
     /**
      * 处理人升级工单
-      * @param ticketId 工单ID
-      * @param escalateTicketDto 升级工单DTO
-      * @param authentication 当前用户认证信息
-      * @return 升级后的工单信息
+     *
+     * @param ticketId 工单ID
+     * @param escalateTicketDto 升级工单DTO
+     * @param authentication 当前用户认证信息
+     * @return 升级后的工单信息
      */
     @PreAuthorize("@ticketAuthorization.isHandler(#ticketId, authentication)")
     @PostMapping("/{id}/escalate")
@@ -361,10 +381,11 @@ public class TicketController {
 
     /**
      * 处理人添加工单备注
-      * @param ticketId 工单ID
-      * @param ticketNoteDto 工单备注DTO
-      * @param authentication 当前用户认证信息
-      * @return 是否成功
+     *
+     * @param ticketId 工单ID
+     * @param ticketNoteDto 工单备注DTO
+     * @param authentication 当前用户认证信息
+     * @return 是否成功
      */
     @PreAuthorize("hasRole('ADMIN') or @ticketAuthorization.isHandler(#ticketId, authentication)")
     @PostMapping("/{id}/note")
@@ -383,6 +404,7 @@ public class TicketController {
 
     /**
      * 根据SLA状态获取工单列表
+     *
      * @param page 页码
      * @param pageSize 每页条数
      * @param slaStatus SLA状态
@@ -404,10 +426,13 @@ public class TicketController {
                 operatorId, operatorRole, page, pageSize, slaStatus, status));
     }
 
-    /**=======================================================管理员端=======================================================*/
+    /**
+     * =======================================================管理员端=======================================================
+     */
 
     /**
      * 管理员手动分配工单
+     *
      * @param ticketId 工单ID
      * @param assignTicketDto 分配工单DTO
      * @param authentication 当前用户认证信息
@@ -430,6 +455,7 @@ public class TicketController {
 
     /**
      * 管理员批量分配工单
+     *
      * @param assignTicketListDto 批量分配工单DTO
      * @param authentication 当前用户认证信息
      * @return 分配成功的工单ID列表
@@ -451,9 +477,10 @@ public class TicketController {
 
     /**
      * 管理员获取工单列表
-      * @param adminTicketListDto 管理员获取工单列表DTO
-      * @param authentication 当前用户认证信息
-      * @return 管理员获取工单列表
+     *
+     * @param adminTicketListDto 管理员获取工单列表DTO
+     * @param authentication 当前用户认证信息
+     * @return 管理员获取工单列表
      */
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -467,6 +494,7 @@ public class TicketController {
 
     /**
      * 管理员强制关闭工单
+     *
      * @param ticketId 工单ID
      * @param authentication 当前用户认证信息
      * @param closeTicketDto 强制关闭工单DTO
@@ -489,7 +517,9 @@ public class TicketController {
 
     /**
      * 管理员批量关闭工单
-      * @param closeTicketListDto 批量关闭工单DTO
+     *
+     * @param closeTicketListDto 批量关闭工单DTO
+     * @param authentication 当前已认证的登录信息
      * @return 关闭的工单ID列表
      */
     @PreAuthorize("hasRole('ADMIN')")

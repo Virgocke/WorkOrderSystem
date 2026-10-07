@@ -11,7 +11,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** 历史验证与周期对账共用：实时读版本，缺失或落后才补写完整源行。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 历史验证与周期对账共用：实时读版本，缺失或落后才补写完整源行。
+ */
 @Service
 @ConditionalOnProperty(prefix="work-order.elasticsearch.ticket-sync", name="enabled", havingValue="true")
 public class TicketSearchVerificationService {
@@ -19,13 +23,25 @@ public class TicketSearchVerificationService {
     private final TicketProjectionService projection;
     private final TicketSearchIndexService indexes;
 
-    /** 注入统一目标校验、版本读写与投影转换通路。 */
+    /**
+     * 注入统一目标校验、版本读写与投影转换通路。
+     *
+     * @param repository 批量读取实时版本并刷新指定代次的仓库
+     * @param projection 将完整源行写入固定目标的投影服务
+     * @param indexes 校验受管物理索引及专属写别名的服务
+     */
     public TicketSearchVerificationService(TicketSearchRepository repository, TicketProjectionService projection,
                                            TicketSearchIndexService indexes) {
         this.repository = repository; this.projection = projection; this.indexes = indexes;
     }
 
-    /** 一批使用固定目标；失败抛出，调用方不得提交本批游标。 */
+    /**
+     * 一批使用固定目标；失败抛出，调用方不得提交本批游标。
+     *
+     * @param target 本批固定的已登记重建代次及专属写目标
+     * @param sources 同次主库批量读取的完整源行，字段与 sourceVersion 保持一致
+     * @throws IOException 处理过程中发生IO异常时
+     */
     @Transactional(propagation=Propagation.NOT_SUPPORTED)
     public void verifyAndRepair(TicketSearchWriteTarget target, List<TicketIndexSource> sources) throws IOException {
         indexes.validateWriteTarget(target);
@@ -55,7 +71,13 @@ public class TicketSearchVerificationService {
         }
     }
 
-    /** 每项都完成或被同版本及更高版本覆盖，整批才算成功。 */
+    /**
+     * 每项都完成或被同版本及更高版本覆盖，整批才算成功。
+     *
+     * @param result 实际写入、版本覆盖及失败项的本批分类结果
+     * @param expected 本批预期完成的源记录总数，须等于写入数加覆盖数
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public static void requireComplete(TicketSearchBulkResult result, int expected) throws IOException {
         if (result == null || result.hasFailures() || result.getCompletedCount() != expected) {
             throw new IOException("BULK_INCOMPLETE");

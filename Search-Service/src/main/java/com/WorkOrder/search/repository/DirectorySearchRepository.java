@@ -53,7 +53,11 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-/** 目录快照完整写入后再切换读别名，关键词检索返回所有候选 ID，由业务 SQL 分页。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 目录快照完整写入后再切换读别名，关键词检索返回所有候选 ID，由业务 SQL 分页。
+ */
 @Repository
 @ConditionalOnProperty(prefix = "work-order.elasticsearch", name = "enabled", havingValue = "true")
 public class DirectorySearchRepository {
@@ -65,9 +69,15 @@ public class DirectorySearchRepository {
     private static final long RETIRE_DELAY_MILLIS = TimeUnit.MINUTES.toMillis(10);
     private final RestHighLevelClient client;
     private final ElasticsearchProperties properties;
+    // 废弃索引缓存
     private final Map<String, Long> retiredIndices = new HashMap<>();
 
-    /** 复用已有连接配置，不在构造阶段创建远程索引。 */
+    /**
+     * 复用已有连接配置，不在构造阶段创建远程索引。
+     *
+     * @param client Elasticsearch 高级客户端
+     * @param properties Elasticsearch配置属性
+     */
     public DirectorySearchRepository(RestHighLevelClient client, ElasticsearchProperties properties) {
         this.client = client;
         this.properties = properties;
@@ -76,12 +86,22 @@ public class DirectorySearchRepository {
         }
     }
 
-    /** 确认别名仍存在，避免缓存快照阻止被外部删除的索引重新回填。 */
+    /**
+     * 确认别名仍存在，避免缓存快照阻止被外部删除的索引重新回填。
+     *
+     * @return 目录别名仍指向已发布快照时为 true
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public boolean hasPublishedSnapshot() throws IOException {
         return !findPublishedIndices().isEmpty();
     }
 
-    /** 创建新快照、完整写入并刷新，再一次性切换别名；失败不会将半成品作为查询入口。 */
+    /**
+     * 创建新快照、完整写入并刷新，再一次性切换别名；失败不会将半成品作为查询入口。
+     *
+     * @param documents Directory搜索文档列表，对应 documents
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public void publishSnapshot(List<DirectorySearchDocument> documents) throws IOException {
         // 找出当前已发布快照的索引
         Set<String> previous = findPublishedIndices();
@@ -128,7 +148,12 @@ public class DirectorySearchRepository {
         }
     }
 
-    /** 校验目录别名只指向本功能生成的物理索引，配置错指向其他业务时拒绝切换。 */
+    /**
+     * 校验目录别名只指向本功能生成的物理索引，配置错指向其他业务时拒绝切换。
+     *
+     * @return 目录读别名当前指向的受管物理快照索引集合
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private Set<String> findPublishedIndices() throws IOException {
         GetAliasesResponse response = client.indices().getAlias(
                 new GetAliasesRequest(properties.getDirectoryIndexAlias()), RequestOptions.DEFAULT);
@@ -144,7 +169,12 @@ public class DirectorySearchRepository {
         return new HashSet<>(indices);
     }
 
-    /** 只管理配置前缀加 UUID 的目录索引，不按宽泛通配符执行删除。 */
+    /**
+     * 只管理配置前缀加 UUID 的目录索引，不按宽泛通配符执行删除。
+     *
+     * @param index 索引
+     * @return 是否满足校验条件
+     */
     private boolean isManagedIndex(String index) {
         String prefix = properties.getDirectoryIndexPrefix() + "-";
         if (!index.startsWith(prefix)) {
@@ -158,7 +188,12 @@ public class DirectorySearchRepository {
         }
     }
 
-    /** 新索引使用固定字段映射及现有分片配置，禁止自动猜测姓名和联系方式类型。 */
+    /**
+     * 新索引使用固定字段映射及现有分片配置，禁止自动猜测姓名和联系方式类型。
+     *
+     * @param index 索引
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void createIndex(String index) throws IOException {
         String mapping;
         try (InputStream input = new ClassPathResource("elasticsearch/directory-index-v1.json").getInputStream()) {
@@ -174,7 +209,13 @@ public class DirectorySearchRepository {
         }
     }
 
-    /** 分批写入完整投影，每一项都成功后才允许发布，密码及动态统计字段不会进入 ES。 */
+    /**
+     * 分批写入完整投影，每一项都成功后才允许发布，密码及动态统计字段不会进入 ES。
+     *
+     * @param index 索引
+     * @param documents Directory搜索文档列表，对应 documents
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void writeDocuments(String index, List<DirectorySearchDocument> documents) throws IOException {
         int batchSize = properties.getMaxBulkSize();
         long deadline = System.nanoTime() + SEARCH_TIMEOUT_NANOS;
@@ -208,7 +249,12 @@ public class DirectorySearchRepository {
         }
     }
 
-    /** 统一折叠大小写及常见组合重音，保留中文子串；技能独立存为数组以免跨技能拼接误命中。 */
+    /**
+     * 统一折叠大小写及常见组合重音，保留中文子串；技能独立存为数组以免跨技能拼接误命中。
+     *
+     * @param document 仅含目录搜索字段的完整用户投影
+     * @return 经过统一大小写与重音折叠的索引字段映射，技能保持独立数组
+     */
     private Map<String, Object> toSource(DirectorySearchDocument document) {
         Map<String, Object> source = new LinkedHashMap<>();
         source.put("username", normalize(document.getUsername()));
@@ -220,13 +266,23 @@ public class DirectorySearchRepository {
         return source;
     }
 
-    /** 文档和查询使用同样的大小写、重音折叠规则，避免 ES 的 ASCII 大小写开关限制中文目录。 */
+    /**
+     * 文档和查询使用同样的大小写、重音折叠规则，避免 ES 的 ASCII 大小写开关限制中文目录。
+     *
+     * @param value 待统一大小写和重音的目录字段或关键词，可为 null
+     * @return 按 Locale.ROOT 小写并去除组合重音的文本；输入为 null 时为 null
+     */
     private String normalize(String value) {
         return value == null ? null : Normalizer.normalize(value, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "").toLowerCase(Locale.ROOT);
     }
 
-    /** 将原 LIKE 的 %、_、反斜杠转为 ES 模式；* 和 ? 在原 SQL 中是普通字符，必须转义。 */
+    /**
+     * 将原 LIKE 的 %、_、反斜杠转为 ES 模式；* 和 ? 在原 SQL 中是普通字符，必须转义。
+     *
+     * @param keyword 查询关键词
+     * @return 保留原 SQL LIKE 的 %、_ 语义并转义 ES 特有通配符的包含匹配模式
+     */
     private String toWildcardPattern(String keyword) {
         String like = "%" + normalize(keyword) + "%";
         StringBuilder result = new StringBuilder();
@@ -245,7 +301,12 @@ public class DirectorySearchRepository {
         return result.toString();
     }
 
-    /** 转义 ES 自身的通配符，防止普通用户名中的星号、问号被扩大匹配。 */
+    /**
+     * 转义 ES 自身的通配符，防止普通用户名中的星号、问号被扩大匹配。
+     *
+     * @param pattern 正在组装的 ES 通配符模式
+     * @param character 按字面意义追加、必要时转义的字符
+     */
     private void appendLiteral(StringBuilder pattern, char character) {
         if (character == '*' || character == '?' || character == '\\') {
             pattern.append('\\');
@@ -253,7 +314,14 @@ public class DirectorySearchRepository {
         pattern.append(character);
     }
 
-    /** 使用滚动快照取全量候选 ID，不受 10000 条窗口限制，不提前截断导致 SQL 分页总数错误。 */
+    /**
+     * 使用滚动快照取全量候选 ID，不受 10000 条窗口限制，不提前截断导致 SQL 分页总数错误。
+     *
+     * @param keyword 查询关键词
+     * @param handlers true 匹配姓名及技能，false 匹配姓名、邮箱及电话
+     * @return 完整的候选用户 ID 列表；角色、状态、排序和分页由后续 MySQL 业务查询处理
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public List<Long> searchIds(String keyword, boolean handlers) throws IOException {
         String[] fields = handlers ? new String[]{"username", "realName", "skillNames"}
                 : new String[]{"username", "realName", "email", "phone"};
@@ -316,7 +384,12 @@ public class DirectorySearchRepository {
         }
     }
 
-    /** 只接受准确总数且所有分片完成的响应，不能将部分搜索结果作为完整 SQL 候选集合。 */
+    /**
+     * 只接受准确总数且所有分片完成的响应，不能将部分搜索结果作为完整 SQL 候选集合。
+     *
+     * @param response 搜索响应
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void validateSearchResponse(SearchResponse response) throws IOException {
         if (response.isTimedOut() || response.getFailedShards() > 0
                 || response.getHits() == null || response.getHits().getTotalHits() == null
@@ -325,7 +398,11 @@ public class DirectorySearchRepository {
         }
     }
 
-    /** 发现重启遗留的未挂别名快照，至少再保留十分钟；仅清理带本功能标记的明确索引。 */
+    /**
+     * 发现重启遗留的未挂别名快照，至少再保留十分钟；仅清理带本功能标记的明确索引。
+     *
+     * @throws IOException 处理过程中发生IO异常时
+     */
     public void cleanupRetiredIndices() throws IOException {
         GetIndexResponse metadata = client.indices().get(
                 new GetIndexRequest(properties.getDirectoryIndexPrefix() + "-*")
@@ -360,7 +437,12 @@ public class DirectorySearchRepository {
         }
     }
 
-    /** 删除本次生成但未发布的索引；创建失败产生的 404 可忽略。 */
+    /**
+     * 删除本次生成但未发布的索引；创建失败产生的 404 可忽略。
+     *
+     * @param index 索引
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void deleteUnpublishedIndex(String index) throws IOException {
         try {
             if (!client.indices().delete(new DeleteIndexRequest(index), RequestOptions.DEFAULT).isAcknowledged()) {

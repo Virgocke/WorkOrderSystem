@@ -36,22 +36,36 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** 管理工单索引及连通性检查；受管 V3 代次仅使用专属写别名，读别名由导入任务发布。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理工单索引及连通性检查；受管 V3 代次仅使用专属写别名，读别名由导入任务发布。
+ */
 public class TicketSearchIndexService {
 
-    /** 首次建索引时加载的类路径资源，定义 V2 工单搜索投影及 IK 分词映射。 */
+    /**
+     * 首次建索引时加载的类路径资源，定义 V2 工单搜索投影及 IK 分词映射。
+     */
     private static final String INDEX_RESOURCE = "elasticsearch/ticket-index-v2.json";
 
-    /** 完整、严格的 V3 源版本投影，不在已有 V2 索引上追加版本字段。 */
+    /**
+     * 完整、严格的 V3 源版本投影，不在已有 V2 索引上追加版本字段。
+     */
     private static final String MANAGED_INDEX_RESOURCE = "elasticsearch/ticket-index-v3.json";
 
-    /** 仅解析映射模板和字段定义，避免受 HTTP 序列化配置影响。 */
+    /**
+     * 仅解析映射模板和字段定义，避免受 HTTP 序列化配置影响。
+     */
     private static final ObjectMapper MAPPING_MAPPER = new ObjectMapper();
 
-    /** Spring 容器管理的共享客户端，本服务不单独关闭它。 */
+    /**
+     * Spring 容器管理的共享客户端，本服务不单独关闭它。
+     */
     private final RestHighLevelClient client;
 
-    /** 索引名、统一读写别名及首次创建时使用的主分片和副本配置。 */
+    /**
+     * 索引名、统一读写别名及首次创建时使用的主分片和副本配置。
+     */
     private final ElasticsearchProperties properties;
 
     /**
@@ -221,7 +235,12 @@ public class TicketSearchIndexService {
         validatePublishedReadAlias(target);
     }
 
-    /** 仅允许精确配置的旧索引或调用方从任务表登记取得的规范 V3 名称。 */
+    /**
+     * 仅允许精确配置的旧索引或调用方从任务表登记取得的规范 V3 名称。
+     *
+     * @param index 待接管的旧读别名物理索引名称
+     * @return 为明确配置的旧索引名或规范 V3 任务索引名时为 true
+     */
     private boolean isAllowedPreviousIndex(String index) {
         if (index == null) {
             return false;
@@ -241,13 +260,24 @@ public class TicketSearchIndexService {
         }
     }
 
-    /** 获取指定别名的元数据；没有匹配项时返回 null。 */
+    /**
+     * 获取指定别名的元数据；没有匹配项时返回 null。
+     *
+     * @param aliases 同一个物理索引上的别名元数据集合
+     * @param aliasName 需要精确匹配的别名名称
+     * @return 指定别名的元数据；没有匹配项时为 null
+     */
     private AliasMetadata findAliasMetadata(Set<AliasMetadata> aliases, String aliasName) {
         return aliases == null ? null : aliases.stream()
                 .filter(metadata -> aliasName.equals(metadata.alias())).findFirst().orElse(null);
     }
 
-    /** 业务读别名必须保持完整文档可见，不能配置过滤或路由。 */
+    /**
+     * 业务读别名必须保持完整文档可见，不能配置过滤或路由。
+     *
+     * @return 业务读别名的物理索引到别名元数据映射；别名缺失时为空
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private Map<String, Set<AliasMetadata>> readAliasMetadata() throws IOException {
         String readAlias = properties.getTicketIndexAlias();
         GetAliasesResponse response = client.indices()
@@ -269,7 +299,12 @@ public class TicketSearchIndexService {
         return aliases;
     }
 
-    /** 只允许系统约定的任务专属命名，防止接受物理索引、读别名或其他任务的别名。 */
+    /**
+     * 只允许系统约定的任务专属命名，防止接受物理索引、读别名或其他任务的别名。
+     *
+     * @param target 来自数据库登记记录的任务、代次、物理索引和专属写别名
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void validateTargetNames(TicketSearchWriteTarget target) throws IOException {
         if (target == null || target.getJobId() <= 0 || target.getGeneration() <= 0) {
             throw new IOException("Elasticsearch 受管目标必须包含有效任务 ID 和索引代次");
@@ -280,7 +315,13 @@ public class TicketSearchIndexService {
         }
     }
 
-    /** 别名及字段校验不会修改已存在的索引，避免将 V2 内部版本与外部源版本混用。 */
+    /**
+     * 别名及字段校验不会修改已存在的索引，避免将 V2 内部版本与外部源版本混用。
+     *
+     * @param target 本批固定的受管任务代次
+     * @param indexName 别名实际指向、应与目标登记一致的物理索引名
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void validateManagedIndex(TicketSearchWriteTarget target, String indexName) throws IOException {
         if (!target.getPhysicalIndex().equals(indexName)) {
             throw new IOException("Elasticsearch 受管写别名目标与登记的物理索引不一致："
@@ -313,7 +354,12 @@ public class TicketSearchIndexService {
         }
     }
 
-    /** 源文档必须可回读，写入请求不使用额外 routing。 */
+    /**
+     * 源文档必须可回读，写入请求不使用额外 routing。
+     *
+     * @param mapping 物理索引的完整映射定义，包含 _source 和 _routing 配置
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void rejectDisabledSourceOrRequiredRouting(Map<String, Object> mapping) throws IOException {
         Object source = mapping.get("_source");
         Object routing = mapping.get("_routing");
@@ -329,7 +375,14 @@ public class TicketSearchIndexService {
         }
     }
 
-    /** 逐字段校验类型、IK、日期格式及查询所需索引/排序能力，禁止静默补充错误映射。 */
+    /**
+     * 逐字段校验类型、IK、日期格式及查询所需索引/排序能力，禁止静默补充错误映射。
+     *
+     * @param name V3 模板要求的字段名称
+     * @param expected V3 模板中的预期字段映射节点
+     * @param actual 服务器返回的实际字段映射定义
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void validateManagedField(String name, JsonNode expected, Object actual) throws IOException {
         if (!(actual instanceof Map)) {
             throw new IOException("Elasticsearch 受管 V3 映射缺少字段 " + name);
@@ -350,7 +403,13 @@ public class TicketSearchIndexService {
         }
     }
 
-    /** 按 UTF-8 加载索引模板；旧初始化器和受管创建使用不同的资源。 */
+    /**
+     * 按 UTF-8 加载索引模板；旧初始化器和受管创建使用不同的资源。
+     *
+     * @param resource 类路径内的索引模板资源路径
+     * @return 以 UTF-8 读取的完整索引定义 JSON
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private String readIndexDefinition(String resource) throws IOException {
         try (InputStream input = new ClassPathResource(resource).getInputStream()) {
             return StreamUtils.copyToString(input, StandardCharsets.UTF_8);
@@ -448,6 +507,10 @@ public class TicketSearchIndexService {
     /**
      * 仅为缺失字段追加可排序的 date 映射，不改写现有字段或回填历史文档。
      * 已有字段必须为 date 且未禁用 doc_values；并发追加相同映射保持幂等。
+     *
+     * @param indexName 索引名称
+     * @param fields 字段集合
+     * @throws IOException 处理过程中发生IO异常时
      */
     private void ensureResponseDeadlineMapping(String indexName, Map<?, ?> fields) throws IOException {
         Object definition = fields.get("responseDeadline");
@@ -470,14 +533,20 @@ public class TicketSearchIndexService {
      * 查找搜索别名的唯一目标，并校验别名可写且没有过滤和路由条件。
      * 单索引别名未显式设置写标记时可用于写入，显式设置为 false 时拒绝使用。
      *
-     * @return 别名指向的物理索引名；服务端返回别名不存在时为 null
+     * @return 别名唯一指向的物理索引名；服务端确认别名不存在时为 null
      * @throws IOException 请求失败、响应解析失败或别名的目标数量及读写条件不符合要求
      */
     private String findSingleIndex() throws IOException {
         return findSingleIndex(properties.getTicketIndexAlias());
     }
 
-    /** 查询指定别名；约束对旧搜索别名和任务专属写别名一致。 */
+    /**
+     * 查询指定别名；约束对旧搜索别名和任务专属写别名一致。
+     *
+     * @param aliasName 需要查询并校验可写约束的别名名称
+     * @return 别名唯一指向的物理索引名；服务端确认别名不存在时为 null
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private String findSingleIndex(String aliasName) throws IOException {
         GetAliasesResponse response = client
                 .indices()

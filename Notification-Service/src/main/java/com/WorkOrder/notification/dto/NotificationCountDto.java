@@ -5,7 +5,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** 通知数量响应。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 通知数量响应。
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

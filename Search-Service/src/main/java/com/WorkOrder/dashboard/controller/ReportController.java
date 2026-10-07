@@ -24,11 +24,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ReportController {
 
-    /** 管理端全局仪表盘服务。 */
+    /**
+     * 管理端全局仪表盘服务。
+     */
     private final DashboardService dashboardService;
 
     /**
      * 获取处理人员报表性能数据。
+     *
      * @return 处理人员报表性能数据列表
      */
     @PreAuthorize("hasRole('ADMIN')")

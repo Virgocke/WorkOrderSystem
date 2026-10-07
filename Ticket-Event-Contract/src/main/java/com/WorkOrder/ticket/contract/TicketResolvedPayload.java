@@ -7,34 +7,77 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-/** 工单解决事件 V1 快照；方案正文保留在状态历史中，不进入消息。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 工单解决事件 V1 快照；方案正文保留在状态历史中，不进入消息。
+ */
 public final class TicketResolvedPayload {
-    /** 工单主键。 */
+    /**
+     * 工单主键。
+     */
     private final long ticketId;
-    /** 工单编号。 */
+    /**
+     * 工单编号。
+     */
     private final String ticketNo;
-    /** 可空的工单标题。 */
+    /**
+     * 可空的工单标题。
+     */
     private final String ticketTitle;
-    /** 工单创建人 ID，也是通知的候选接收人。 */
+    /**
+     * 工单创建人 ID，也是通知的候选接收人。
+     */
     private final long creatorId;
-    /** 解决时的工单处理人 ID。 */
+    /**
+     * 解决时的工单处理人 ID。
+     */
     private final long handlerId;
-    /** 实际提交解决的操作人 ID。 */
+    /**
+     * 实际提交解决的操作人 ID。
+     */
     private final long resolvedBy;
-    /** 解决操作人角色。 */
+    /**
+     * 解决操作人角色。
+     */
     private final String resolvedByRole;
-    /** 解决发生时间，包含时区偏移量。 */
+    /**
+     * 解决发生时间，包含时区偏移量。
+     */
     private final OffsetDateTime resolvedAt;
-    /** 解决操作日志 ID。 */
+    /**
+     * 解决操作日志 ID。
+     */
     private final long resolutionLogId;
-    /** 去除操作人本人后的通知接收人快照。 */
+    /**
+     * 去除操作人本人后的通知接收人快照。
+     */
     private final List<Long> receiverIds;
-    /** 响应截止时间，供缺失 SLA 记录初始化。 */
+    /**
+     * 响应截止时间，供缺失 SLA 记录初始化。
+     */
     private final OffsetDateTime responseDeadline;
-    /** 解决截止时间，供缺失 SLA 记录初始化。 */
+    /**
+     * 解决截止时间，供缺失 SLA 记录初始化。
+     */
     private final OffsetDateTime resolutionDeadline;
 
-    /** 保存校验后的解决快照。 */
+    /**
+     * 保存校验后的解决快照。
+     *
+     * @param ticketId 工单主键
+     * @param ticketNo 工单编号
+     * @param ticketTitle 可空的工单标题
+     * @param creatorId 工单创建人 ID，也是通知的候选接收人
+     * @param handlerId 解决时的工单处理人 ID
+     * @param resolvedBy 实际提交解决的操作人 ID
+     * @param resolvedByRole 解决操作人角色
+     * @param resolvedAt 解决发生时间，包含时区偏移量
+     * @param resolutionLogId 解决操作日志 ID
+     * @param receiverIds 去除操作人本人后的通知接收人快照
+     * @param responseDeadline 响应截止时间，供缺失 SLA 记录初始化
+     * @param resolutionDeadline 解决截止时间，供缺失 SLA 记录初始化
+     */
     private TicketResolvedPayload(long ticketId, String ticketNo, String ticketTitle,
                                   long creatorId, long handlerId, long resolvedBy,
                                   String resolvedByRole, OffsetDateTime resolvedAt,
@@ -54,7 +97,12 @@ public final class TicketResolvedPayload {
         this.resolutionDeadline = resolutionDeadline;
     }
 
-    /** 校验解决状态、操作人、接收人与信封后提取 V1 快照。 */
+    /**
+     * 校验解决状态、操作人、接收人与信封后提取 V1 快照。
+     *
+     * @param event 携带解决动作快照的 V1 工单领域事件
+     * @return 通过信封、业务身份及解决事实校验的稳定事件载荷
+     */
     public static TicketResolvedPayload from(WorkOrderEvent event) {
         JsonNode payload = TicketPayloadReader.payload(event, EventType.TICKET_RESOLVED);
         long ticketId = TicketPayloadReader.positiveLong(payload, "ticketId");
@@ -86,28 +134,76 @@ public final class TicketResolvedPayload {
                 receiverIds, responseDeadline, resolutionDeadline);
     }
 
-    /** @return 工单主键 */
+    /**
+     * 获取工单主键。
+     *
+     * @return 工单主键
+     */
     public long getTicketId() { return ticketId; }
-    /** @return 工单编号 */
+    /**
+     * 获取工单编号。
+     *
+     * @return 工单编号
+     */
     public String getTicketNo() { return ticketNo; }
-    /** @return 可空的工单标题 */
+    /**
+     * 获取可空的工单标题。
+     *
+     * @return 可空的工单标题
+     */
     public String getTicketTitle() { return ticketTitle; }
-    /** @return 工单创建人 ID */
+    /**
+     * 获取工单创建人 ID，也是通知的候选接收人。
+     *
+     * @return 工单创建人 ID
+     */
     public long getCreatorId() { return creatorId; }
-    /** @return 解决时的处理人 ID */
+    /**
+     * 获取解决时的工单处理人 ID。
+     *
+     * @return 解决时的处理人 ID
+     */
     public long getHandlerId() { return handlerId; }
-    /** @return 解决操作人 ID */
+    /**
+     * 获取实际提交解决的操作人 ID。
+     *
+     * @return 解决操作人 ID
+     */
     public long getResolvedBy() { return resolvedBy; }
-    /** @return 解决操作人角色 */
+    /**
+     * 获取解决操作人角色。
+     *
+     * @return 解决操作人角色
+     */
     public String getResolvedByRole() { return resolvedByRole; }
-    /** @return 带时区偏移量的解决时间 */
+    /**
+     * 获取解决发生时间，包含时区偏移量。
+     *
+     * @return 带时区偏移量的解决时间
+     */
     public OffsetDateTime getResolvedAt() { return resolvedAt; }
-    /** @return 解决操作日志 ID */
+    /**
+     * 获取解决操作日志 ID。
+     *
+     * @return 解决操作日志 ID
+     */
     public long getResolutionLogId() { return resolutionLogId; }
-    /** @return 通知接收人快照 */
+    /**
+     * 获取去除操作人本人后的通知接收人快照。
+     *
+     * @return 按事件顺序保存的只读接收人快照，已去重并排除操作人
+     */
     public List<Long> getReceiverIds() { return receiverIds; }
-    /** @return 响应截止时间 */
+    /**
+     * 获取响应截止时间，供缺失 SLA 记录初始化。
+     *
+     * @return 响应截止时间
+     */
     public OffsetDateTime getResponseDeadline() { return responseDeadline; }
-    /** @return 解决截止时间 */
+    /**
+     * 获取解决截止时间，供缺失 SLA 记录初始化。
+     *
+     * @return 解决截止时间
+     */
     public OffsetDateTime getResolutionDeadline() { return resolutionDeadline; }
 }

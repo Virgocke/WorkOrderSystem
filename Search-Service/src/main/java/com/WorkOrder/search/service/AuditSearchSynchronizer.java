@@ -16,7 +16,9 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * 分批轮扫已提交的审计日志并幂等写入 ES，不在业务写事务中访问搜索服务。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 分批轮扫已提交的审计日志并幂等写入 ES，不在业务写事务中访问搜索服务。
  * 每轮结束都会从主键零重新扫描：ID 的分配顺序不等于提交顺序，永久高水位会漏掉迟提交的低 ID。
  * 游标只在进程内保存，重启重新回填；搜索故障或部分写入失败时保留原批次重试。
  */
@@ -30,16 +32,24 @@ public class AuditSearchSynchronizer {
     private final AuditIndexSourceMapper sourceMapper;
     private final AuditSearchProperties properties;
 
-    /** 正在扫描的来源；每个来源结束后重新从零扫描下一个来源。 */
+    /**
+     * 正在扫描的来源；每个来源结束后重新从零扫描下一个来源。
+     */
     private Source currentSource = Source.OPERATION;
 
-    /** 仅代表当前来源中成功写入并刷新可见的最后主键，不作为永久同步水位。 */
+    /**
+     * 仅代表当前来源中成功写入并刷新可见的最后主键，不作为永久同步水位。
+     */
     private long lastIndexedId;
 
-    /** 初始化只在正常同步期间复用，失败后下一次重试会重新确认索引。 */
+    /**
+     * 初始化只在正常同步期间复用，失败后下一次重试会重新确认索引。
+     */
     private boolean indexInitialized;
 
-    /** 故障发生在一轮中途时，续扫尾部之后还需要从零再扫完整一轮，才能恢复搜索。 */
+    /**
+     * 故障发生在一轮中途时，续扫尾部之后还需要从零再扫完整一轮，才能恢复搜索。
+     */
     private boolean fullPassRequiredAfterRecovery;
 
     /** 第一次完整回填或故障后的一轮完整同步成功，才允许关键词查询。
@@ -49,7 +59,13 @@ public class AuditSearchSynchronizer {
     @Getter
     private volatile boolean ready;
 
-    /** 保存源查询、搜索写入及批量配置依赖，不在构造阶段连接 MySQL 或 ES。 */
+    /**
+     * 保存源查询、搜索写入及批量配置依赖，不在构造阶段连接 MySQL 或 ES。
+     *
+     * @param repository 审计搜索仓储
+     * @param sourceMapper 审计索引源数据数据访问器
+     * @param properties 审计搜索配置属性
+     */
     public AuditSearchSynchronizer(AuditSearchRepository repository,
                                   AuditIndexSourceMapper sourceMapper,
                                   AuditSearchProperties properties) {
@@ -81,13 +97,19 @@ public class AuditSearchSynchronizer {
         }
     }
 
-    /** 拒绝无法推进扫描的批量设置，校验失败同样进入统一故障处理。 */
+    /**
+     * 拒绝无法推进扫描的批量设置，校验失败同样进入统一故障处理。
+     */
     private void validateBatchSettings() {
         Assert.isTrue(properties.getBatchSize() > 0, "审计同步批大小必须大于零");
         Assert.isTrue(properties.getBatchesPerRun() > 0, "审计同步每次批数必须大于零");
     }
 
-    /** 首次运行或故障重试时确认索引可用，正常轮扫复用已经成功的初始化结果。 */
+    /**
+     * 首次运行或故障重试时确认索引可用，正常轮扫复用已经成功的初始化结果。
+     *
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void initializeIndexIfNecessary() throws IOException {
         if (indexInitialized) {
             return;
@@ -96,7 +118,11 @@ public class AuditSearchSynchronizer {
         indexInitialized = true;
     }
 
-    /** 按本次批数上限继续当前来源，扫完三种来源后结束本次运行，下一次从零重新对账。 */
+    /**
+     * 按本次批数上限继续当前来源，扫完三种来源后结束本次运行，下一次从零重新对账。
+     *
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void synchronizeAvailableBatches() throws IOException {
         for (int batch = 0; batch < properties.getBatchesPerRun(); batch++) {
             // 读取当前来源的批次
@@ -120,7 +146,11 @@ public class AuditSearchSynchronizer {
         }
     }
 
-    /** 根据当前来源读取已经提交的数据，每次查询都使用独立短读操作。 */
+    /**
+     * 根据当前来源读取已经提交的数据，每次查询都使用独立短读操作。
+     *
+     * @return 审计搜索文档列表
+     */
     private List<AuditSearchDocument> readCurrentSourceBatch() {
         switch (currentSource) {
             case OPERATION:
@@ -134,7 +164,12 @@ public class AuditSearchSynchronizer {
         }
     }
 
-    /** 检查源查询遵守批大小及严格主键递增规则，非法批次不能写入或推进同步游标。 */
+    /**
+     * 检查源查询遵守批大小及严格主键递增规则，非法批次不能写入或推进同步游标。
+     *
+     * @param documents 按当前来源主键升序读取的审计投影批次
+     * @return 通过来源一致性及单调 ID 校验的本批最后一个来源主键
+     */
     private long validateSourceBatch(List<AuditSearchDocument> documents) {
         Assert.notNull(documents, "审计同步批次不能为空");
         Assert.isTrue(documents.size() <= properties.getBatchSize(), "审计同步批次超过配置上限");
@@ -149,7 +184,13 @@ public class AuditSearchSynchronizer {
         return previousId;
     }
 
-    /** 先写入并确认整批搜索可见，再推进游标；写入失败时保留原游标供下一次重试。 */
+    /**
+     * 先写入并确认整批搜索可见，再推进游标；写入失败时保留原游标供下一次重试。
+     *
+     * @param documents 审计搜索文档列表，对应 documents
+     * @param batchLastId 本批最后一个已校验的来源主键；全批写入确认后才推进
+     * @throws IOException 处理过程中发生IO异常时
+     */
     private void writeBatchAndAdvanceCursor(List<AuditSearchDocument> documents, long batchLastId)
             throws IOException {
         if (documents.isEmpty()) {
@@ -159,7 +200,11 @@ public class AuditSearchSynchronizer {
         lastIndexedId = batchLastId;
     }
 
-    /** 切换来源并清零当前游标；最后一个来源结束时返回 true 表示一轮完整同步结束。 */
+    /**
+     * 切换来源并清零当前游标；最后一个来源结束时返回 true 表示一轮完整同步结束。
+     *
+     * @return 切换到下一种日志来源时为 true，当前完整同步遍历结束时为 false
+     */
     private boolean moveToNextSource() {
         lastIndexedId = 0;
         switch (currentSource) {
@@ -177,7 +222,9 @@ public class AuditSearchSynchronizer {
         }
     }
 
-    /** 正常完整轮扫后允许查询；故障恢复只扫完原轮尾部时，继续等待下一轮完整回填。 */
+    /**
+     * 正常完整轮扫后允许查询；故障恢复只扫完原轮尾部时，继续等待下一轮完整回填。
+     */
     private void completePass() {
         if (fullPassRequiredAfterRecovery) {
             ready = false;
@@ -187,7 +234,11 @@ public class AuditSearchSynchronizer {
         ready = true;
     }
 
-    /** 暂停搜索并安排重新确认索引，保留来源和游标，避免故障时跳过尚未成功写入的批次。 */
+    /**
+     * 暂停搜索并安排重新确认索引，保留来源和游标，避免故障时跳过尚未成功写入的批次。
+     *
+     * @param exception 捕获的异常
+     */
     private void handleSynchronizationFailure(Exception exception) {
         ready = false;
         indexInitialized = false;
@@ -200,7 +251,11 @@ public class AuditSearchSynchronizer {
                 currentSource, lastIndexedId, exception.getClass().getSimpleName());
     }
 
-    /** 固定的三种日志来源，与源 Mapper 的独立主键扫描一一对应。 */
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description 固定的三种日志来源，与源 Mapper 的独立主键扫描一一对应。
+     */
     private enum Source {
         OPERATION,
         STATUS,

@@ -9,7 +9,9 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * 更新处理人资料请求
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 更新处理人资料请求
  */
 @Data
 public class UpdateHandlerProfileRequest {

@@ -7,11 +7,16 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/** 仅由 SLA 监控的 Feign 客户端加载，向工单服务透传当前请求的 Bearer 令牌。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 仅由 SLA 监控的 Feign 客户端加载，向工单服务透传当前请求的 Bearer 令牌。
+ */
 public class SlaMonitorFeignConfiguration {
 
     /**
      * 向内部服务透传当前请求的 Bearer 令牌。
+     *
      * @return 请求拦截器
      */
     @Bean

@@ -18,20 +18,35 @@ import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 
-/** 每次查询检查主库就绪状态及真实读别名；重建期间不返回旧索引搜索结果。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 每次查询检查主库就绪状态及真实读别名；重建期间不返回旧索引搜索结果。
+ */
 @Service
 public class TicketSearchReadinessService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TicketSearchReadinessService.class);
 
-    /** 即使同步关闭也存在，用于明确返回未就绪而非删除 HTTP 入口。 */
+    /**
+     * 即使同步关闭也存在，用于明确返回未就绪而非删除 HTTP 入口。
+     */
     private final TicketSearchSyncProperties properties;
-    /** 可选依赖保证关闭 ES 或同步时仍能启动搜索控制器。 */
+    /**
+     * 可选依赖保证关闭 ES 或同步时仍能启动搜索控制器。
+     */
     private final ObjectProvider<TicketSearchTaskMapper> mapperProvider;
     private final ObjectProvider<TicketSearchIndexService> indexServiceProvider;
     private final ObjectProvider<PlatformTransactionManager> transactionManagerProvider;
 
-    /** 保存可选基础设施依赖，构造时不查询数据库或 Elasticsearch。 */
+    /**
+     * 保存可选基础设施依赖，构造时不查询数据库或 Elasticsearch。
+     *
+     * @param properties 即使同步关闭也存在，用于明确返回未就绪而非删除 HTTP 入口
+     * @param mapperProvider 可选依赖保证关闭 ES 或同步时仍能启动搜索控制器
+     * @param indexServiceProvider 可选 ES 服务，用于重新校验真实已发布读别名
+     * @param transactionManagerProvider 可选主库事务管理器，用于隔离外层事务的旧快照
+     */
     public TicketSearchReadinessService(TicketSearchSyncProperties properties,
                                        ObjectProvider<TicketSearchTaskMapper> mapperProvider,
                                        ObjectProvider<TicketSearchIndexService> indexServiceProvider,
@@ -73,7 +88,14 @@ public class TicketSearchReadinessService {
         }
     }
 
-    /** 暂停外层事务，短读结束后再发 ES 请求，避免恢复的外层事务包住网络调用。 */
+    /**
+     * 暂停外层事务，短读结束后再发 ES 请求，避免恢复的外层事务包住网络调用。
+     *
+     * @param mapper 工单搜索任务数据访问器
+     * @param indexService 工单搜索索引服务
+     * @param transactionManager 主库事务管理器，用于暂停外层事务并执行独立短读
+     * @return 共享 READY 事实及真实 ES 读别名均通过校验的不可变目标
+     */
     private TicketSearchWriteTarget checkOutsideTransaction(TicketSearchTaskMapper mapper,
                                                             TicketSearchIndexService indexService,
                                                             PlatformTransactionManager transactionManager) {
@@ -113,7 +135,12 @@ public class TicketSearchReadinessService {
         }
     }
 
-    /** 仅在数据库短事务中执行，不访问 ES，不推进任务状态。 */
+    /**
+     * 仅在数据库短事务中执行，不访问 ES，不推进任务状态。
+     *
+     * @param mapper 工单搜索任务数据访问器
+     * @return 由当前共享 READY 控制记录和已发布任务解析的不可变目标
+     */
     private TicketSearchWriteTarget readReadyTarget(TicketSearchTaskMapper mapper) {
         TicketSearchControlState state = mapper.selectState();
         if (state == null || !"READY".equals(state.getPhase()) || !positive(state.getCurrentJobId())) {
@@ -161,12 +188,21 @@ public class TicketSearchReadinessService {
         return task.target();
     }
 
-    /** 判断任务标识和代次是否为正数。 */
+    /**
+     * 判断任务标识和代次是否为正数。
+     *
+     * @param value 待检查的可空任务 ID 或重建代次
+     * @return 值非 null 且大于 0 时为 true
+     */
     private static boolean positive(Long value) {
         return value != null && value > 0;
     }
 
-    /** 未就绪统一使用可跨服务识别的业务错误。 */
+    /**
+     * 未就绪统一使用可跨服务识别的业务错误。
+     *
+     * @return 错误码为 TICKET_SEARCH_NOT_READY 的业务异常
+     */
     private static SystemException notReady() {
         return new SystemException(SystemExceptionEnum.TICKET_SEARCH_NOT_READY);
     }

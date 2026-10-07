@@ -10,7 +10,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
 
-/** 在当前业务事务中把领域事件持久化到 Outbox。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在当前业务事务中把领域事件持久化到 Outbox。
+ */
 public class DomainEventPublisher {
     private final OutboxMapper outboxMapper;
     private final ObjectMapper objectMapper;
@@ -35,10 +39,10 @@ public class DomainEventPublisher {
      * 该方法只写入 Outbox，不访问 RocketMQ；序列化或插入失败会向上抛出，
      * 从而使调用方的业务事务一并回滚。
      *
-     * @param event 待发布的统一事件信封
+     * @param event 待持久化的领域事件，缺少 eventId、发生时间或生产者时在此补齐
      * @param topic 目标 RocketMQ Topic
      * @param tag 目标 RocketMQ Tag
-     * @return 本次事件稳定且全局唯一的 eventId
+     * @return 写入 Outbox 的稳定业务 eventId；不表示 Broker 已接受消息
      * @throws IllegalStateException 当前没有活动事务或生产服务配置缺失时抛出
      * @throws IllegalArgumentException 事件字段不完整或序列化失败时抛出
      */

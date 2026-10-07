@@ -27,13 +27,25 @@ public class ElasticsearchSearchController {
 
     private final HandlerTicketSearchService handlerTicketSearchService;
 
-    /** 查询通过管理员方法权限校验的工单搜索页。 */
+    /**
+     * 查询通过管理员方法权限校验的工单搜索页。
+     *
+     * @param query 工单搜索查询条件
+     * @return 统一响应，包含工单搜索分页
+     * @throws IOException 处理过程中发生IO异常时
+     */
     @PostMapping("/tickets/admin")
     public Result<TicketSearchPage> esSearch(@RequestBody TicketSearchQuery query) throws IOException {
         return Result.success(adminTicketSearchService.search(query));
     }
 
-    /** 搜索当前登录处理人的工单；处理人身份由服务从已认证的令牌生成。 */
+    /**
+     * 搜索当前登录处理人的工单；处理人身份由服务从已认证的令牌生成。
+     *
+     * @param query 工单搜索查询条件
+     * @return 统一响应，包含工单搜索分页
+     * @throws IOException 处理过程中发生IO异常时
+     */
     @PostMapping("/tickets/handler")
     public Result<TicketSearchPage> searchHandlerTickets(@RequestBody TicketSearchQuery query) throws IOException {
         return Result.success(handlerTicketSearchService.search(query));

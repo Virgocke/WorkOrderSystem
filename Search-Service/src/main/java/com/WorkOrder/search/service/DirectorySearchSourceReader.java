@@ -11,7 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 在独立数据库快照中分批读取目录；事务结束后才执行 ES 网络写入。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在独立数据库快照中分批读取目录；事务结束后才执行 ES 网络写入。
+ */
 @Service
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "work-order.elasticsearch", name = "enabled", havingValue = "true")
@@ -20,7 +24,11 @@ public class DirectorySearchSourceReader {
     private static final int BATCH_SIZE = 500;
     private final DirectoryIndexSourceMapper mapper;
 
-    /** 每轮从零开始覆盖改名、联系方式、技能变更及迟提交记录，不依赖永久 ID 水位。 */
+    /**
+     * 每轮从零开始覆盖改名、联系方式、技能变更及迟提交记录，不依赖永久 ID 水位。
+     *
+     * @return Directory搜索文档列表
+     */
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public List<DirectorySearchDocument> readSnapshot() {
         List<DirectorySearchDocument> snapshot = new ArrayList<>();

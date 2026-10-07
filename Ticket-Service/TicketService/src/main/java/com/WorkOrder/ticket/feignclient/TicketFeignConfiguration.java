@@ -7,11 +7,16 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/** 仅由分配记录的两个 Feign 客户端加载，向内部服务透传当前请求的 Bearer 令牌。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 仅由分配记录的两个 Feign 客户端加载，向内部服务透传当前请求的 Bearer 令牌。
+ */
 public class TicketFeignConfiguration {
 
     /**
      * 向内部服务透传当前请求的 Bearer 令牌。
+     *
      * @return 请求拦截器
      */
     @Bean

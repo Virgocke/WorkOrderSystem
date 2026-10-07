@@ -11,7 +11,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/** READY 代次持续补偿，每个完整轮次都从零开始，覆盖迟提交与终态消息遗漏。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description READY 代次持续补偿，每个完整轮次都从零开始，覆盖迟提交与终态消息遗漏。
+ */
 @Component
 @ConditionalOnProperty(prefix="work-order.elasticsearch.ticket-sync", name="enabled", havingValue="true")
 public class TicketSearchReconciliationJob {
@@ -21,13 +25,22 @@ public class TicketSearchReconciliationJob {
     private final TicketSearchVerificationService verification;
     private final TicketSearchSyncProperties properties;
 
-    /** 复用统一批次验证与主库短事务。 */
+    /**
+     * 复用统一批次验证与主库短事务。
+     *
+     * @param store 存储服务
+     * @param sources 工单索引源数据数据访问器，对应 sources
+     * @param verification 验证
+     * @param properties 工单搜索同步配置属性
+     */
     public TicketSearchReconciliationJob(TicketSearchTaskStore store, TicketIndexSourceMapper sources,
                                         TicketSearchVerificationService verification, TicketSearchSyncProperties properties) {
         this.store=store; this.sources=sources; this.verification=verification; this.properties=properties;
     }
 
-    /** 有预算续跑同一轮次，失败或重启后保留未确认批次。 */
+    /**
+     * 有预算续跑同一轮次，失败或重启后保留未确认批次。
+     */
     @Scheduled(fixedDelayString="${work-order.elasticsearch.ticket-sync.reconcile-delay-ms:30000}")
     public void runOnce() {
         String token=TicketSearchTaskStore.token(); Long generation=null;

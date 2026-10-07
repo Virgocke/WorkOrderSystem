@@ -20,23 +20,26 @@ import java.util.List;
 public interface TicketService extends IService<Tickets> {
     /**
      * 创建工单
+     *
      * @param creatorId 创建者ID
      * @param creatorName 创建者名称
      * @param createTicketDto 创建工单的DTO
-     * @return
+     * @return 工单详情
      */
     TicketResponse createTicket(Long creatorId,String creatorName, CreateTicketDto createTicketDto);
 
     /**
      * 获取用户工单列表
-      * @param userId 用户ID
-      * @param myTicketPageDto 工单分页查询DTO
+     *
+     * @param userId 用户ID
+     * @param myTicketPageDto 工单分页查询DTO
      * @return 工单列表
      */
     List<TicketResponse> myTickets(Long userId, MyTicketPageDto myTicketPageDto);
 
     /**
      * 获取用户工单历史统计信息
+     *
      * @param userId 用户ID
      * @return 工单历史统计信息
      */
@@ -44,6 +47,7 @@ public interface TicketService extends IService<Tickets> {
 
     /**
      * 获取工单信息
+     *
      * @param ticketId 工单ID
      * @return 工单信息
      */
@@ -51,7 +55,8 @@ public interface TicketService extends IService<Tickets> {
 
     /**
      * 回复工单信息
-      * @param ticketId 工单ID
+     *
+     * @param ticketId 工单ID
      * @param userId 用户ID
      * @param operatorRole 当前登录角色，由后端认证信息取得
      * @param ticketReplyDto 回复工单的DTO
@@ -61,15 +66,17 @@ public interface TicketService extends IService<Tickets> {
 
     /**
      * 催办工单
-      * @param ticketId 工单ID
-      * @param userId 用户ID
-      * @param clientIp 客户端IP
-      * @return 是否成功催办工单
+     *
+     * @param ticketId 工单ID
+     * @param userId 用户ID
+     * @param clientIp 客户端IP
+     * @return 是否成功催办工单
      */
     Boolean ticketExpedite(Long ticketId, Long userId, String clientIp);
 
     /**
      * 取消工单
+     *
      * @param ticketId 工单ID
      * @param userId 用户ID
      * @return 取消工单信息
@@ -78,6 +85,7 @@ public interface TicketService extends IService<Tickets> {
 
     /**
      * 确认工单
+     *
      * @param ticketId 工单ID
      * @param userId 用户ID
      * @return 确认工单信息
@@ -86,6 +94,7 @@ public interface TicketService extends IService<Tickets> {
 
     /**
      * 根据SLA状态获取工单信息
+     *
      * @param operatorId 当前操作人ID
      * @param operatorRole 当前操作人角色
      * @param page 页码

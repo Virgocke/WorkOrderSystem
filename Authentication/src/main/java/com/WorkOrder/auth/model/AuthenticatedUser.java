@@ -8,7 +8,11 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** 已完成身份校验的用户上下文。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 已完成身份校验的用户上下文。
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

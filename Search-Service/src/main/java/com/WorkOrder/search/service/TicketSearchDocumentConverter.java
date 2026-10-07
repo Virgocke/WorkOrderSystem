@@ -8,17 +8,30 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
-/** 统一工单 ID、空值与业务时区；同一源版本始终转换为同一份完整投影。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 统一工单 ID、空值与业务时区；同一源版本始终转换为同一份完整投影。
+ */
 public class TicketSearchDocumentConverter {
     private final ZoneId sourceZone;
 
-    /** 显式提供 DATETIME 所属业务时区，不依赖 JVM 默认时区。 */
+    /**
+     * 显式提供 DATETIME 所属业务时区，不依赖 JVM 默认时区。
+     *
+     * @param sourceZone 源数据时区
+     */
     public TicketSearchDocumentConverter(ZoneId sourceZone) {
         Assert.notNull(sourceZone, "工单源时间的业务时区不能为空");
         this.sourceZone = sourceZone;
     }
 
-    /** 校验源行并转换完整文档；可空描述、处理人和响应截止时间保留 null。 */
+    /**
+     * 校验源行并转换完整文档；可空描述、处理人和响应截止时间保留 null。
+     *
+     * @param source 同次主库读取的完整工单源行及其 sourceVersion
+     * @return 包含完整业务字段和同一源版本的搜索投影
+     */
     public TicketSearchDocument convert(TicketIndexSource source) {
         Assert.notNull(source, "工单搜索源行不能为空");
         validatePositive(source.getTicketId(), "ticketId");
@@ -57,12 +70,22 @@ public class TicketSearchDocumentConverter {
         return document;
     }
 
-    /** 保留缺失时间，对存在的 DATETIME 使用业务时区计算偏移。 */
+    /**
+     * 保留缺失时间，对存在的 DATETIME 使用业务时区计算偏移。
+     *
+     * @param value 使用业务时区解释的 MySQL DATETIME 值，可为 null
+     * @return 带业务时区偏移量的日期时间；源值为 null 时为 null
+     */
     private OffsetDateTime toOffset(LocalDateTime value) {
         return value == null ? null : value.atZone(sourceZone).toOffsetDateTime();
     }
 
-    /** 拒绝非法源标识或版本，不能用零值掩盖源数据错误。 */
+    /**
+     * 拒绝非法源标识或版本，不能用零值掩盖源数据错误。
+     *
+     * @param value 必须为正数的源记录 ID 或 sourceVersion
+     * @param field 用于定位非法源数据的字段名称
+     */
     private void validatePositive(Long value, String field) {
         Assert.isTrue(value != null && value > 0, "工单源 " + field + " 必须为正数");
     }

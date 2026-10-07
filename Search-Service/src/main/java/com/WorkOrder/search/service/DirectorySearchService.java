@@ -14,7 +14,11 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.util.List;
 
-/** 目录搜索入口与同步协调；仅目录内容变化时构建新快照，空快照也会发布以清除已删除用户。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 目录搜索入口与同步协调；仅目录内容变化时构建新快照，空快照也会发布以清除已删除用户。
+ */
 @Service
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "work-order.elasticsearch", name = "enabled", havingValue = "true")
@@ -25,7 +29,9 @@ public class DirectorySearchService {
     private List<DirectorySearchDocument> publishedSnapshot;
     private volatile boolean ready;
 
-    /** 同步新增、改名、联系方式、技能及删除；源数据读取结束后才写 ES，失败禁止返回旧结果冒充最新结果。 */
+    /**
+     * 同步新增、改名、联系方式、技能及删除；源数据读取结束后才写 ES，失败禁止返回旧结果冒充最新结果。
+     */
     @Scheduled(fixedDelayString = "${work-order.elasticsearch.directory-sync-delay-ms:30000}", initialDelayString = "0")
     public synchronized void synchronize() {
         try {
@@ -49,7 +55,14 @@ public class DirectorySearchService {
         }
     }
 
-    /** 校验管理员身份及回填状态，返回完整候选用户 ID；业务层负责当前角色、状态及分页。 */
+    /**
+     * 校验管理员身份及回填状态，返回完整候选用户 ID；业务层负责当前角色、状态及分页。
+     *
+     * @param keyword 查询关键词
+     * @param handlers true 匹配姓名及技能，false 匹配姓名、邮箱及电话
+     * @return 完整的候选用户 ID 列表；角色、状态、排序和分页由后续 MySQL 业务查询处理
+     * @throws IOException 处理过程中发生IO异常时
+     */
     @PreAuthorize("hasRole('ADMIN')")
     public List<Long> search(String keyword, boolean handlers) throws IOException {
         if (!StringUtils.hasText(keyword)) {

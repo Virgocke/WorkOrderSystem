@@ -25,6 +25,12 @@ public class SlaRecordController {
 
     private final SlaRecordService slaRecordService;
 
+    /**
+     * 分页查询 SLA 看板上的实时工单。
+     *
+     * @param slaRecordBoardDto 分页参数、SLA 状态和工单状态筛选条件
+     * @return 符合看板筛选条件的工单分页响应
+     */
     @PreAuthorize("hasRole('ADMIN') or hasRole('HANDLER')")
     @GetMapping("/board")
     public Result<PageResult<TicketResponse>> getRealTimeSlaRecords(

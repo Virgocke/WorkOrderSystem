@@ -6,7 +6,11 @@ import com.WorkOrder.user.dto.UpdateDepartmentDto;
 
 import java.util.List;
 
-/** 部门目录查询服务。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 部门目录查询服务。
+ */
 public interface DepartmentDirectoryService {
 
     /**

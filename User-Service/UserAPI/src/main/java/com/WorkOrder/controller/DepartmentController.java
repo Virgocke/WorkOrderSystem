@@ -20,7 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.validation.Valid;
 import java.util.List;
 
-/** 管理员部门管理接口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理员部门管理接口。
+ */
 @Validated
 @RestController
 @RequestMapping("/departments")

@@ -11,14 +11,22 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-/** 每次从共享控制记录解析受管目标；只读取，不推进任务、不创建索引。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 每次从共享控制记录解析受管目标；只读取，不推进任务、不创建索引。
+ */
 public class TicketSearchWriteTargetResolver {
     private static final Set<String> WRITABLE_PHASES = new HashSet<>(
             Arrays.asList("IMPORTING", "VERIFYING", "PUBLISHING", "READY", "FAILED"));
 
     private final TicketSearchWriteTargetMapper mapper;
 
-    /** 目标查询使用主业务数据源，与源工单查询保持同一数据库来源。 */
+    /**
+     * 目标查询使用主业务数据源，与源工单查询保持同一数据库来源。
+     *
+     * @param mapper 工单搜索写入目标数据访问器
+     */
     public TicketSearchWriteTargetResolver(TicketSearchWriteTargetMapper mapper) {
         Assert.notNull(mapper, "工单搜索写目标查询不能为空");
         this.mapper = mapper;
@@ -27,6 +35,8 @@ public class TicketSearchWriteTargetResolver {
     /**
      * 在新的短事务中取得目标，避免外层 REPEATABLE READ 旧快照或会话缓存。
      * 返回后事务结束，后续索引校验和写入不占用该事务。
+     *
+     * @return 工单索引写入目标
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true, rollbackFor = Exception.class)
     public TicketSearchWriteTarget resolve() {
@@ -54,7 +64,12 @@ public class TicketSearchWriteTargetResolver {
                 record.getTargetIndex(), record.getWriteAlias());
     }
 
-    /** 判断可空任务字段是否提供正整数。 */
+    /**
+     * 判断可空任务字段是否提供正整数。
+     *
+     * @param value 数据库中待检查的可空任务 ID 或重建代次
+     * @return 值非 null 且大于 0 时为 true
+     */
     private boolean positive(Long value) {
         return value != null && value > 0;
     }

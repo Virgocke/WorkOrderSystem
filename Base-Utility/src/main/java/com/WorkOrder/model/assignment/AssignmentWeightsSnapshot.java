@@ -4,7 +4,11 @@ import lombok.Value;
 
 import java.math.BigDecimal;
 
-/** 一次推荐使用的不可变权重快照，版本0表示使用应用默认配置。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 一次推荐使用的不可变权重快照，版本0表示使用应用默认配置。
+ */
 @Value
 public class AssignmentWeightsSnapshot {
     BigDecimal skill;

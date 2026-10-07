@@ -8,7 +8,11 @@ import com.WorkOrder.utils.ResponseUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/** 将统一派单评分填入手动分配或转派的历史快照。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 将统一派单评分填入手动分配或转派的历史快照。
+ */
 @Service
 @RequiredArgsConstructor
 public class AssignmentScoreService {
@@ -16,6 +20,7 @@ public class AssignmentScoreService {
 
     /**
      * 填充分配评分信息。
+     *
      * @param ticketId 待分配工单 ID
      * @param handlerId 目标处理人用户 ID
      * @param additionalLoad 同一批事务内已分给目标处理人的新增工单数

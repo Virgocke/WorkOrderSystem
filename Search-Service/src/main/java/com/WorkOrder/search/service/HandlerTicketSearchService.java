@@ -25,7 +25,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** 处理人工单搜索入口，权限过滤始终来自已认证用户，不信任请求中的用户 ID。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 处理人工单搜索入口，权限过滤始终来自已认证用户，不信任请求中的用户 ID。
+ */
 @Service
 @PreAuthorize("hasRole('HANDLER')")
 public class HandlerTicketSearchService {
@@ -58,6 +62,7 @@ public class HandlerTicketSearchService {
      * @param source 处理人搜索条件，身份筛选由当前认证覆盖
      * @return 只含候选 ID 的搜索页
      * @throws SystemException 同步未就绪、ES 查询失败或查询期间已发布目标发生变化
+     * @throws IOException 处理过程中发生IO异常时
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TicketSearchPage search(TicketSearchQuery source) throws IOException {
@@ -90,14 +95,25 @@ public class HandlerTicketSearchService {
         return new TicketSearchPage(ids, result.getTotal(), result.getPage(), result.getPageSize());
     }
 
-    /** 创建只携带候选 ID 的独立投影，不修改仓库返回的原始搜索文档。 */
+    /**
+     * 创建只携带候选 ID 的独立投影，不修改仓库返回的原始搜索文档。
+     *
+     * @param source 待转换或读取的源数据
+     * @return 工单搜索文档
+     */
     private TicketSearchDocument toIdOnlyDocument(TicketSearchDocument source) {
         TicketSearchDocument target = new TicketSearchDocument();
         target.setTicketId(source.getTicketId());
         return target;
     }
 
-    /** 仅复制处理人列表支持的条件，屏蔽其他筛选字段，保留原始请求对象。 */
+    /**
+     * 仅复制处理人列表支持的条件，屏蔽其他筛选字段，保留原始请求对象。
+     *
+     * @param source 待转换或读取的源数据
+     * @param handlerId 处理人用户 ID
+     * @return 工单搜索查询条件
+     */
     private TicketSearchQuery normalizeQuery(TicketSearchQuery source, Long handlerId) {
         TicketSearchQuery target = new TicketSearchQuery();
         target.setKeyword(trimToNull(source.getKeyword()));
@@ -112,7 +128,12 @@ public class HandlerTicketSearchService {
         return target;
     }
 
-    /** 去除首尾空白，将空字符串统一转为不限制条件。 */
+    /**
+     * 去除首尾空白，将空字符串统一转为不限制条件。
+     *
+     * @param value 待处理的值
+     * @return 本次处理得到的文本
+     */
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }

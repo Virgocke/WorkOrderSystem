@@ -61,40 +61,65 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HandlerTicketServiceImpl implements HandlerTicketService {
 
-    /** 允许处理人执行转派或升级的工单状态。 */
+    /**
+     * 允许处理人执行转派或升级的工单状态。
+     */
     private static final Set<String> ACTIVE_HANDLER_STATUSES = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList(
                     TicketStatusEnum.PENDING_RESPONSE.name(),
                     TicketStatusEnum.PROCESSING.name())));
 
-    /** 处理人档案数据访问入口。 */
+    /**
+     * 处理人档案数据访问入口。
+     */
     private final HandlerProfileMapper handlerProfileMapper;
-    /** 工单主表数据访问入口。 */
+    /**
+     * 工单主表数据访问入口。
+     */
     private final TicketMapper ticketMapper;
-    /** 工单状态历史数据访问入口。 */
+    /**
+     * 工单状态历史数据访问入口。
+     */
     private final TicketStatusHistoryMapper ticketStatusHistoryMapper;
-    /** 工单操作日志数据访问入口。 */
+    /**
+     * 工单操作日志数据访问入口。
+     */
     private final TicketOperationLogMapper ticketOperationLogMapper;
-    /** 转派分配记录数据访问入口。 */
+    /**
+     * 转派分配记录数据访问入口。
+     */
     private final AssignmentRecordMapper assignmentRecordMapper;
-    /** 用于校验目标处理人的用户服务客户端。 */
+    /**
+     * 用于校验目标处理人的用户服务客户端。
+     */
     private final UserFeignClient userFeignClient;
-    /** 工单响应中的附件信息补全器。 */
+    /**
+     * 工单响应中的附件信息补全器。
+     */
     private final TicketResponseAttachmentEnricher ticketResponseAttachmentEnricher;
-    /** 转派事实的事务性事件发布器。 */
+    /**
+     * 转派事实的事务性事件发布器。
+     */
     private final TicketTransferredEventPublisher ticketTransferredEventPublisher;
-    /** 升级事实的事务性事件发布器。 */
+    /**
+     * 升级事实的事务性事件发布器。
+     */
     private final TicketEscalatedEventPublisher ticketEscalatedEventPublisher;
-    /** 解决事实的事务性事件发布器。 */
+    /**
+     * 解决事实的事务性事件发布器。
+     */
     private final TicketResolvedEventPublisher ticketResolvedEventPublisher;
     private final AssignmentScoreService assignmentScoreService;
-    /** 按当前处理人权限查询 ES 候选工单。 */
+    /**
+     * 按当前处理人权限查询 ES 候选工单。
+     */
     private final TicketSearchFeignClient ticketSearchFeignClient;
     private final TicketSearchChangePublisher ticketSearchChangePublisher;
 
     /**
      * 查询当前处理人工单：空关键词由 MySQL 分页，有关键词由 ES 排序分页后批量回表。
      * 回表复核当前归属及状态，索引滞后时当前页可能不足，但保留 ES 命中总数。
+     *
      * @param handlerId 从认证信息取得的当前处理人 ID
      * @param handlerTicketPageDto 分页、关键词、状态和排序条件，不修改原始对象
      * @return 带真实查询总数的工单分页响应
@@ -136,7 +161,13 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
     }
 
-    /** 空关键词使用 MySQL 排序分页，并保留数据库查询总数和空页语义。 */
+    /**
+     * 空关键词使用 MySQL 排序分页，并保留数据库查询总数和空页语义。
+     *
+     * @param handlerId 处理人用户 ID
+     * @param query 处理人工单分页请求数据
+     * @return 工单详情的分页结果
+     */
     private PageResult<TicketResponse> queryHandlerPageFromMysql(Long handlerId, HandlerTicketPageDto query) {
         LambdaQueryWrapper<Tickets> queryWrapper = handlerTicketFilters(handlerId, query);
         String sort = normalizeHandlerSort(query.getSort());
@@ -153,7 +184,14 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 query.getPage(), query.getPageSize());
     }
 
-    /** 只批量读取当前 ES 页的 ID，复核当前归属和状态，再按 ES 顺序转换响应。 */
+    /**
+     * 只批量读取当前 ES 页的 ID，复核当前归属和状态，再按 ES 顺序转换响应。
+     *
+     * @param handlerId 处理人用户 ID
+     * @param query 处理人工单分页请求数据
+     * @param records 按搜索顺序返回的处理人工单候选文档
+     * @return 回查主库并保持搜索顺序的工单响应列表
+     */
     private List<TicketResponse> loadHandlerSearchResponses(
             Long handlerId, HandlerTicketPageDto query, List<TicketSearchDocument> records) {
         if (records.isEmpty()) {
@@ -168,7 +206,13 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
                 .map(TicketConverter::toResponse).collect(Collectors.toList());
     }
 
-    /** MySQL 分页和 ES 回表共用条件，当前处理人限制始终由服务端追加。 */
+    /**
+     * MySQL 分页和 ES 回表共用条件，当前处理人限制始终由服务端追加。
+     *
+     * @param handlerId 处理人用户 ID
+     * @param query 处理人工单分页请求数据
+     * @return Lambda查询条件WrapperTickets
+     */
     private LambdaQueryWrapper<Tickets> handlerTicketFilters(Long handlerId, HandlerTicketPageDto query) {
         LambdaQueryWrapper<Tickets> filters = new LambdaQueryWrapper<Tickets>()
                 .eq(Tickets::getHandlerId, handlerId);
@@ -179,7 +223,12 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         return filters;
     }
 
-    /** 将 ES 字符串 ID 转为数据库正数 ID，损坏的投影作为搜索服务错误处理。 */
+    /**
+     * 将 ES 字符串 ID 转为数据库正数 ID，损坏的投影作为搜索服务错误处理。
+     *
+     * @param record 包含字符串工单 ID 的搜索文档
+     * @return 通过正整数校验的工单 ID
+     */
     private Long handlerSearchTicketId(TicketSearchDocument record) {
         if (record == null || !StringUtils.hasText(record.getTicketId())) {
             throw new IllegalStateException("搜索结果缺少工单 ID");
@@ -195,7 +244,11 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
     }
 
-    /** 校验公共参数，有关键词时限制 ES 基础分页窗口，避免溢出和非法排序。 */
+    /**
+     * 校验公共参数，有关键词时限制 ES 基础分页窗口，避免溢出和非法排序。
+     *
+     * @param query 处理人工单分页请求数据
+     */
     private static void validateHandlerListQuery(HandlerTicketPageDto query) {
         Assert.notNull(query, "查询条件不能为空");
         Assert.isTrue(query.getPage() != null && query.getPage() >= 1, "页码必须大于等于 1");
@@ -218,19 +271,30 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         }
     }
 
-    /** 将空白和 all 状态统一为不限制状态，其余状态编码去除首尾空白。 */
+    /**
+     * 将空白和 all 状态统一为不限制状态，其余状态编码去除首尾空白。
+     *
+     * @param value 原始工单状态筛选值
+     * @return 去掉两端空白后的状态；空白或 all 时为 null
+     */
     private static String normalizeHandlerStatus(String value) {
         String status = StringUtils.hasText(value) ? value.trim() : null;
         return "all".equalsIgnoreCase(status) ? null : status;
     }
 
-    /** 未指定排序时沿用响应截止时间升序，显式排序值去除首尾空白。 */
+    /**
+     * 未指定排序时沿用响应截止时间升序，显式排序值去除首尾空白。
+     *
+     * @param value 原始排序字段
+     * @return 去掉两端空白后的排序字段；未指定时为 deadline
+     */
     private static String normalizeHandlerSort(String value) {
         return StringUtils.hasText(value) ? value.trim() : "deadline";
     }
 
     /**
      * 处理人首次响应
+     *
      * @param ticketId 工单ID
      * @param operatorId 当前操作人ID
      * @param operatorRole 当前登录角色，由后端认证信息取得
@@ -303,6 +367,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
     /**
      * 处理人解决工单
+     *
      * @param ticketId 工单ID
      * @param solution 解决方案
      * @param operatorId 当前操作人ID
@@ -387,7 +452,16 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
-    /** 条件更新处理人后，同事务保存转派记录、审计日志与事件快照。 */
+    /**
+     * 条件更新处理人后，同事务保存转派记录、审计日志与事件快照。
+     *
+     * @param ticketId 工单 ID
+     * @param transferTicketDto transfer工单请求数据
+     * @param operatorId 当前操作员的用户 ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @param clientIp 客户端 IP 地址
+     * @return 工单详情
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TicketResponse transferTicketToOtherHandler(
@@ -514,7 +588,16 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
         return ticketResponseAttachmentEnricher.enrich(TicketConverter.toResponse(ticket));
     }
 
-    /** 仅当前处理人可逐级升级活动工单，并同事务发布升级事实。 */
+    /**
+     * 仅当前处理人可逐级升级活动工单，并同事务发布升级事实。
+     *
+     * @param ticketId 工单 ID
+     * @param reason 本次操作的原因
+     * @param operatorId 当前操作员的用户 ID
+     * @param operatorRole 当前登录角色，由后端认证信息取得
+     * @param clientIp 客户端 IP 地址
+     * @return 工单详情
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TicketResponse escalateTicket(
@@ -611,6 +694,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
     /**
      * 添加内部备注
+     *
      * @param ticketId 工单ID
      * @param ticketNoteDto 备注参数
      * @param operatorId 当前操作人ID
@@ -659,10 +743,12 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
     /**
      * 保存工单状态历史
+     *
      * @param ticket 工单
      * @param oldStatus 旧状态
      * @param handlerId 处理人ID
      * @param remark 备注
+     * @param event 待处理的领域事件
      * @return 是否保存成功
      */
     private boolean saveTicketStatusHistory(
@@ -688,6 +774,7 @@ public class HandlerTicketServiceImpl implements HandlerTicketService {
 
     /**
      * 保存工单操作日志
+     *
      * @param ticket 工单
      * @param action 操作
      * @param operatorId 操作人ID

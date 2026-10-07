@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * @author Virgor
  * @date 2026年09月10日 01:07
- * @description 登录Mapper接口
+ * @description 查询和维护用户账号、资料与权限。
  */
 @Mapper
 public interface UsersMapper extends BaseMapper<Users> {
@@ -60,7 +60,8 @@ public interface UsersMapper extends BaseMapper<Users> {
 
     /**
      * 根据邮箱查询用户
-     * @param email
+     *
+     * @param email 邮箱地址
      * @return 用户信息
      */
     @Select("SELECT id, username, role, status " +

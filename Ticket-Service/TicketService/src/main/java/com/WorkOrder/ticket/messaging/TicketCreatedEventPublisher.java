@@ -15,22 +15,43 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-/** 将工单创建事实写入与工单数据同一事务的 Outbox。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 将工单创建事实写入与工单数据同一事务的 Outbox。
+ */
 @Component
 public class TicketCreatedEventPublisher {
-    /** 创建事件使用的 RocketMQ Tag。 */
+    /**
+     * 创建事件使用的 RocketMQ Tag。
+     */
     public static final String TAG = "CREATED";
 
-    /** 事务性 Outbox 发布器；消息关闭时不存在。 */
+    /**
+     * 事务性 Outbox 发布器；消息关闭时不存在。
+     */
     private final Optional<DomainEventPublisher> domainEventPublisher;
-    /** JSON 载荷构建器。 */
+    /**
+     * JSON 载荷构建器。
+     */
     private final ObjectMapper objectMapper;
-    /** 当前环境的工单事件 Topic。 */
+    /**
+     * 当前环境的工单事件 Topic。
+     */
     private final String topic;
-    /** 是否启用消息底座。 */
+    /**
+     * 是否启用消息底座。
+     */
     private final boolean messagingEnabled;
 
-    /** 注入消息底座及当前环境的 Topic 配置。 */
+    /**
+     * 注入消息底座及当前环境的 Topic 配置。
+     *
+     * @param domainEventPublisher 事务性 Outbox 发布器；消息关闭时不存在
+     * @param objectMapper JSON 载荷构建器
+     * @param topic 当前环境的工单事件 Topic
+     * @param messagingEnabled 是否启用消息底座
+     */
     public TicketCreatedEventPublisher(
             Optional<DomainEventPublisher> domainEventPublisher,
             ObjectMapper objectMapper,

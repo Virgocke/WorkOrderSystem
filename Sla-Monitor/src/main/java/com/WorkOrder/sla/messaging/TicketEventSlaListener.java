@@ -18,7 +18,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;
 
-/** 在同一 SLA 消费组内处理工单创建、升级、解决及终态事实。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 在同一 SLA 消费组内处理工单创建、升级、解决及终态事实。
+ */
 @Component
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 @RocketMQMessageListener(
@@ -29,19 +33,36 @@ import java.util.regex.Pattern;
         maxReconsumeTimes = 16
 )
 public class TicketEventSlaListener implements RocketMQListener<WorkOrderEvent> {
-    /** 统一事件 ID 的 32 位十六进制格式。 */
+    /**
+     * 统一事件 ID 的 32 位十六进制格式。
+     */
     private static final Pattern EVENT_ID_PATTERN = Pattern.compile("[0-9a-fA-F]{32}");
 
-    /** 同事务写入消费日志与 SLA 记录的执行器。 */
+    /**
+     * 同事务写入消费日志与 SLA 记录的执行器。
+     */
     private final IdempotentConsumerExecutor executor;
-    /** SLA 记录的幂等更新入口。 */
+    /**
+     * SLA 记录的幂等更新入口。
+     */
     private final SlaRecordMapper slaRecordMapper;
-    /** SLA 服务独立的工单事件消费组。 */
+    /**
+     * SLA 服务独立的工单事件消费组。
+     */
     private final String consumerGroup;
-    /** 当前工单事件 Topic。 */
+    /**
+     * 当前工单事件 Topic。
+     */
     private final String topic;
 
-    /** 创建同组消费升级、解决与终态事件的监听器。 */
+    /**
+     * 创建同组消费升级、解决与终态事件的监听器。
+     *
+     * @param executor 同事务写入消费日志与 SLA 记录的执行器
+     * @param slaRecordMapper SLA 记录的幂等更新入口
+     * @param consumerGroup SLA 服务独立的工单事件消费组
+     * @param topic 当前工单事件 Topic
+     */
     public TicketEventSlaListener(
             IdempotentConsumerExecutor executor,
             SlaRecordMapper slaRecordMapper,
@@ -54,7 +75,11 @@ public class TicketEventSlaListener implements RocketMQListener<WorkOrderEvent> 
         this.topic = topic;
     }
 
-    /** 校验事件并按类型更新 SLA 记录；失败时由 Broker 重试。 */
+    /**
+     * 校验事件并按类型更新 SLA 记录；失败时由 Broker 重试。
+     *
+     * @param event 待处理的领域事件
+     */
     @Override
     public void onMessage(WorkOrderEvent event) {
         if (event == null || event.getEventId() == null

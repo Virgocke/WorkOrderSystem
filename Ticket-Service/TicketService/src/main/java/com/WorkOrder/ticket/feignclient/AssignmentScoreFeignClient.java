@@ -6,10 +6,16 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-/** 获取 Assign-Engine 的同一套工单和处理人评分。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 获取 Assign-Engine 的同一套工单和处理人评分。
+ */
 @FeignClient(name = "Assign-Engine", path = "/assign-engine", configuration = TicketFeignConfiguration.class)
 public interface AssignmentScoreFeignClient {
     /**
+     * 处理 score 对应的分配评分Feign客户端操作。
+     *
      * @param ticketId 待分配工单 ID
      * @param handlerId 目标处理人用户 ID
      * @param additionalLoad 同一批事务内尚未提交的新增在办工单数

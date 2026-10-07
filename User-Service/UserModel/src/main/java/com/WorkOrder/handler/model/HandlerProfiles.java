@@ -8,7 +8,11 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 自动派单所需的处理人基础信息。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 自动派单所需的处理人基础信息。
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

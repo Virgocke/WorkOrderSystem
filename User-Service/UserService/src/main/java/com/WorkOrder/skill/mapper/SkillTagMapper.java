@@ -8,7 +8,11 @@ import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
-/** 技能标签查询 Mapper。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 技能标签查询 Mapper。
+ */
 @Mapper
 public interface SkillTagMapper extends BaseMapper<SkillTagRecord> {
 

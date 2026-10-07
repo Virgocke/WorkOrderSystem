@@ -17,7 +17,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 消息、后续导入和补偿共用的投影通路，版本仲裁由 ES 原子完成。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 消息、后续导入和补偿共用的投影通路，版本仲裁由 ES 原子完成。
+ */
 public class TicketProjectionService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TicketProjectionService.class);
 
@@ -27,7 +31,15 @@ public class TicketProjectionService {
     private final TicketSearchIndexService indexService;
     private final TicketSearchRepository repository;
 
-    /** 保存短读、统一转换、目标校验及版本化写入依赖，不在构造时连接外部服务。 */
+    /**
+     * 保存短读、统一转换、目标校验及版本化写入依赖，不在构造时连接外部服务。
+     *
+     * @param sourceMapper 工单索引源数据数据访问器
+     * @param converter 转换器
+     * @param targetResolver 目标Resolver
+     * @param indexService 工单搜索索引服务
+     * @param repository 工单搜索仓储
+     */
     public TicketProjectionService(TicketIndexSourceMapper sourceMapper,
                                    TicketSearchDocumentConverter converter,
                                    TicketSearchWriteTargetResolver targetResolver,

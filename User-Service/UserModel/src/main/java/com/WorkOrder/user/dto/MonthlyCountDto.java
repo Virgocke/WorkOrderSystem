@@ -5,7 +5,7 @@ import lombok.Data;
 /**
  * @author Virgor
  * @date 2026年09月13日 00:29
- * @description 按月统计工单数量DTO
+ * @description 按月份汇总的工单数量。
  */
 @Data
 public class MonthlyCountDto {

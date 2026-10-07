@@ -11,7 +11,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 管理端评价明细控制器。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 管理端评价明细控制器。
+ */
 @RestController
 @RequestMapping("/ratings")
 @RequiredArgsConstructor

@@ -11,6 +11,8 @@ import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
+ * @author Virgor
+ * @date 2026年10月07日
  * @description 尚未保存数据库配置时的默认分配权重，默认技能40、负载25、SLA20、评分15。
  */
 @Data
@@ -37,6 +39,8 @@ public class AssignWeightsProperties {
 
     /**
      * 权重总和必须大于零，避免计算综合分时除零。
+     *
+     * @return 是否满足校验条件
      */
     @AssertTrue(message = "分配权重总和必须大于零")
     public boolean isTotalWeightPositive() {

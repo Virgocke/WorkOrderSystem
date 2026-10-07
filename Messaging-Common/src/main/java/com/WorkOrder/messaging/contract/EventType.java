@@ -1,41 +1,81 @@
 package com.WorkOrder.messaging.contract;
 
-/** 首期统一维护的领域事件类型。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 首期统一维护的领域事件类型。
+ */
 public enum EventType {
-    /** 工单创建事件 */
+    /**
+     * 工单创建事件
+     */
     TICKET_CREATED,
-    /** 工单指派事件 */
+    /**
+     * 工单指派事件
+     */
     TICKET_ASSIGNED,
-    /** 工单转交事件 */
+    /**
+     * 工单转交事件
+     */
     TICKET_TRANSFERRED,
-    /** 工单回复事件 */
+    /**
+     * 工单回复事件
+     */
     TICKET_REPLIED,
-    /** 工单提醒事件 */
+    /**
+     * 工单提醒事件
+     */
     TICKET_REMINDED,
-    /** 工单响应事件 */
+    /**
+     * 工单响应事件
+     */
     TICKET_RESPONDED,
-    /** 工单解决事件 */
+    /**
+     * 工单解决事件
+     */
     TICKET_RESOLVED,
-    /** 工单关闭事件 */
+    /**
+     * 工单关闭事件
+     */
     TICKET_CLOSED,
-    /** 工单取消事件 */
+    /**
+     * 工单取消事件
+     */
     TICKET_CANCELLED,
-    /** 工单升级事件 */
+    /**
+     * 工单升级事件
+     */
     TICKET_ESCALATED,
-    /** 工单搜索投影需要按源版本刷新。 */
+    /**
+     * 工单搜索投影需要按源版本刷新。
+     */
     TICKET_SEARCH_CHANGED,
-    /** SLA 监控请求工单服务重新判断自动升级。 */
+    /**
+     * SLA 监控请求工单服务重新判断自动升级。
+     */
     ESCALATION_REQUESTED,
-    /** 自动派单候选提议事件 */
+    /**
+     * 自动派单候选提议事件
+     */
     ASSIGNMENT_PROPOSED,
-    /** 工单指派失败事件 */
+    /**
+     * 工单指派失败事件
+     */
     ASSIGNMENT_FAILED,
-    /** SLA警告事件 */
+    /**
+     * SLA警告事件
+     */
     SLA_WARNING,
-    /** SLA breaches事件 */
+    /**
+     * SLA breaches事件
+     */
     SLA_BREACHED,
-    /** SLA恢复事件 */
+    /**
+     * SLA恢复事件
+     */
     SLA_RECOVERED,
-    /** 技能申请审核完成。 */
+    /**
+     * 技能申请审核完成。
+     */
     SKILL_APPLICATION_REVIEWED
 }

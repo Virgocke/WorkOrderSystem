@@ -4,7 +4,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;
 
-/** 认证服务启动入口。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 认证服务启动入口。
+ */
 @EnableAsync
 @SpringBootApplication
 public class AuthenticationApplication {

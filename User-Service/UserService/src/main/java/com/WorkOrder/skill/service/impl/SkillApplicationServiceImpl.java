@@ -42,7 +42,9 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
     private static final Set<String> APPLICATION_STATUSES = new HashSet<>(
             Arrays.asList("PENDING", "APPROVED", "REJECTED"));
 
-    /** 审核成功后在同一事务写入结果事件。 */
+    /**
+     * 审核成功后在同一事务写入结果事件。
+     */
     private final SkillApplicationReviewedPublisher reviewedPublisher;
 
     private final SkillApplicationMapper skillApplicationMapper;
@@ -52,6 +54,7 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
 
     /**
      * 处理技能申请，包括添加或移除技能申请
+     *
      * @param skillApplicationDto 技能申请dto
      * @param handlerId 处理人id
      * @return 处理结果
@@ -85,7 +88,16 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         return Result.success(application);
     }
 
-    /** 按接口文档 16.4 根据角色限定数据范围并分页查询。 */
+    /**
+     * 按接口文档 16.4 根据角色限定数据范围并分页查询。
+     *
+     * @param page 页码，从 1 开始
+     * @param pageSize 每页条数
+     * @param status 状态筛选或更新值
+     * @param currentUserId 当前用户 ID
+     * @param currentUserRole 当前用户角色
+     * @return 技能申请的分页结果
+     */
     @Override
     @Transactional(readOnly = true)
     public PageResult<SkillApplication> listApplications(int page,
@@ -115,7 +127,14 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         return new PageResult<>(records, total, page, pageSize);
     }
 
-    /** 按接口文档 16.5 审核申请，并在批准时同步处理人技能。 */
+    /**
+     * 按接口文档 16.5 审核申请，并在批准时同步处理人技能。
+     *
+     * @param id 技能申请 ID
+     * @param request 审核技能申请请求数据
+     * @param reviewerId reviewer ID
+     * @return 技能申请
+     */
     @Override
     @Transactional
     public SkillApplication reviewApplication(Long id,
@@ -149,7 +168,14 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         return reviewed;
     }
 
-    /** 查询申请详情；隐藏其他处理人的申请是否存在。 */
+    /**
+     * 查询申请详情；隐藏其他处理人的申请是否存在。
+     *
+     * @param id 技能申请 ID
+     * @param userId 用户 ID
+     * @param role 角色筛选或校验值
+     * @return 技能申请
+     */
     @Override
     @Transactional(readOnly = true)
     public SkillApplication getApplication(Long id, Long userId, String role) {
@@ -166,7 +192,12 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         return application;
     }
 
-    /** 校验并规范提交申请所需字段，避免非 Web 调用绕过 Bean Validation。 */
+    /**
+     * 校验并规范提交申请所需字段，避免非 Web 调用绕过 Bean Validation。
+     *
+     * @param request 技能申请请求数据
+     * @param handlerId 处理人用户 ID
+     */
     private void validateNewApplication(SkillApplicationDto request, Long handlerId) {
         if (request == null || handlerId == null || handlerId <= 0
                 || request.getSkillId() == null || request.getSkillId() <= 0
@@ -189,7 +220,11 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         }
     }
 
-    /** 应用批准结果，行为与前端 Mock 保持一致：调整缺失技能时创建，移除缺失技能时忽略。 */
+    /**
+     * 应用批准结果，行为与前端 Mock 保持一致：调整缺失技能时创建，移除缺失技能时忽略。
+     *
+     * @param application 申请
+     */
     private void applyApprovedApplication(SkillApplicationRecord application) {
         HandlerProfiles profile = handlerProfileMapper.selectOne(
                 new QueryWrapper<HandlerProfiles>().eq("user_id", application.getHandlerId()));
@@ -229,7 +264,12 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         }
     }
 
-    /** 新增处理人技能关联。 */
+    /**
+     * 新增处理人技能关联。
+     *
+     * @param profileId 资料 ID
+     * @param application 申请
+     */
     private void insertHandlerSkill(Long profileId, SkillApplicationRecord application) {
         requireValidProficiency(application.getProficiency());
         HandlerSkill skill = new HandlerSkill();
@@ -241,7 +281,13 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         }
     }
 
-    /** 校验审核参数，服务被直接调用时也保持接口约束。 */
+    /**
+     * 校验审核参数，服务被直接调用时也保持接口约束。
+     *
+     * @param id 技能申请 ID
+     * @param request 审核技能申请请求数据
+     * @param reviewerId reviewer ID
+     */
     private void validateReview(Long id, ReviewSkillApplicationDto request, Long reviewerId) {
         if (id == null || id <= 0 || reviewerId == null || reviewerId <= 0
                 || request == null
@@ -252,7 +298,12 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         }
     }
 
-    /** 空状态表示不筛选，否则只接受文档定义的三种状态。 */
+    /**
+     * 空状态表示不筛选，否则只接受文档定义的三种状态。
+     *
+     * @param status 原始技能申请状态筛选值
+     * @return 校验后的申请状态；未指定时为 null
+     */
     private String normalizeStatus(String status) {
         if (!StringUtils.hasText(status)) {
             return null;
@@ -264,12 +315,21 @@ public class SkillApplicationServiceImpl implements SkillApplicationService {
         return normalized;
     }
 
-    /** 空白审核理由按未填写处理。 */
+    /**
+     * 空白审核理由按未填写处理。
+     *
+     * @param reason 原始审核理由
+     * @return 去掉两端空白后的审核理由；未填写时为 null
+     */
     private String normalizeReason(String reason) {
         return StringUtils.hasText(reason) ? reason.trim() : null;
     }
 
-    /** ADD、ADJUST 的持久化申请必须具备有效熟练度。 */
+    /**
+     * ADD、ADJUST 的持久化申请必须具备有效熟练度。
+     *
+     * @param proficiency 持久化申请中的技能熟练度，必须为 1 至 5
+     */
     private void requireValidProficiency(Integer proficiency) {
         if (proficiency == null || proficiency < 1 || proficiency > 5) {
             throw new SystemException(SystemExceptionEnum.INTERNAL_SERVER_ERROR);

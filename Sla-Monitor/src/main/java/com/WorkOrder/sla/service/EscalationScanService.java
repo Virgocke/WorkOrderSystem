@@ -17,20 +17,39 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
-/** 将一页超时工单的升级检查请求原子写入 SLA 服务 Outbox。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 将一页超时工单的升级检查请求原子写入 SLA 服务 Outbox。
+ */
 @Service
 @ConditionalOnProperty(prefix = "work-order.messaging", name = "enabled", havingValue = "true")
 public class EscalationScanService {
-    /** 规则与候选工单查询。 */
+    /**
+     * 规则与候选工单查询。
+     */
     private final EscalationScanMapper mapper;
-    /** JSON 编解码器。 */
+    /**
+     * JSON 编解码器。
+     */
     private final ObjectMapper objectMapper;
-    /** 事务性请求发布器。 */
+    /**
+     * 事务性请求发布器。
+     */
     private final DomainEventPublisher publisher;
-    /** 工单事件主题。 */
+    /**
+     * 工单事件主题。
+     */
     private final String topic;
 
-    /** 注入扫描与消息组件。 */
+    /**
+     * 注入扫描与消息组件。
+     *
+     * @param mapper 规则与候选工单查询
+     * @param objectMapper JSON 编解码器
+     * @param publisher 事务性请求发布器
+     * @param topic 工单事件主题
+     */
     public EscalationScanService(EscalationScanMapper mapper, ObjectMapper objectMapper,
                                 DomainEventPublisher publisher,
                                 @Value("${work-order.messaging.ticket-topic:wo-ticket-event}") String topic) {
@@ -40,7 +59,12 @@ public class EscalationScanService {
         this.topic = topic;
     }
 
-    /** 每页读取当前规则，最多发布 200 个请求；返回下一页游标，0 表示本轮结束。 */
+    /**
+     * 每页读取当前规则，最多发布 200 个请求；返回下一页游标，0 表示本轮结束。
+     *
+     * @param afterId 上一页末尾的工单 ID，本页扫描排除该 ID
+     * @return 下一页扫描游标；本轮扫描结束时为 0
+     */
     @Transactional(rollbackFor = Exception.class)
     public long scanPage(long afterId) {
         String raw = mapper.selectRules();

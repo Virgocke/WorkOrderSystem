@@ -13,7 +13,9 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 
 /**
- * 从已经过 Spring Security 校验的 JWT 中读取当前用户 ID。
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 从已经过 Spring Security 校验的 JWT 中读取当前用户 ID。
  *
  * 业务模块只需提供自己的 {@link TokenStore}，无需访问用户数据库。
  */
@@ -24,6 +26,11 @@ public class CurrentUserIdProvider {
 
     private final TokenStore tokenStore;
 
+    /**
+     * 注入本服务的 JWT 令牌解析组件。
+     *
+     * @param tokenStore 本服务用于解析已认证 JWT 及其附加声明的令牌存储组件
+     */
     public CurrentUserIdProvider(TokenStore tokenStore) {
         this.tokenStore = tokenStore;
     }
@@ -31,8 +38,8 @@ public class CurrentUserIdProvider {
     /**
      * 获取当前登录用户的数据库主键。
      *
-     * @param authentication Spring Security 当前认证信息
-     * @return users.id
+     * @param authentication 已经通过 Spring Security 认证且包含 OAuth2 令牌详情的登录信息
+     * @return JWT 的 user_id 声明对应的用户主键；本方法不查询用户资料或账号启用状态
      */
     public Long get(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {

@@ -6,16 +6,26 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** 一个批次的逐项分类结果；真正失败项与已写入、已被新版覆盖的项目分别记录。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description 一个批次的逐项分类结果；真正失败项与已写入、已被新版覆盖的项目分别记录。
+ */
 public final class TicketSearchBulkResult {
 
-    /** 本次已写入完整投影的数量。 */
+    /**
+     * 本次已写入完整投影的数量。
+     */
     private final int appliedCount;
 
-    /** 目标已有相同或更高源版本的数量。 */
+    /**
+     * 目标已有相同或更高源版本的数量。
+     */
     private final int coveredCount;
 
-    /** 仍未完成的文档及错误分类，保持响应顺序且禁止调用方修改。 */
+    /**
+     * 仍未完成的文档及错误分类，保持响应顺序且禁止调用方修改。
+     */
     private final Map<String, Failure> failures;
 
     /**
@@ -33,41 +43,71 @@ public final class TicketSearchBulkResult {
         this.failures = Collections.unmodifiableMap(new LinkedHashMap<>(failures));
     }
 
-    /** @return 本次实际写入的文档数量 */
+    /**
+     * 获取本次已写入完整投影的数量。
+     *
+     * @return 本次实际写入的文档数量
+     */
     public int getAppliedCount() {
         return appliedCount;
     }
 
-    /** @return 已被相同或更高版本覆盖的文档数量 */
+    /**
+     * 获取目标已有相同或更高源版本的数量。
+     *
+     * @return 已被相同或更高版本覆盖的文档数量
+     */
     public int getCoveredCount() {
         return coveredCount;
     }
 
-    /** @return 已完成投影同步的数量，包含实际写入及版本覆盖 */
+    /**
+     * 取得实际写入与同版或高版覆盖的总数量。
+     *
+     * @return 已完成投影同步的数量，包含实际写入及版本覆盖
+     */
     public int getCompletedCount() {
         return appliedCount + coveredCount;
     }
 
-    /** @return 按响应顺序保存的只读失败分类 */
+    /**
+     * 获取仍未完成的文档及错误分类，保持响应顺序且禁止调用方修改。
+     *
+     * @return 按响应顺序保存的只读失败分类
+     */
     public Map<String, Failure> getFailures() {
         return failures;
     }
 
-    /** @return 本批次是否还有真正失败的项目 */
+    /**
+     * 判断本批是否仍有未完成的失败项。
+     *
+     * @return 本批次是否还有真正失败的项目
+     */
     public boolean hasFailures() {
         return !failures.isEmpty();
     }
 
-    /** Elasticsearch 返回的单项失败，保留状态码、错误类型及原因供任务恢复使用。 */
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description Elasticsearch 返回的单项失败，保留状态码、错误类型及原因供任务恢复使用。
+     */
     public static final class Failure {
 
-        /** Elasticsearch 单项响应状态码。 */
+        /**
+         * Elasticsearch 单项响应状态码。
+         */
         private final int status;
 
-        /** Elasticsearch 错误类型；无法识别时使用 exception。 */
+        /**
+         * Elasticsearch 错误类型；无法识别时使用 exception。
+         */
         private final String type;
 
-        /** 服务端失败原因，仅供内部诊断，不应直接暴露给业务接口。 */
+        /**
+         * 服务端失败原因，仅供内部诊断，不应直接暴露给业务接口。
+         */
         private final String message;
 
         /**
@@ -83,17 +123,29 @@ public final class TicketSearchBulkResult {
             this.message = message;
         }
 
-        /** @return 单项 HTTP 状态码 */
+        /**
+         * 获取Elasticsearch 单项响应状态码。
+         *
+         * @return 单项 HTTP 状态码
+         */
         public int getStatus() {
             return status;
         }
 
-        /** @return Elasticsearch 错误类型 */
+        /**
+         * 获取Elasticsearch 错误类型；无法识别时使用 exception。
+         *
+         * @return Elasticsearch 错误类型
+         */
         public String getType() {
             return type;
         }
 
-        /** @return 内部失败原因 */
+        /**
+         * 获取服务端失败原因，仅供内部诊断，不应直接暴露给业务接口。
+         *
+         * @return 内部失败原因
+         */
         public String getMessage() {
             return message;
         }

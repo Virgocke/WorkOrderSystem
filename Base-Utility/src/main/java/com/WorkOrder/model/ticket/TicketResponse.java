@@ -18,78 +18,128 @@ import java.util.List;
 @AllArgsConstructor
 public class TicketResponse {
 
-    /** 工单 ID */
+    /**
+     * 工单 ID
+     */
     private Long id;
 
-    /** 工单编号，例如 WO202609081234 */
+    /**
+     * 工单编号，例如 WO202609081234
+     */
     private String ticketNo;
 
-    /** 标题 */
+    /**
+     * 标题
+     */
     private String title;
 
-    /** 详细描述 */
+    /**
+     * 详细描述
+     */
     private String description;
 
-    /** 分类 ID */
+    /**
+     * 分类 ID
+     */
     private Long categoryId;
 
-    /** 分类名称 */
+    /**
+     * 分类名称
+     */
     private String categoryName;
 
-    /** 优先级：1紧急、2高、3中、4低 */
+    /**
+     * 优先级：1紧急、2高、3中、4低
+     */
     private int priority;
 
-    /** 工单状态 */
+    /**
+     * 工单状态
+     */
     private String status;
 
-    /** 创建人用户 ID */
+    /**
+     * 创建人用户 ID
+     */
     private Long creatorId;
 
-    /** 创建人姓名 */
+    /**
+     * 创建人姓名
+     */
     private String creatorName;
 
-    /** 处理人用户 ID，未分配时为 null */
+    /**
+     * 处理人用户 ID，未分配时为 null
+     */
     private Long handlerId;
 
-    /** 处理人姓名，未分配时为 null */
+    /**
+     * 处理人姓名，未分配时为 null
+     */
     private String handlerName;
 
-    /** 创建时间 */
+    /**
+     * 创建时间
+     */
     private String createdAt;
 
-    /** 分配时间 */
+    /**
+     * 分配时间
+     */
     private String assignedAt;
 
-    /** 响应截止时间 */
+    /**
+     * 响应截止时间
+     */
     private String responseDeadline;
 
-    /** 解决截止时间 */
+    /**
+     * 解决截止时间
+     */
     private String resolutionDeadline;
 
-    /** 首次响应时间 */
+    /**
+     * 首次响应时间
+     */
     private String firstResponseAt;
 
-    /** 处理人提交解决时间 */
+    /**
+     * 处理人提交解决时间
+     */
     private String resolvedAt;
 
-    /** 关闭时间 */
+    /**
+     * 关闭时间
+     */
     private String closedAt;
 
-    /** SLA 状态 */
+    /**
+     * SLA 状态
+     */
     private String slaStatus;
 
-    /** 升级级别，0 表示未升级 */
+    /**
+     * 升级级别，0 表示未升级
+     */
     private int escalatedLevel;
 
-    /** 催办次数，默认 0，每张工单最多 3 次，与升级级别独立 */
+    /**
+     * 催办次数，默认 0，每张工单最多 3 次，与升级级别独立
+     */
     private int remindCount;
 
-    /** 来源：WEB、APP、API */
+    /**
+     * 来源：WEB、APP、API
+     */
     private String source;
 
-    /** 图片附件短期预览 URL */
+    /**
+     * 图片附件短期预览 URL
+     */
     private List<String> attachmentUrls;
 
-    /** 更新时间 */
+    /**
+     * 更新时间
+     */
     private String updatedAt;
 }

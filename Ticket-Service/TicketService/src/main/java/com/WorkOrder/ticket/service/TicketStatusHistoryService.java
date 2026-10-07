@@ -12,6 +12,7 @@ import java.util.List;
 public interface TicketStatusHistoryService {
     /**
      * 获取工单状态时间线
+     *
      * @param ticketId 工单ID
      * @return 工单状态时间线
      */

@@ -11,7 +11,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 
-/** Outbox 基础积压、死信和超时指标。 */
+/**
+ * @author Virgor
+ * @date 2026年10月07日
+ * @description Outbox 基础积压、死信和超时指标。
+ */
 @Slf4j
 public class OutboxMetrics implements MeterBinder {
     private final OutboxMapper outboxMapper;
@@ -50,17 +54,29 @@ public class OutboxMetrics implements MeterBinder {
                 .tag("source_service", sourceService).register(registry);
     }
 
-    /** @return 当前服务待发送消息数量，查询失败时返回 NaN */
+    /**
+     * 读取当前生产服务的待发送记录数量。
+     *
+     * @return 当前服务 NEW 或 RETRY 记录数；数据库查询失败时为 NaN
+     */
     private double pending() {
         return safely(() -> outboxMapper.countPending(properties.getOutbox().getSourceService()));
     }
 
-    /** @return 当前服务 DEAD 消息数量，查询失败时返回 NaN */
+    /**
+     * 读取当前生产服务的死信记录数量。
+     *
+     * @return 当前服务达到失败上限的 DEAD 记录数；数据库查询失败时为 NaN
+     */
     private double dead() {
         return safely(() -> outboxMapper.countDead(properties.getOutbox().getSourceService()));
     }
 
-    /** @return 当前服务发送锁超时记录数量，查询失败时返回 NaN */
+    /**
+     * 读取当前生产服务需要恢复的超时发送记录数量。
+     *
+     * @return 当前服务超过发送锁时限的 SENDING 记录数；数据库查询失败时为 NaN
+     */
     private double staleSending() {
         LocalDateTime threshold = LocalDateTime.now()
                 .minusSeconds(properties.getOutbox().getSendingTimeoutSeconds());
@@ -68,7 +84,11 @@ public class OutboxMetrics implements MeterBinder {
                 properties.getOutbox().getSourceService(), threshold));
     }
 
-    /** @return 最老待发送消息的积压秒数，无积压时返回 0 */
+    /**
+     * 计算当前生产服务最老待发送记录的积压秒数。
+     *
+     * @return 最老 NEW 或 RETRY 记录至今的积压秒数；无记录时为 0，数据库查询失败时为 NaN
+     */
     private double oldestPendingSeconds() {
         try {
             LocalDateTime oldest = outboxMapper.findOldestPendingCreatedAt(
@@ -94,8 +114,17 @@ public class OutboxMetrics implements MeterBinder {
         }
     }
 
+    /**
+     * @author Virgor
+     * @date 2026年10月07日
+     * @description LongSupplier契约。
+     */
     private interface LongSupplier {
-        /** @return 当前指标的 long 数值 */
+        /**
+         * 获取AsLong。
+         *
+         * @return 当前指标的 long 数值
+         */
         long getAsLong();
     }
 }

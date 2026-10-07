@@ -56,7 +56,9 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private static final List<String> SLA_STATUSES = Collections.unmodifiableList(Arrays.asList(
             "NORMAL", "NEAR_TIMEOUT", "TIMEOUT", "ESCALATED"));
 
-    /** 仍处于处理链路、允许用户催办的工单状态。 */
+    /**
+     * 仍处于处理链路、允许用户催办的工单状态。
+     */
     private static final Set<String> REMINDABLE_STATUSES = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList(
                     TicketStatusEnum.PENDING_ASSIGN.name(),
@@ -80,17 +82,22 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
     private final TicketOperationLogMapper ticketOperationLogMapper;
     private final AttachmentMapper attachmentMapper;
     private final AttachmentService attachmentService;
-    /** 工单创建事件的事务内发布器。 */
+    /**
+     * 工单创建事件的事务内发布器。
+     */
     private final TicketCreatedEventPublisher ticketCreatedEventPublisher;
     private final TicketRepliedEventPublisher ticketRepliedEventPublisher;
     private final TicketRemindedEventPublisher ticketRemindedEventPublisher;
-    /** 关闭和撤销工单事件的事务内发布器。 */
+    /**
+     * 关闭和撤销工单事件的事务内发布器。
+     */
     private final TicketTerminalEventPublisher ticketTerminalEventPublisher;
     private final TicketSearchChangePublisher ticketSearchChangePublisher;
 
 
     /**
      * 创建工单
+     *
      * @param creatorId 创建者ID
      * @param creatorName 创建者名称
      * @param createTicketDto 创建工单DTO
@@ -183,6 +190,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 根据用户ID和状态查询工单列表
+     *
      * @param userId 用户ID
      * @param myTicketPageDto 工单分页查询DTO
      * @return 工单响应对象列表
@@ -221,6 +229,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 获取工单历史统计信息
+     *
      * @param userId 用户ID
      * @return 工单历史统计信息
      */
@@ -238,8 +247,9 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 根据工单ID获取工单信息
+     *
      * @param ticketId 工单ID
-      * @return 工单响应对象
+     * @return 工单响应对象
      */
     @Override
     public TicketResponse getTicketInfo(Long ticketId) {
@@ -252,6 +262,9 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 补齐不在 tickets 表中的展示字段，保证详情和列表刷新后仍能显示分类及人员名称。
+     *
+     * @param ticket 工单
+     * @return 工单详情
      */
     private TicketResponse toEnrichedResponse(Tickets ticket) {
         TicketCategory category = categoryMapper.selectById(ticket.getCategoryId());
@@ -268,6 +281,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 回复工单
+     *
      * @param ticketId 工单ID
      * @param userId 用户ID
      * @param operatorRole 当前登录角色，由后端认证信息取得
@@ -352,9 +366,11 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 催办工单
+     *
      * @param ticketId 工单ID
      * @param userId 用户ID
-      * @return 是否成功
+     * @param clientIp 客户端 IP 地址
+     * @return 是否成功
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -443,6 +459,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 撤销工单
+     *
      * @param ticketId 工单ID
      * @param userId 用户ID
      * @return 工单响应对象
@@ -492,6 +509,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 确认工单
+     *
      * @param ticketId 工单ID
      * @param userId 用户ID
      * @return 工单响应对象
@@ -538,6 +556,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 获取当前操作人有权查看的实时 SLA 工单。
+     *
      * @param operatorId 当前操作人ID
      * @param operatorRole 当前操作人角色
      * @param page 页码
@@ -588,6 +607,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 验证 SLA 板请求参数
+     *
      * @param operatorId 当前操作人ID
      * @param operatorRole 当前操作人角色
      * @param page 页码
@@ -613,6 +633,7 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
 
     /**
      * 规范化过滤值
+     *
      * @param value 过滤值
      * @return 规范化后的过滤值
      */
@@ -623,7 +644,12 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         return value.trim();
     }
 
-    /** 分别批量查询分类和用户名称，使每页最多只增加两次查询。 */
+    /**
+     * 分别批量查询分类和用户名称，使每页最多只增加两次查询。
+     *
+     * @param tickets 需要补充关联信息的工单记录列表
+     * @return 补充用户、分类等信息后的工单响应列表
+     */
     private List<TicketResponse> toEnrichedResponses(List<Tickets> tickets) {
         if (tickets == null || tickets.isEmpty()) {
             return Collections.emptyList();
@@ -680,6 +706,13 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 为工单响应补充图片附件的短期预览地址。
+     *
+     * @param response 待补充附件信息的工单响应
+     * @param ticketId 用于查询附件的工单 ID
+     * @return 已补充附件预览地址的原工单响应
+     */
     private TicketResponse withAttachmentUrls(TicketResponse response, Long ticketId) {
         Map<Long, List<String>> urlsByTicketId = attachmentService
                 .getAttachmentUrlsByTicketIds(Collections.singleton(ticketId));
@@ -687,6 +720,12 @@ public class TicketServiceImpl extends ServiceImpl<TicketMapper, Tickets> implem
         return response;
     }
 
+    /**
+     * 优先使用去掉两端空白后的真实姓名，缺失时使用账号。
+     *
+     * @param user 需要展示名称的用户资料
+     * @return 真实姓名或账号
+     */
     private String displayName(UserProfile user) {
         if (user.getRealName() != null && !user.getRealName().trim().isEmpty()) {
             return user.getRealName().trim();
