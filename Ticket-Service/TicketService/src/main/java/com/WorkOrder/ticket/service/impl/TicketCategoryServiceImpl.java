@@ -16,11 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -34,6 +38,32 @@ import java.util.stream.Collectors;
 public class TicketCategoryServiceImpl implements TicketCategoryService {
 
     private final TicketCategoryMapper ticketCategoryMapper;
+
+    /**
+     * 仅查询所需分类的 ID 和名称，重复 ID 合并为一次批量查询。
+     *
+     * @param categoryIds 待查询名称的分类 ID
+     * @return 当前分类名称映射，空集合不访问数据库
+     */
+    @Override
+    public Map<Long, String> getCategoryNamesByIds(Collection<Long> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Set<Long> ids = categoryIds.stream().filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<TicketCategory> categories = ticketCategoryMapper.selectList(new LambdaQueryWrapper<TicketCategory>()
+                .select(TicketCategory::getId, TicketCategory::getName)
+                .in(TicketCategory::getId, ids));
+        Map<Long, String> namesById = new HashMap<>();
+        for (TicketCategory category : categories) {
+            namesById.put(category.getId(), category.getName());
+        }
+        return namesById;
+    }
 
     /**
      * 查询分类关系后遍历全部后代，已访问集合同时防止错误父子关系形成循环。

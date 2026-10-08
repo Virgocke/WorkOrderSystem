@@ -164,13 +164,13 @@ public class AdminTicketServiceImpl implements AdminTicketService {
             List<TicketSearchDocument> records, List<Tickets> tickets, LocalDateTime now) {
         Map<Long, Tickets> ticketsById = tickets.stream()
                 .collect(Collectors.toMap(Tickets::getId, ticket -> ticket));
-        return records.stream()
+        List<Tickets> orderedTickets = records.stream()
                 .map(this::searchTicketId)
                 .distinct()
                 .map(ticketsById::get)
                 .filter(Objects::nonNull)
-                .map(ticket -> toCurrentResponse(ticket, now))
                 .collect(Collectors.toList());
+        return toCurrentResponses(orderedTickets, now);
     }
 
     /**
@@ -233,8 +233,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                 .orderByDesc(Tickets::getId);
         Page<Tickets> page = ticketMapper.selectPage(
                 new Page<>(adminTicketListDto.getPage(), adminTicketListDto.getPageSize()), queryWrapper);
-        List<TicketResponse> responses = page.getRecords() == null ? Collections.emptyList()
-                : page.getRecords().stream().map(ticket -> toCurrentResponse(ticket, now)).collect(Collectors.toList());
+        List<TicketResponse> responses = toCurrentResponses(page.getRecords(), now);
         return new PageResult<>(ticketResponseAttachmentEnricher.enrichAll(responses), page.getTotal(),
                 adminTicketListDto.getPage(), adminTicketListDto.getPageSize());
     }
@@ -310,16 +309,25 @@ public class AdminTicketServiceImpl implements AdminTicketService {
     }
 
     /**
-     * 保留主库展示字段，同时让 SLA 标签与本次筛选结果一致。
+     * 批量补齐本页分类名称，同时让 SLA 标签与本次筛选结果一致。
      *
-     * @param ticket 当前主库工单
+     * @param tickets 当前页的主库工单，顺序已确定
      * @param now 本次请求统一的 SLA 计算时点
-     * @return 包含实时 SLA 标签的工单响应
+     * @return 包含当前分类名称与实时 SLA 标签、保持原顺序的工单响应
      */
-    private static TicketResponse toCurrentResponse(Tickets ticket, LocalDateTime now) {
-        TicketResponse response = TicketConverter.toResponse(ticket);
-        response.setSlaStatus(TicketSlaStatusResolver.resolve(ticket, now));
-        return response;
+    private List<TicketResponse> toCurrentResponses(List<Tickets> tickets, LocalDateTime now) {
+        if (tickets == null || tickets.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> categoryIds = tickets.stream().map(Tickets::getCategoryId)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        Map<Long, String> categoryNames = ticketCategoryService.getCategoryNamesByIds(categoryIds);
+        return tickets.stream().map(ticket -> {
+            TicketResponse response = TicketConverter.toResponse(ticket);
+            response.setCategoryName(categoryNames.get(ticket.getCategoryId()));
+            response.setSlaStatus(TicketSlaStatusResolver.resolve(ticket, now));
+            return response;
+        }).collect(Collectors.toList());
     }
 
     /**

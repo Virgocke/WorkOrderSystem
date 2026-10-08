@@ -5,7 +5,9 @@ import com.WorkOrder.ticket.dto.TicketCategoryTreeDto;
 import com.WorkOrder.ticket.model.TicketCategory;
 
 import javax.validation.Valid;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author Virgor
@@ -27,6 +29,14 @@ public interface TicketCategoryService {
      * @return 去重后的分类 ID，始终包含所选分类本身
      */
     List<Long> getCategoryIdsInSubtree(Long categoryId);
+
+    /**
+     * 按分类 ID 批量查询当前名称，供工单列表补充展示字段。
+     *
+     * @param categoryIds 需要展示名称的分类 ID，允许为空或包含重复值
+     * @return 分类 ID 与名称的映射，不包含已不存在的分类
+     */
+    Map<Long, String> getCategoryNamesByIds(Collection<Long> categoryIds);
 
     /**
      * 创建工单类别
