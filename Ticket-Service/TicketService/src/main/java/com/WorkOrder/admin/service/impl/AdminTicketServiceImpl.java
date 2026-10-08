@@ -29,6 +29,8 @@ import com.WorkOrder.ticket.messaging.TicketAssignedEventPublisher;
 import com.WorkOrder.ticket.messaging.TicketSearchChangePublisher;
 import com.WorkOrder.ticket.service.TicketResponseAttachmentEnricher;
 import com.WorkOrder.ticket.service.AssignmentScoreService;
+import com.WorkOrder.ticket.service.TicketCategoryService;
+import com.WorkOrder.ticket.support.TicketSlaStatusResolver;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -69,9 +71,10 @@ public class AdminTicketServiceImpl implements AdminTicketService {
     private final TicketAssignedEventPublisher ticketAssignedEventPublisher;
     private final AssignmentScoreService assignmentScoreService;
     private final TicketSearchChangePublisher ticketSearchChangePublisher;
+    private final TicketCategoryService ticketCategoryService;
     
     /**
-     * 查询管理员工单列表：空关键词由 MySQL 分页，有关键词由 ES 分页后批量回表。
+     * 查询管理员工单列表：空关键词由 MySQL 分页，有关键词先确定主库筛选范围，再由 ES 分页并回表。
      * 搜索页保留 ES 的命中总数；索引滞后时，复核后返回的记录可能少于每页数量。
      *
      * @param adminId 当前认证管理员的用户 ID
@@ -96,12 +99,24 @@ public class AdminTicketServiceImpl implements AdminTicketService {
             throw new SystemException(SystemExceptionEnum.ACCESS_DENIED);
         }
 
+        // 分类范围和 SLA 时点在一次请求内固定，候选筛选、分页与返回状态采用同一口径。
+        LocalDateTime now = LocalDateTime.now(TICKET_TIME_ZONE);
+        List<Long> categoryIds = adminTicketListDto.getCategoryId() == null ? Collections.emptyList()
+                : ticketCategoryService.getCategoryIdsInSubtree(adminTicketListDto.getCategoryId());
+
         // 空关键词继续使用 MySQL，返回数据库分页总数。
         if (!StringUtils.hasText(adminTicketListDto.getKeyword())) {
-            return queryAdminPageFromMysql(adminTicketListDto);
+            return queryAdminPageFromMysql(adminTicketListDto, categoryIds, now);
         }
 
         TicketSearchQuery ticketSearchQuery = getTicketSearchQuery(adminTicketListDto);
+        if (hasBusinessFilters(adminTicketListDto)) {
+            // 只读取候选 ID；当前业务条件在 ES 分页之前限定范围，避免旧投影漏掉匹配工单。
+            List<Tickets> candidates = ticketMapper.selectList(adminTicketFilters(adminTicketListDto, categoryIds, now)
+                    .select(Tickets::getId));
+            ticketSearchQuery.setTicketIds(candidates.stream().map(ticket -> ticket.getId().toString())
+                    .collect(Collectors.toList()));
+        }
 
         try {
             // 封装 Feign 调用，并检查响应是否成功。
@@ -120,11 +135,11 @@ public class AdminTicketServiceImpl implements AdminTicketService {
 
             // 批量回表，复核当前数据和筛选条件，不再分页。
             List<Tickets> tickets =
-                    loadCurrentTickets(data.getRecords(), adminTicketListDto);
+                    loadCurrentTickets(data.getRecords(), adminTicketListDto, categoryIds, now);
 
             // SQL IN 不保证返回顺序，需要按照 ES 的 ID 顺序恢复。
             List<TicketResponse> responses =
-                    toResponsesInSearchOrder(data.getRecords(), tickets);
+                    toResponsesInSearchOrder(data.getRecords(), tickets, now);
 
             return new PageResult<>(
                     ticketResponseAttachmentEnricher.enrichAll(responses),
@@ -142,9 +157,11 @@ public class AdminTicketServiceImpl implements AdminTicketService {
      *
      * @param records 按搜索排序返回的候选文档
      * @param tickets 主库重新查询得到的当前工单记录
+     * @param now 本次请求统一的 SLA 计算时点
      * @return 保持搜索顺序并使用当前主库信息的工单响应列表
      */
-    private List<TicketResponse> toResponsesInSearchOrder(List<TicketSearchDocument> records, List<Tickets> tickets) {
+    private List<TicketResponse> toResponsesInSearchOrder(
+            List<TicketSearchDocument> records, List<Tickets> tickets, LocalDateTime now) {
         Map<Long, Tickets> ticketsById = tickets.stream()
                 .collect(Collectors.toMap(Tickets::getId, ticket -> ticket));
         return records.stream()
@@ -152,7 +169,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                 .distinct()
                 .map(ticketsById::get)
                 .filter(Objects::nonNull)
-                .map(TicketConverter::toResponse)
+                .map(ticket -> toCurrentResponse(ticket, now))
                 .collect(Collectors.toList());
     }
 
@@ -161,9 +178,12 @@ public class AdminTicketServiceImpl implements AdminTicketService {
      *
      * @param records 待回查主库的搜索候选文档
      * @param adminTicketListDto 管理员工单列表请求数据
+     * @param categoryIds 所选分类及其后代 ID，没有分类筛选时为空
+     * @param now 本次请求统一的 SLA 计算时点
      * @return 候选 ID 对应的当前主库工单记录
      */
-    private List<Tickets> loadCurrentTickets(List<TicketSearchDocument> records, AdminTicketListDto adminTicketListDto) {
+    private List<Tickets> loadCurrentTickets(List<TicketSearchDocument> records, AdminTicketListDto adminTicketListDto,
+                                           List<Long> categoryIds, LocalDateTime now) {
         if (records.isEmpty()) {
             return Collections.emptyList();
         }
@@ -172,7 +192,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
                 .distinct()
                 .collect(Collectors.toList());
         // 搜索投影只提供候选 ID；展示字段和当前筛选条件以数据库为准。
-        LambdaQueryWrapper<Tickets> query = adminTicketFilters(adminTicketListDto)
+        LambdaQueryWrapper<Tickets> query = adminTicketFilters(adminTicketListDto, categoryIds, now)
                 .in(Tickets::getId, ticketIds);
         return ticketMapper.selectList(query);
     }
@@ -202,27 +222,33 @@ public class AdminTicketServiceImpl implements AdminTicketService {
      * 关键词为空时按创建时间和数值 ID 倒序查询 MySQL，保留数据库分页总数。
      *
      * @param adminTicketListDto 管理员工单列表查询参数
+     * @param categoryIds 所选分类及其后代 ID，没有分类筛选时为空
+     * @param now 本次请求统一的 SLA 计算时点
      * @return 管理员工单列表查询结果，空页的列表为空且保留查询总数
      */
-    private PageResult<TicketResponse> queryAdminPageFromMysql(AdminTicketListDto adminTicketListDto) {
-        LambdaQueryWrapper<Tickets> queryWrapper = adminTicketFilters(adminTicketListDto)
+    private PageResult<TicketResponse> queryAdminPageFromMysql(
+            AdminTicketListDto adminTicketListDto, List<Long> categoryIds, LocalDateTime now) {
+        LambdaQueryWrapper<Tickets> queryWrapper = adminTicketFilters(adminTicketListDto, categoryIds, now)
                 .orderByDesc(Tickets::getCreatedAt)
                 .orderByDesc(Tickets::getId);
         Page<Tickets> page = ticketMapper.selectPage(
                 new Page<>(adminTicketListDto.getPage(), adminTicketListDto.getPageSize()), queryWrapper);
         List<TicketResponse> responses = page.getRecords() == null ? Collections.emptyList()
-                : page.getRecords().stream().map(TicketConverter::toResponse).collect(Collectors.toList());
+                : page.getRecords().stream().map(ticket -> toCurrentResponse(ticket, now)).collect(Collectors.toList());
         return new PageResult<>(ticketResponseAttachmentEnricher.enrichAll(responses), page.getTotal(),
                 adminTicketListDto.getPage(), adminTicketListDto.getPageSize());
     }
 
     /**
-     * MySQL 分页和 ES 回表共用筛选条件，关键词交给 ES 分词查询。
+     * MySQL 分页、ES 候选范围和回表复核共用筛选条件，关键词交给 ES 查询。
      *
      * @param adminTicketListDto 管理员工单列表请求数据
+     * @param categoryIds 所选分类及其后代 ID，没有分类筛选时为空
+     * @param now 本次请求统一的 SLA 计算时点
      * @return Lambda查询条件WrapperTickets
      */
-    private LambdaQueryWrapper<Tickets> adminTicketFilters(AdminTicketListDto adminTicketListDto) {
+    private LambdaQueryWrapper<Tickets> adminTicketFilters(
+            AdminTicketListDto adminTicketListDto, List<Long> categoryIds, LocalDateTime now) {
         LambdaQueryWrapper<Tickets> queryWrapper = new LambdaQueryWrapper<>();
         String status = normalizeStatus(adminTicketListDto.getStatus());
         if (status != null) {
@@ -234,7 +260,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         }
         // 按类别查询
         if (adminTicketListDto.getCategoryId() != null) {
-            queryWrapper.eq(Tickets::getCategoryId, adminTicketListDto.getCategoryId());
+            queryWrapper.in(Tickets::getCategoryId, categoryIds);
         }
         // 按处理人查询
         if (adminTicketListDto.getHandlerId() != null) {
@@ -246,9 +272,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         }
         // 按SLA状态查询
         String slaStatus = trimToNull(adminTicketListDto.getSlaStatus());
-        if (slaStatus != null) {
-            queryWrapper.eq(Tickets::getSlaStatus, slaStatus);
-        }
+        TicketSlaStatusResolver.applyFilter(queryWrapper, slaStatus, now);
         // 按时间范围查询
         if (adminTicketListDto.getStart() != null) {
             queryWrapper.ge(Tickets::getCreatedAt, adminTicketListDto.getStart());
@@ -260,29 +284,42 @@ public class AdminTicketServiceImpl implements AdminTicketService {
     }
 
     /**
-     * 生成内部搜索请求，将可选条件规范化，并按上海时区转换创建时间边界。
+     * 生成关键词分页请求；业务筛选统一交给主库，避免依据滞后投影再次缩窄候选。
      *
      * @param adminTicketListDto 管理员工单列表请求数据
      * @return 工单搜索查询条件
      */
     private static TicketSearchQuery getTicketSearchQuery(AdminTicketListDto adminTicketListDto) {
         TicketSearchQuery ticketSearchQuery = new TicketSearchQuery();
-        ticketSearchQuery.setStatus(normalizeStatus(adminTicketListDto.getStatus()));
-        ticketSearchQuery.setPriority(adminTicketListDto.getPriority() == 0 ? null : adminTicketListDto.getPriority());
         ticketSearchQuery.setKeyword(trimToNull(adminTicketListDto.getKeyword()));
-        ticketSearchQuery.setCategoryId(idToString(adminTicketListDto.getCategoryId()));
-        ticketSearchQuery.setCreatorId(idToString(adminTicketListDto.getCreatorId()));
-        ticketSearchQuery.setHandlerId(idToString(adminTicketListDto.getHandlerId()));
-        ticketSearchQuery.setSlaStatus(trimToNull(adminTicketListDto.getSlaStatus()));
         ticketSearchQuery.setPage(Math.toIntExact(adminTicketListDto.getPage()));
         ticketSearchQuery.setPageSize(Math.toIntExact(adminTicketListDto.getPageSize()));
-        if (adminTicketListDto.getStart() != null) {
-            ticketSearchQuery.setStart(adminTicketListDto.getStart().atZone(TICKET_TIME_ZONE).toOffsetDateTime());
-        }
-        if (adminTicketListDto.getEnd() != null) {
-            ticketSearchQuery.setEnd(adminTicketListDto.getEnd().atZone(TICKET_TIME_ZONE).toOffsetDateTime());
-        }
         return ticketSearchQuery;
+    }
+
+    /**
+     * 没有业务筛选时直接使用关键词索引，避免为了普通搜索读取全部工单 ID。
+     *
+     * @param query 管理员工单列表请求
+     * @return 是否需要先确定当前主库候选范围
+     */
+    private static boolean hasBusinessFilters(AdminTicketListDto query) {
+        return normalizeStatus(query.getStatus()) != null || query.getPriority() != 0
+                || query.getCategoryId() != null || query.getCreatorId() != null || query.getHandlerId() != null
+                || trimToNull(query.getSlaStatus()) != null || query.getStart() != null || query.getEnd() != null;
+    }
+
+    /**
+     * 保留主库展示字段，同时让 SLA 标签与本次筛选结果一致。
+     *
+     * @param ticket 当前主库工单
+     * @param now 本次请求统一的 SLA 计算时点
+     * @return 包含实时 SLA 标签的工单响应
+     */
+    private static TicketResponse toCurrentResponse(Tickets ticket, LocalDateTime now) {
+        TicketResponse response = TicketConverter.toResponse(ticket);
+        response.setSlaStatus(TicketSlaStatusResolver.resolve(ticket, now));
+        return response;
     }
 
     /**
@@ -296,6 +333,7 @@ public class AdminTicketServiceImpl implements AdminTicketService {
         Assert.isTrue(query.getPageSize() != null && query.getPageSize() >= 1 && query.getPageSize() <= 100,
                 "每页数量必须介于 1 和 100 之间");
         Assert.isTrue(query.getPriority() >= 0 && query.getPriority() <= 4, "优先级必须介于 0 和 4 之间");
+        Assert.isTrue(TicketSlaStatusResolver.isValid(trimToNull(query.getSlaStatus())), "SLA 状态不合法");
         Assert.isTrue(query.getCategoryId() == null || query.getCategoryId() > 0, "分类 ID 必须为正数");
         Assert.isTrue(query.getCreatorId() == null || query.getCreatorId() > 0, "创建人 ID 必须为正数");
         Assert.isTrue(query.getHandlerId() == null || query.getHandlerId() > 0, "处理人 ID 必须为正数");
@@ -334,16 +372,6 @@ public class AdminTicketServiceImpl implements AdminTicketService {
      */
     private static String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
-    }
-
-    /**
-     * 保留可选 ID 的 null 语义，避免未指定筛选时发生空指针。
-     *
-     * @param id 可选的筛选 ID
-     * @return 十进制 ID 文本；未提供 ID 时为 null
-     */
-    private static String idToString(Long id) {
-        return id == null ? null : id.toString();
     }
 
     /**

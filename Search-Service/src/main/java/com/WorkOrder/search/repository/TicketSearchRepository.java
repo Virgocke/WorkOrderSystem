@@ -35,6 +35,7 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.MatchNoneQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.index.VersionType;
@@ -76,6 +77,11 @@ public class TicketSearchRepository {
      * 基础 from/size 分页窗口上限，页码与每页数量的乘积不能超过此值。
      */
     private static final int MAX_RESULT_WINDOW = 10000;
+
+    /**
+     * 主库候选分批构造 terms，避免单个查询超过 ES 默认的 terms 数量限制。
+     */
+    private static final int CANDIDATE_BATCH_SIZE = 10000;
 
     /**
      * 单条及批量写入共用的请求选项，要求目标必须为索引别名。
@@ -298,7 +304,7 @@ public class TicketSearchRepository {
 
     /**
      * 按关键字、精确过滤和创建时间范围查询搜索投影，按约定字段及稳定次序分页。
-     * 关键字精确匹配编号或分词匹配标题、描述；无关键字时仍应用其他过滤条件。
+     * 关键字匹配编号、标题原文片段或标题/描述的分词；无关键字时仍应用其他过滤条件。
      * 创建时间支持单边或双边范围且包含边界，所有筛选和排序均在分页前执行。
      * 不负责业务授权，调用方需生成可信权限条件；超时或分片失败不返回部分结果。
      *
@@ -333,12 +339,16 @@ public class TicketSearchRepository {
                     .should(QueryBuilders.multiMatchQuery(keyword)
                             .field("title", 2.0f)
                             .field("description"))
+                    // 原文子字段保留 IK 丢弃的 a 等停用词，同时支持 aa 匹配连续字母标题。
+                    .should(QueryBuilders.wildcardQuery("title.raw", literalContainsPattern(keyword))
+                            .caseInsensitive(true))
                     .minimumShouldMatch(1);
         } else {
             bool.must(QueryBuilders.matchAllQuery());
         }
 
         // 添加过滤条件
+        addTicketIdFilter(bool, query.getTicketIds());
         addFilter(bool, "categoryId", query.getCategoryId());
         addFilter(bool, "status", query.getStatus());
         addFilter(bool, "creatorId", query.getCreatorId());
@@ -385,6 +395,39 @@ public class TicketSearchRepository {
             records.add(readDocument(hit.getSourceAsString()));
         }
         return new TicketSearchPage(records, total.value, query.getPage(), query.getPageSize());
+    }
+
+    /**
+     * 将输入当作普通文本包含匹配，转义通配符，避免用户输入 * 或 ? 扩大查询范围。
+     *
+     * @param keyword 已去除首尾空白的关键词
+     * @return 只在两端添加通配符的字面量匹配模式
+     */
+    private String literalContainsPattern(String keyword) {
+        return "*" + keyword.replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?") + "*";
+    }
+
+    /**
+     * 在分页前限制主库候选集合，空候选不能退化成无条件查询。
+     *
+     * @param query 待补充过滤的布尔查询
+     * @param ticketIds 主库候选 ID；null 表示未启用主库候选限制
+     */
+    private void addTicketIdFilter(BoolQueryBuilder query, List<String> ticketIds) {
+        if (ticketIds == null) {
+            return;
+        }
+        if (ticketIds.isEmpty()) {
+            query.filter(new MatchNoneQueryBuilder());
+            return;
+        }
+        Assert.isTrue(ticketIds.stream().allMatch(StringUtils::hasText), "候选工单 ID 不能为空");
+        BoolQueryBuilder candidates = QueryBuilders.boolQuery().minimumShouldMatch(1);
+        for (int offset = 0; offset < ticketIds.size(); offset += CANDIDATE_BATCH_SIZE) {
+            candidates.should(QueryBuilders.termsQuery("ticketId",
+                    ticketIds.subList(offset, Math.min(offset + CANDIDATE_BATCH_SIZE, ticketIds.size()))));
+        }
+        query.filter(candidates);
     }
 
     /**

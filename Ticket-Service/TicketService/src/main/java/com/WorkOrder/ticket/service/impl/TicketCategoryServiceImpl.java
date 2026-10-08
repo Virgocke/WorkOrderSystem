@@ -15,7 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +34,33 @@ import java.util.stream.Collectors;
 public class TicketCategoryServiceImpl implements TicketCategoryService {
 
     private final TicketCategoryMapper ticketCategoryMapper;
+
+    /**
+     * 查询分类关系后遍历全部后代，已访问集合同时防止错误父子关系形成循环。
+     * 只读 ID 与父 ID，不加载分类技能或展示字段。
+     *
+     * @param categoryId 所选分类 ID
+     * @return 包含自身的去重分类 ID 列表
+     */
+    @Override
+    public List<Long> getCategoryIdsInSubtree(Long categoryId) {
+        List<TicketCategory> categories = ticketCategoryMapper.selectList(new LambdaQueryWrapper<TicketCategory>()
+                .select(TicketCategory::getId, TicketCategory::getParentId));
+        Map<Long, List<Long>> childrenByParent = categories.stream()
+                .filter(category -> category.getParentId() != null)
+                .collect(Collectors.groupingBy(TicketCategory::getParentId,
+                        Collectors.mapping(TicketCategory::getId, Collectors.toList())));
+        Set<Long> visited = new LinkedHashSet<>();
+        Deque<Long> pending = new ArrayDeque<>();
+        pending.add(categoryId);
+        while (!pending.isEmpty()) {
+            Long id = pending.removeFirst();
+            if (visited.add(id) && childrenByParent.containsKey(id)) {
+                pending.addAll(childrenByParent.get(id));
+            }
+        }
+        return new ArrayList<>(visited);
+    }
 
     /**
      * 获取工单类别树

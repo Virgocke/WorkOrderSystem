@@ -21,6 +21,14 @@ public interface TicketCategoryService {
     List<TicketCategoryTreeDto> getTicketCategoryTree();
 
     /**
+     * 返回所选分类及其所有后代，供工单列表统一筛选。
+     *
+     * @param categoryId 所选分类 ID
+     * @return 去重后的分类 ID，始终包含所选分类本身
+     */
+    List<Long> getCategoryIdsInSubtree(Long categoryId);
+
+    /**
      * 创建工单类别
      *
      * @param ticketCategoryDto 工单分类请求数据

@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * @author Virgor
@@ -16,9 +17,15 @@ import java.time.OffsetDateTime;
 public class TicketSearchQuery {
 
     /**
-     * 最多 500 个字符；去除首尾空白后精确匹配编号或用 ik_smart 查询标题、描述，空白时不限制。
+     * 最多 500 个字符；匹配编号、标题原文片段或标题/描述的 IK 分词，空白时不限制。
      */
     private String keyword;
+
+    /**
+     * 主库按当前业务条件得到的候选工单 ID；null 不限制，空集合明确表示没有匹配工单。
+     * 候选限制在 ES 分页和统计总数前应用，避免先分页后筛选造成空页或错误总数。
+     */
+    private List<String> ticketIds;
 
     /**
      * 分类 ID 精确过滤条件，空值或空白表示不限制分类。

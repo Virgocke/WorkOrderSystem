@@ -391,6 +391,19 @@ public class TicketSearchIndexService {
         Iterator<Map.Entry<String, JsonNode>> requiredSettings = expected.fields();
         while (requiredSettings.hasNext()) {
             Map.Entry<String, JsonNode> setting = requiredSettings.next();
+            if ("fields".equals(setting.getKey())) {
+                Object actualFields = definition.get("fields");
+                if (!(actualFields instanceof Map)) {
+                    throw new IOException("Elasticsearch 搜索索引缺少 " + name + ".raw 原文检索字段，请重建索引");
+                }
+                Iterator<Map.Entry<String, JsonNode>> subfields = setting.getValue().fields();
+                while (subfields.hasNext()) {
+                    Map.Entry<String, JsonNode> subfield = subfields.next();
+                    validateManagedField(name + "." + subfield.getKey(), subfield.getValue(),
+                            ((Map<?, ?>) actualFields).get(subfield.getKey()));
+                }
+                continue;
+            }
             if (!setting.getValue().asText().equals(definition.get(setting.getKey()))) {
                 throw new IOException("Elasticsearch 受管 V3 字段 " + name + " 的 "
                         + setting.getKey() + " 必须为 " + setting.getValue().asText());
