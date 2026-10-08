@@ -7,14 +7,14 @@ spring:
 
 work-order:
   messaging:
-    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:true}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
     ticket-search-topic: ${WORK_ORDER_TICKET_SEARCH_EVENT_TOPIC:wo-ticket-search-event}
     # Search-Service 只消费搜索事件，不运行发送端 Relay。
     outbox:
       enabled: false
   elasticsearch:
-    enabled: ${WORK_ORDER_ES_ENABLED:false}
+    enabled: ${WORK_ORDER_ES_ENABLED:true}
 
     # 支持配置多个节点，使用逗号分隔。
     uris: ${WORK_ORDER_ES_URIS:http://localhost:9200}
@@ -47,7 +47,7 @@ work-order:
 
     # 显式开启后由管理员创建导入任务，验证并独立发布前关键词请求仍为 503。
     ticket-sync:
-      enabled: ${WORK_ORDER_TICKET_SEARCH_SYNC_ENABLED:false}
+      enabled: ${WORK_ORDER_TICKET_SEARCH_SYNC_ENABLED:true}
       consumer-group: ${WORK_ORDER_TICKET_SEARCH_CONSUMER_GROUP:search-ticket-projection-v1}
       source-zone-id: ${WORK_ORDER_TICKET_SEARCH_SOURCE_ZONE_ID:Asia/Shanghai}
       batch-size: 500

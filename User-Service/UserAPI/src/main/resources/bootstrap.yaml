@@ -31,7 +31,7 @@ security:
 
 work-order:
   messaging:
-    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:true}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
     producer-group: ${ROCKETMQ_USER_PRODUCER_GROUP:user-service-producer}
     skill-topic: ${WORK_ORDER_SKILL_EVENT_TOPIC:wo-skill-event}

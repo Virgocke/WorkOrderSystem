@@ -43,9 +43,9 @@ mybatis-plus:
 
 work-order:
   search-projection:
-    publish-enabled: ${WORK_ORDER_TICKET_SEARCH_PUBLISH_ENABLED:false}
+    publish-enabled: ${WORK_ORDER_TICKET_SEARCH_PUBLISH_ENABLED:true}
   messaging:
-    enabled: ${WORK_ORDER_MESSAGING_ENABLED:false}
+    enabled: ${WORK_ORDER_MESSAGING_ENABLED:true}
     name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
     producer-group: ${ROCKETMQ_PRODUCER_GROUP:ticket-service-producer}
     ticket-topic: ${WORK_ORDER_TICKET_EVENT_TOPIC:wo-ticket-event}
